@@ -16,6 +16,6 @@ class MiTvApp : Application() {
             .followRedirects(true)
             .followSslRedirects(true)
             .build()
-        Repository(XtreamApi(client), SessionStore(this))
+        Repository(XtreamApi(client), SessionStore(this), this)
     }
 }

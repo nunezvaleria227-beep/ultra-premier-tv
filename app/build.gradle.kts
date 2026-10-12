@@ -13,8 +13,10 @@ android {
         // Fire OS 6 (Android 7.1 = API 25) en adelante
         minSdk = 25
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // En GitHub cada compilación sube el número, para que Android la instale como actualización.
+        val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = runNumber
+        versionName = "1.0.$runNumber"
     }
 
     // La llave de firma llega por variables de entorno (la crea el flujo de GitHub en cada compilación).
@@ -69,9 +71,11 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-core")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.core:core-ktx:1.13.1")
 
     // Red, imágenes y sesión

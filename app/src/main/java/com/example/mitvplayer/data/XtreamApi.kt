@@ -11,9 +11,14 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
+import java.io.File
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import javax.net.ssl.SSLException
 
 class AuthException(message: String) : IOException(message)
@@ -73,7 +78,9 @@ class XtreamApi(private val client: OkHttpClient) {
             expiresAt = user.str("exp_date")?.toLongOrNull(),
             maxConnections = user.str("max_connections")?.toIntOrNull(),
             activeConnections = user.str("active_cons")?.toIntOrNull(),
-            allowedFormats = formats
+            allowedFormats = formats,
+            timezone = root.optJSONObject("server_info")?.str("timezone"),
+            message = user.str("message")
         )
     }
 
@@ -85,19 +92,111 @@ class XtreamApi(private val client: OkHttpClient) {
             Category(id = id, name = o.str("category_name") ?: id)
         }
 
-    // ------------------------------------------------------------------ en vivo
+    // ------------------------------------------------------- listas completas
 
-    fun liveStreams(c: Credentials, categoryId: String): List<LiveChannel> =
-        parseArray(get(apiUrl(c, "get_live_streams", mapOf("category_id" to categoryId)))).mapObjects { o ->
-            val id = o.str("stream_id") ?: return@mapObjects null
+    /**
+     * Descarga una lista completa (canales, películas o series) directo a un archivo.
+     * Con [extra] se pide solo una categoría. Al terminar reemplaza el archivo anterior.
+     */
+    fun downloadList(c: Credentials, action: String, target: File, extra: Map<String, String> = emptyMap()) {
+        val request = Request.Builder()
+            .url(apiUrl(c, action, extra))
+            .header("User-Agent", Config.USER_AGENT)
+            .header("Accept", "application/json")
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (response.code == 401 || response.code == 403) {
+                throw AuthException("Acceso denegado por el servidor (${response.code})")
+            }
+            if (!response.isSuccessful) {
+                throw IOException("El servidor respondió con error ${response.code}")
+            }
+            val body = response.body ?: throw IOException("Respuesta vacía del servidor")
+            val temp = File(target.parentFile, target.name + ".tmp")
+            body.byteStream().use { input ->
+                temp.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+            }
+            target.delete()
+            if (!temp.renameTo(target)) {
+                temp.copyTo(target, overwrite = true)
+                temp.delete()
+            }
+        }
+    }
+
+    fun parseLive(file: File, defaultCategory: String): List<LiveChannel> =
+        JsonStream.readArray(file, LIVE_KEYS) { m ->
+            val id = m["stream_id"] ?: return@readArray null
+            val archive = if (m["tv_archive"] == "1") {
+                (m["tv_archive_duration"]?.toIntOrNull() ?: 1).coerceAtLeast(1)
+            } else {
+                0
+            }
             LiveChannel(
                 id = id,
-                name = o.str("name") ?: "Canal $id",
-                icon = o.str("stream_icon"),
-                categoryId = o.str("category_id") ?: categoryId,
-                number = o.optInt("num", 0)
+                name = m["name"] ?: "Canal $id",
+                icon = m["stream_icon"],
+                categoryId = m["category_id"] ?: defaultCategory,
+                number = m["num"]?.toIntOrNull() ?: 0,
+                archiveDays = archive,
+                added = m["added"]?.toLongOrNull() ?: 0L
             )
         }
+
+    fun parseMovies(file: File, defaultCategory: String): List<Movie> =
+        JsonStream.readArray(file, VOD_KEYS) { m ->
+            val id = m["stream_id"] ?: return@readArray null
+            Movie(
+                id = id,
+                name = m["name"] ?: "Película $id",
+                poster = m["stream_icon"],
+                categoryId = m["category_id"] ?: defaultCategory,
+                extension = m["container_extension"] ?: "mp4",
+                rating = m["rating"],
+                added = m["added"]?.toLongOrNull() ?: 0L
+            )
+        }
+
+    fun parseSeries(file: File, defaultCategory: String): List<SeriesItem> =
+        JsonStream.readArray(file, SERIES_KEYS) { m ->
+            val id = m["series_id"] ?: return@readArray null
+            SeriesItem(
+                id = id,
+                name = m["name"] ?: "Serie $id",
+                cover = m["cover"],
+                categoryId = m["category_id"] ?: defaultCategory,
+                plot = null,
+                rating = m["rating"],
+                added = m["last_modified"]?.toLongOrNull() ?: 0L
+            )
+        }
+
+    // ------------------------------------------------------- guía y Catch up
+
+    /** Guía completa de un canal (con la marca de qué programas están grabados en el servidor). */
+    fun epgTable(c: Credentials, streamId: String): List<EpgEntry> {
+        val root = parseObject(get(apiUrl(c, "get_simple_data_table", mapOf("stream_id" to streamId))))
+        val listings = root.optJSONArray("epg_listings") ?: return emptyList()
+        return listings.mapObjects { o ->
+            val start = o.str("start_timestamp")?.toLongOrNull() ?: return@mapObjects null
+            val end = o.str("stop_timestamp")?.toLongOrNull() ?: return@mapObjects null
+            EpgEntry(
+                title = decodeBase64(o.str("title")),
+                description = decodeBase64(o.str("description")),
+                start = start,
+                end = end,
+                hasArchive = o.str("has_archive") == "1"
+            )
+        }
+    }
+
+    /** Dirección de un programa ya emitido: el servidor espera la hora en SU zona horaria. */
+    fun timeshiftUrl(c: Credentials, streamId: String, startEpochSec: Long, minutes: Int, timezoneId: String?): String {
+        val format = SimpleDateFormat("yyyy-MM-dd:HH-mm", Locale.US)
+        format.timeZone = if (timezoneId.isNullOrBlank()) TimeZone.getDefault() else TimeZone.getTimeZone(timezoneId)
+        val start = format.format(Date(startEpochSec * 1000))
+        return "${c.server}/timeshift/${Uri.encode(c.username)}/${Uri.encode(c.password)}/$minutes/$start/$streamId.ts"
+    }
 
     fun shortEpg(c: Credentials, streamId: String, limit: Int = 2): List<EpgEntry> {
         val root = parseObject(
@@ -116,21 +215,6 @@ class XtreamApi(private val client: OkHttpClient) {
         }
     }
 
-    // ---------------------------------------------------------------- películas
-
-    fun vodStreams(c: Credentials, categoryId: String): List<Movie> =
-        parseArray(get(apiUrl(c, "get_vod_streams", mapOf("category_id" to categoryId)))).mapObjects { o ->
-            val id = o.str("stream_id") ?: return@mapObjects null
-            Movie(
-                id = id,
-                name = o.str("name") ?: "Película $id",
-                poster = o.str("stream_icon"),
-                categoryId = o.str("category_id") ?: categoryId,
-                extension = o.str("container_extension") ?: "mp4",
-                rating = o.str("rating")
-            )
-        }
-
     fun vodInfo(c: Credentials, vodId: String): MovieInfo {
         val root = parseObject(get(apiUrl(c, "get_vod_info", mapOf("vod_id" to vodId))))
         val info = root.optJSONObject("info") ?: JSONObject()
@@ -143,21 +227,6 @@ class XtreamApi(private val client: OkHttpClient) {
             director = info.str("director")
         )
     }
-
-    // ------------------------------------------------------------------- series
-
-    fun seriesList(c: Credentials, categoryId: String): List<SeriesItem> =
-        parseArray(get(apiUrl(c, "get_series", mapOf("category_id" to categoryId)))).mapObjects { o ->
-            val id = o.str("series_id") ?: return@mapObjects null
-            SeriesItem(
-                id = id,
-                name = o.str("name") ?: "Serie $id",
-                cover = o.str("cover"),
-                categoryId = o.str("category_id") ?: categoryId,
-                plot = o.str("plot"),
-                rating = o.str("rating")
-            )
-        }
 
     fun seriesInfo(c: Credentials, seriesId: String): SeriesDetail {
         val root = parseObject(get(apiUrl(c, "get_series_info", mapOf("series_id" to seriesId))))
@@ -296,6 +365,11 @@ class XtreamApi(private val client: OkHttpClient) {
         return out
     }
 }
+
+private val LIVE_KEYS = setOf("stream_id", "name", "stream_icon", "category_id", "num", "tv_archive", "tv_archive_duration", "added")
+private val VOD_KEYS = setOf("stream_id", "name", "stream_icon", "category_id", "container_extension", "rating", "added")
+private val SERIES_KEYS = setOf("series_id", "name", "cover", "category_id", "rating", "last_modified")
+
 
 /** Mensaje entendible para mostrar al usuario. */
 fun Throwable.userMessage(): String = when (this) {

@@ -39,6 +39,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.mitvplayer.data.Episode
+import com.example.mitvplayer.data.Kind
 import com.example.mitvplayer.data.Movie
 import com.example.mitvplayer.data.MovieInfo
 import com.example.mitvplayer.data.SeriesDetail
@@ -69,11 +70,11 @@ fun MovieDetailScreen(vm: AppViewModel, movie: Movie) {
         movie.rating?.takeIf { (it.toFloatOrNull() ?: 0f) > 0f }?.let { "★ $it" }
     ).joinToString("   •   ")
 
+    AppBackground {
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundColor)
-            .padding(horizontal = 48.dp, vertical = 40.dp)
+            .padding(horizontal = 48.dp, vertical = 32.dp)
     ) {
         PosterImage(
             url = movie.poster,
@@ -118,12 +119,21 @@ fun MovieDetailScreen(vm: AppViewModel, movie: Movie) {
                 Text(text = "Reparto: $it", color = TextSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(28.dp))
-            TvButton(
-                text = "▶  Reproducir",
-                onClick = { vm.playMovie(context, movie) },
-                modifier = Modifier.focusRequester(playFocus)
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TvButton(
+                    text = "▶  Reproducir",
+                    onClick = { vm.playMovie(context, movie) },
+                    modifier = Modifier.focusRequester(playFocus)
+                )
+                val favorite = vm.isFavorite(Kind.MOVIES, movie.id)
+                TvButton(
+                    text = if (favorite) "★  En favoritos" else "☆  Añadir a favoritos",
+                    onClick = { vm.toggleFavorite(Kind.MOVIES, movie.id) },
+                    selected = favorite
+                )
+            }
         }
+    }
     }
 }
 
@@ -150,10 +160,10 @@ fun SeriesDetailScreen(vm: AppViewModel, show: SeriesItem) {
         }
     }
 
+    AppBackground {
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundColor)
             .padding(horizontal = 48.dp, vertical = 32.dp)
     ) {
         Column(
@@ -177,6 +187,14 @@ fun SeriesDetailScreen(vm: AppViewModel, show: SeriesItem) {
                 color = TextPrimary,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(8.dp))
+            val favorite = vm.isFavorite(Kind.SERIES, show.id)
+            TvButton(
+                text = if (favorite) "★  En favoritos" else "☆  Añadir a favoritos",
+                onClick = { vm.toggleFavorite(Kind.SERIES, show.id) },
+                selected = favorite,
+                compact = true
             )
             val plot = detail?.plot ?: show.plot
             if (plot != null) {
@@ -214,6 +232,7 @@ fun SeriesDetailScreen(vm: AppViewModel, show: SeriesItem) {
                 )
             }
         }
+    }
     }
 }
 

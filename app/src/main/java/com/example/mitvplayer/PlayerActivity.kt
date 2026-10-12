@@ -6,7 +6,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.GestureDetector
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
@@ -17,6 +19,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -72,6 +75,27 @@ class PlayerActivity : ComponentActivity() {
     private var retryCount = 0
     private var epgJob: Job? = null
 
+    /** En el celular: deslizar arriba/abajo cambia de canal y tocar muestra la información. */
+    private val gestures by lazy {
+        GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                if (items.isNotEmpty() && items[index].isLive) showBanner(items[index])
+                return true
+            }
+
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                if (items.isEmpty() || !items[index].isLive) return false
+                if (Math.abs(velocityY) > 900f && Math.abs(velocityY) > Math.abs(velocityX)) {
+                    zap(if (velocityY < 0) +1 else -1)
+                    return true
+                }
+                return false
+            }
+        })
+    }
+
     private val handler = Handler(Looper.getMainLooper())
     private val hideBannerTask = Runnable { banner.visibility = View.GONE }
     private val retryTask = Runnable { retryPlayback() }
@@ -126,7 +150,7 @@ class PlayerActivity : ComponentActivity() {
             .setReadTimeoutMs(20_000)
 
         val exo = ExoPlayer.Builder(this)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(this, dataSourceFactory)))
             .build()
         exo.addListener(listener)
         playerView.player = exo
@@ -233,6 +257,11 @@ class PlayerActivity : ComponentActivity() {
     }
 
     // ------------------------------------------------------------ control remoto
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        if (items.isNotEmpty() && items[index].isLive) gestures.onTouchEvent(ev)
+        return super.dispatchTouchEvent(ev)
+    }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_DOWN && items.isNotEmpty()) {

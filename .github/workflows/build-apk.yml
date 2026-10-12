@@ -3,6 +3,8 @@ name: Build APK
 # Genera el APK final (release) en la nube; no hace falta Android Studio.
 #  - Cada vez que se sube código a la rama main compila el proyecto y publica el APK en "Releases".
 #  - También se puede lanzar a mano desde la pestaña Actions.
+#  - La llave de firma se crea una sola vez y se conserva entre compilaciones, así cada versión
+#    nueva se instala ENCIMA de la anterior sin desinstalar.
 #  - El enlace estable al último APK es:
 #    https://github.com/nunezvaleria227-beep/ultra-premier-tv/releases/latest/download/UltraPremierTV.apk
 on:
@@ -10,12 +12,25 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    # Cada 3 días: solo "toca" la llave guardada para que GitHub no la borre por falta de uso.
+    - cron: "17 6 */3 * *"
 
 permissions:
   contents: write
 
 jobs:
+  keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/signing
+          key: ultrapremier-signing-v1
+
   build:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,18 +42,33 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Crear la llave de firma de esta versión
+      - name: Restaurar la llave de firma
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/signing
+          key: ultrapremier-signing-v1
+
+      - name: Preparar la llave de firma
         run: |
-          KS="$RUNNER_TEMP/release.jks"
-          PASS="$(openssl rand -hex 16)"
+          DIR="$RUNNER_TEMP/signing"
+          mkdir -p "$DIR"
+          if [ ! -s "$DIR/release.jks" ] || [ ! -s "$DIR/pass.txt" ]; then
+            rm -f "$DIR/release.jks" "$DIR/pass.txt"
+            printf '%s' "$(openssl rand -hex 16)" > "$DIR/pass.txt"
+            PASS="$(cat "$DIR/pass.txt")"
+            keytool -genkeypair -noprompt \
+              -keystore "$DIR/release.jks" -storetype PKCS12 \
+              -alias ultrapremier -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PASS" -keypass "$PASS" \
+              -dname "CN=Ultra Premier TV, O=Ultra Premier TV, C=MX"
+            echo "::notice::Llave de firma NUEVA (primera vez o se borró la anterior): esta versión sí exige desinstalar la anterior."
+          else
+            echo "::notice::Llave de firma restaurada: esta versión se instala encima de la anterior."
+          fi
+          PASS="$(cat "$DIR/pass.txt")"
           echo "::add-mask::$PASS"
-          keytool -genkeypair -noprompt \
-            -keystore "$KS" -storetype PKCS12 \
-            -alias ultrapremier -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass "$PASS" -keypass "$PASS" \
-            -dname "CN=Ultra Premier TV, O=Ultra Premier TV, C=MX"
           {
-            echo "KEYSTORE_PATH=$KS"
+            echo "KEYSTORE_PATH=$DIR/release.jks"
             echo "KEYSTORE_PASSWORD=$PASS"
             echo "KEY_ALIAS=ultrapremier"
             echo "KEY_PASSWORD=$PASS"
@@ -51,7 +81,7 @@ jobs:
           ./gradlew assembleRelease --console=plain --stacktrace 2>&1 | tee build.log || {
             echo "---- ERRORES DE COMPILACION ----"
             # Se publican como anotaciones para poder leerlos sin descargar el log completo.
-            grep -E "^e: |error: |What went wrong" -A2 build.log | grep -v '^--$' | head -60 | while IFS= read -r line; do
+            grep -E "^e: |error: |What went wrong" -A2 build.log | grep -v '^--$' | head -80 | while IFS= read -r line; do
               echo "::error::${line}"
             done
             exit 1
@@ -77,6 +107,7 @@ jobs:
           echo "::notice::$(grep -m1 '^application-label:' badging.log)"
           echo "::notice::$(grep -m1 'leanback-launchable-activity' badging.log | cut -c1-120)"
           echo "::notice::$(grep -m1 'Signer #1 certificate DN' sign.log)"
+          echo "::notice::$(grep -m1 'Signer #1 certificate SHA-256' sign.log)"
           echo "::notice::$(grep -m1 'Verified using v2' sign.log)"
           echo "::notice::depurable=no"
 

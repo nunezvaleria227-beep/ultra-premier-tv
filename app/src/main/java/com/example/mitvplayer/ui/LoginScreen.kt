@@ -44,10 +44,9 @@ fun LoginScreen(vm: AppViewModel) {
     val needsServer = Config.PORTAL_URL.isBlank()
     val state = vm.loginState
 
+    AppBackground {
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundColor),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -158,5 +157,6 @@ fun LoginScreen(vm: AppViewModel) {
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
     }
 }
