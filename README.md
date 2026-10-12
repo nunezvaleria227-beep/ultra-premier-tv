@@ -58,7 +58,7 @@ Los códigos de Downloader (los números que se escriben en la app) **los genera
 Importante:
 - Toda URL enviada a ese acortador es **pública**: cualquiera con el código puede descargar el APK, y el APK lleva dentro la URL del portal (ver punto 1).
 - Si prefieres no usar código, en Downloader también puedes escribir la URL completa.
-- Los APK que genera GitHub se firman con una llave distinta en cada compilación, así que **para actualizar la app hay que desinstalar la versión anterior** antes de instalar la nueva.
+- Cada compilación del APK final (release) se firma con una llave nueva, creada en GitHub y que nunca se guarda, así que **para actualizar la app hay que desinstalar la versión anterior** antes de instalar la nueva.
 
 ## 4. Preparar el Fire TV
 
@@ -74,6 +74,10 @@ adb install -r UltraPremierTV.apk
 ```
 
 La app aparece en **Tus apps y juegos**.
+
+### Aviso de Play Protect
+
+Play Protect (Google) existe en celulares, tablets y Android TV; **el Fire TV no lo tiene**. En un dispositivo Android, una app instalada fuera de una tienda puede mostrar "app no reconocida" o pedir analizarla. Pulsa **Más detalles → Instalar de todos modos** (o **Analizar app**). Para que no aparezca nunca habría que publicar la app en Google Play o en Amazon Appstore.
 
 ## 5. Control remoto
 

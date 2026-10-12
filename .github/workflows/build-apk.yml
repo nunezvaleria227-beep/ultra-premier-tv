@@ -1,6 +1,6 @@
 name: Build APK
 
-# Genera el APK en la nube (no hace falta Android Studio).
+# Genera el APK final (release) en la nube; no hace falta Android Studio.
 #  - Cada vez que se sube código a la rama main compila el proyecto y publica el APK en "Releases".
 #  - También se puede lanzar a mano desde la pestaña Actions.
 #  - El enlace estable al último APK es:
@@ -27,11 +27,28 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Compilar APK
+      - name: Crear la llave de firma de esta versión
+        run: |
+          KS="$RUNNER_TEMP/release.jks"
+          PASS="$(openssl rand -hex 16)"
+          echo "::add-mask::$PASS"
+          keytool -genkeypair -noprompt \
+            -keystore "$KS" -storetype PKCS12 \
+            -alias ultrapremier -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$PASS" -keypass "$PASS" \
+            -dname "CN=Ultra Premier TV, O=Ultra Premier TV, C=MX"
+          {
+            echo "KEYSTORE_PATH=$KS"
+            echo "KEYSTORE_PASSWORD=$PASS"
+            echo "KEY_ALIAS=ultrapremier"
+            echo "KEY_PASSWORD=$PASS"
+          } >> "$GITHUB_ENV"
+
+      - name: Compilar APK release
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew assembleDebug --console=plain --stacktrace 2>&1 | tee build.log || {
+          ./gradlew assembleRelease --console=plain --stacktrace 2>&1 | tee build.log || {
             echo "---- ERRORES DE COMPILACION ----"
             # Se publican como anotaciones para poder leerlos sin descargar el log completo.
             grep -E "^e: |error: |What went wrong" -A2 build.log | grep -v '^--$' | head -60 | while IFS= read -r line; do
@@ -39,7 +56,29 @@ jobs:
             done
             exit 1
           }
-          cp app/build/outputs/apk/debug/app-debug.apk UltraPremierTV.apk
+          cp app/build/outputs/apk/release/app-release.apk UltraPremierTV.apk
+
+      - name: Verificar firma y que no sea de depuración
+        run: |
+          BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          APK=UltraPremierTV.apk
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee sign.log
+          if grep -qi "Android Debug" sign.log; then
+            echo "::error::El APK está firmado con la llave de depuración"
+            exit 1
+          fi
+          "$BT/aapt" dump badging "$APK" > badging.log
+          if grep -q "application-debuggable" badging.log; then
+            echo "::error::El APK es depurable"
+            exit 1
+          fi
+          # Resumen legible como anotaciones
+          echo "::notice::$(grep -m1 '^package:' badging.log)"
+          echo "::notice::$(grep -m1 '^application-label:' badging.log)"
+          echo "::notice::$(grep -m1 'leanback-launchable-activity' badging.log | cut -c1-120)"
+          echo "::notice::$(grep -m1 'Signer #1 certificate DN' sign.log)"
+          echo "::notice::$(grep -m1 'Verified using v2' sign.log)"
+          echo "::notice::depurable=no"
 
       - uses: actions/upload-artifact@v4
         with:

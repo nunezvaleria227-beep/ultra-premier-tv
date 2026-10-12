@@ -17,10 +17,36 @@ android {
         versionName = "1.0"
     }
 
+    // La llave de firma llega por variables de entorno (la crea el flujo de GitHub en cada compilación).
+    // Si no existen (por ejemplo, al compilar desde Android Studio), se firma con la llave de depuración.
+    val releaseKeystorePath: String? = System.getenv("KEYSTORE_PATH")
+
+    signingConfigs {
+        create("release") {
+            if (releaseKeystorePath != null) {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+            isDebuggable = false
+            signingConfig = if (releaseKeystorePath != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 
     compileOptions {
