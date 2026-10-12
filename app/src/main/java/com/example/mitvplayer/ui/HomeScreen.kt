@@ -80,7 +80,7 @@ fun HomeScreen(vm: AppViewModel) {
     val account = vm.account
     val expiresAt = account?.expiresAt
     val daysLeft = expiresAt?.let { (it * 1000 - now) / 86_400_000L }
-    val hasAlert = (daysLeft != null && daysLeft <= 7) || !account?.message.isNullOrBlank()
+    val hasAlert = daysLeft != null && daysLeft <= 7
 
     AppBackground {
         Column(

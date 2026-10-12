@@ -1,13 +1,21 @@
-# Ultra Premier TV — app para Fire TV
+# Ultra Premier TV — app para Fire TV y Android
 
-App nativa de Android (Kotlin + Jetpack Compose + Media3/ExoPlayer) para Fire TV y Fire TV Stick.
-Inicia sesión con **usuario y contraseña** contra un portal **Xtream Codes** y reproduce:
+App nativa de Android (Kotlin + Jetpack Compose + Media3/ExoPlayer) para Fire TV, Fire TV Stick y celulares Android.
+Inicia sesión con **usuario y contraseña** contra un portal **Xtream Codes** y ofrece:
 
-- **TV en vivo** por categorías, con cambio de canal y guía "Ahora / Después" (si el servidor la tiene).
-- **Películas** con póster, descripción y reproducción.
-- **Series** con temporadas, episodios y paso automático al siguiente episodio.
+| Pantalla | Qué hace |
+|---|---|
+| **Inicio** | Reloj, fecha, *Búsqueda maestra*, íconos de radio, avisos, cuenta, grabaciones, ajustes y salir; tres mosaicos (TV en directo, Cine, Series) con su "última actualización" y botón de actualizar; barras de EPG, Pantalla múltiple y Catch up; fecha de expiración de la cuenta. |
+| **TV en directo** | Tres paneles: categorías (con buscador y cantidades), lista de canales con el programa actual y su barra de avance, y vista previa. **OK** una vez = vista previa; **OK** otra vez = pantalla completa. |
+| **Cine / Series** | Barra lateral de categorías (TODO, FAVORITOS, RECIENTEMENTE MIRADA, RECIENTEMENTE AÑADIDO y las del servidor, cada una con su cantidad) y cuadrícula de pósters con calificación. La **X** oculta las categorías. |
+| **EPG** | Cuadrícula de categorías → canales con lo que dan ahora y lo que sigue. |
+| **Catch up** | Canales con archivo en el servidor → día → programa ya emitido. |
+| **Pantalla múltiple** | Elige entre 6 diseños y pon un canal en cada recuadro; solo uno suena a la vez. |
+| **Búsqueda maestra** | Canales, películas y series a la vez (sin importar acentos ni mayúsculas). |
+| **Grabaciones** | Graba un canal en vivo a un archivo del dispositivo y lo reproduce después. |
+| **Favoritos e historial** | Mantén pulsado un canal/póster (o la tecla **Menú** del control) para marcarlo como favorito. |
 
-Funciona con Fire OS 6 en adelante (Android 7.1+). Está pensada para el control remoto (D-pad), sin pantalla táctil.
+Funciona con Fire OS 6 en adelante (Android 7.1+). Se maneja con el control remoto (D-pad) y también con el dedo.
 
 > Es solo un reproductor: úsala con servicios y contenido que tengas derecho a ver.
 
@@ -28,18 +36,19 @@ Si el portal cambia de dirección, se cambia solo esa línea y se vuelve a compi
 
 **Ojo:** la URL queda dentro del APK. Quien tenga el APK o su código de Downloader puede verla (y si subes el código a un repositorio público, también ahí). Tu usuario y contraseña nunca van en el código: se escriben en pantalla.
 
-## 2. Obtener el APK (dos caminos)
+## 2. Obtener el APK
 
 ### A) En la nube con GitHub (no necesitas Android Studio)
 
-1. Crea un repositorio **público** en GitHub y sube esta carpeta.
-2. Crea una etiqueta, por ejemplo `v1.0` (en GitHub: *Releases → Draft a new release → Choose a tag → crear `v1.0` → Publish*).
-3. La pestaña **Actions** compila el proyecto (`.github/workflows/build-apk.yml`) y adjunta `UltraPremierTV.apk` a ese release. Tarda unos minutos.
-4. El enlace directo y estable al APK es:
+Cada vez que se sube código a la rama `main`, la pestaña **Actions** compila el proyecto (`.github/workflows/build-apk.yml`), lo firma y publica `UltraPremierTV.apk` en **Releases**. Tarda unos 2 minutos.
+
+El enlace directo y estable al **último** APK es:
 
 ```
-https://github.com/TU_USUARIO/TU_REPOSITORIO/releases/latest/download/UltraPremierTV.apk
+https://github.com/nunezvaleria227-beep/ultra-premier-tv/releases/latest/download/UltraPremierTV.apk
 ```
+
+**Actualizar sin desinstalar:** la llave de firma se crea una sola vez y GitHub la conserva entre compilaciones, así que cada versión nueva se instala **encima** de la anterior. Cada release indica en sus notas si la llave es la misma. Si alguna vez GitHub la borra (por ejemplo, tras muchos días sin compilar), esa versión pedirá desinstalar la anterior una vez; una tarea programada la mantiene viva cada 3 días.
 
 ### B) En tu computadora con Android Studio
 
@@ -47,18 +56,13 @@ https://github.com/TU_USUARIO/TU_REPOSITORIO/releases/latest/download/UltraPremi
 2. **Build → Build Bundle(s) / APK(s) → Build APK(s)**, o en terminal: `./gradlew assembleDebug`
 3. El archivo queda en `app/build/outputs/apk/debug/app-debug.apk`.
 
-## 3. Código de Downloader
+## 3. Descarga con Downloader
 
-Los códigos de Downloader (los números que se escriben en la app) **los genera AFTVnews**, no la app ni yo: se crean a partir de una URL en su acortador.
+- **Enlace corto:** crea uno con el acortador que prefieras (por ejemplo `is.gd/UltraPremierTV`) que apunte al enlace de GitHub de arriba. Como ese enlace siempre sirve la última versión, el corto no hay que tocarlo nunca.
+- **Código numérico de Downloader:** lo genera AFTVnews en **https://go.aftvnews.com** (pega la URL, resuelve el captcha y envía).
+- En el Fire TV abre **Downloader**, escribe el enlace o el código, pulsa **Go** y al terminar **Instalar**.
 
-1. Ten el APK en una **URL directa y pública** (por ejemplo, el enlace de GitHub de arriba).
-2. Entra a **https://go.aftvnews.com**, pega esa URL, resuelve el captcha y envía. Te da un **código numérico** (y un enlace corto `aftv.news/código`).
-3. En el Fire TV abre **Downloader**, escribe el código en el campo de URL, pulsa **Go** y, al terminar la descarga, **Instalar**.
-
-Importante:
-- Toda URL enviada a ese acortador es **pública**: cualquiera con el código puede descargar el APK, y el APK lleva dentro la URL del portal (ver punto 1).
-- Si prefieres no usar código, en Downloader también puedes escribir la URL completa.
-- Cada compilación del APK final (release) se firma con una llave nueva, creada en GitHub y que nunca se guarda, así que **para actualizar la app hay que desinstalar la versión anterior** antes de instalar la nueva.
+Toda URL enviada a un acortador es **pública**: cualquiera con el código puede descargar el APK, y el APK lleva dentro la URL del portal (ver punto 1).
 
 ## 4. Preparar el Fire TV
 
@@ -84,47 +88,65 @@ Play Protect (Google) existe en celulares, tablets y Android TV; **el Fire TV no
 | Dónde | Botón | Acción |
 |---|---|---|
 | Menús | ◀ ▶ ▲ ▼ / OK | Moverse y elegir |
-| Menús | Atrás | Volver (en Home sale de la app) |
-| TV en vivo | ▲ / CH+ | Canal siguiente |
-| TV en vivo | ▼ / CH− | Canal anterior |
-| TV en vivo | OK | Muestra nombre del canal y la guía |
+| Menús | Atrás | Volver (en el inicio sale de la app) |
+| Canales, películas, series | Mantener OK o tecla **Menú** | Añadir / quitar de favoritos |
+| TV en directo | OK en un canal | Vista previa; OK otra vez = pantalla completa |
+| Pantalla completa en vivo | ▲ / CH+ | Canal siguiente |
+| Pantalla completa en vivo | ▼ / CH− | Canal anterior |
+| Pantalla completa en vivo | OK | Muestra nombre del canal y la guía |
 | Películas / series | OK, ◀ ▶, Play/Pausa | Controles de Media3 (adelantar, pausar, audio y subtítulos) |
 
-Si un canal se corta o no abre, en **Cuenta** puedes cambiar el formato de TV en vivo entre HLS (m3u8) y MPEG‑TS.
+En el celular: tocar elige, mantener pulsado marca favorito, y en un canal en vivo a pantalla completa deslizar hacia arriba/abajo cambia de canal.
 
-## 6. Estructura del proyecto
+Si un canal se corta o no abre, en **Ajustes** puedes cambiar el formato de TV en vivo entre HLS (m3u8) y MPEG‑TS.
+
+## 6. Cómo funcionan las listas
+
+Al iniciar sesión la app descarga **completas** las listas de canales, películas y series (por eso cada categoría muestra su cantidad y la búsqueda es instantánea) y las guarda en el dispositivo. Se vuelven a descargar solas cada 12 horas, o cuando pulsas el botón de actualizar de un mosaico (o **Ajustes → Actualizar todas las listas**). La primera vez puede tardar según el tamaño de tu lista.
+
+Las grabaciones se guardan en `Android/data/com.ultrapremier.tv/files/Movies/Grabaciones` y cada una usa una conexión de tu cuenta.
+
+## 7. Estructura del proyecto
 
 ```
-.github/workflows/build-apk.yml   Compila el APK en GitHub
+.github/workflows/build-apk.yml   Compila, firma y publica el APK en GitHub
 app/src/main/res/
-├── drawable-xhdpi/banner.png     Banner del launcher y logo del login (de tu logotipo)
+├── drawable-xhdpi/banner.png     Banner del launcher y logo (de tu logotipo)
 └── drawable-nodpi/ic_launcher.png Ícono de la app (de tu logotipo)
 app/src/main/java/com/example/mitvplayer/
 ├── Config.kt            URL del portal y User-Agent
 ├── MiTvApp.kt           Application: crea el repositorio
-├── MainActivity.kt      Navegación entre Login / Home / detalles
-├── PlayerActivity.kt    Reproductor (ExoPlayer) y cambio de canal
+├── MainActivity.kt      Navegación entre todas las pantallas
+├── PlayerActivity.kt    Reproductor a pantalla completa (ExoPlayer)
+├── RecordingService.kt  Grabación de canales en vivo
 ├── data/
-│   ├── XtreamApi.kt     Cliente de player_api.php (login, canales, VOD, series, EPG)
-│   ├── Repository.kt    Sesión en memoria + caché por categoría
+│   ├── XtreamApi.kt     Cliente de player_api.php (login, listas, EPG, Catch up)
+│   ├── JsonStream.kt    Lectura de listas JSON enormes sin gastar memoria
+│   ├── Repository.kt    Listas completas con caché en disco, guía y sesión
+│   ├── Library.kt       Favoritos e historial
 │   ├── SessionStore.kt  Guarda la sesión cifrada (Android Keystore)
 │   └── Models.kt
 └── ui/
-    ├── AppViewModel.kt  Estado de la app y acciones
-    ├── BrowseState.kt   Categorías + contenido (scroll y foco se conservan)
+    ├── AppViewModel.kt        Estado de la app, navegación y acciones
+    ├── BrowseState.kt         Categorías, cantidades, orden y favoritos de una sección
+    ├── HomeScreen.kt          Inicio
+    ├── LiveScreen.kt          En vivo en tres paneles con vista previa
+    ├── PosterGridScreen.kt    Cine y Series
+    ├── EpgScreens.kt          EPG y Catch up
+    ├── MultiScreen.kt         Pantalla múltiple
+    ├── SearchScreen.kt        Búsqueda maestra
+    ├── MiscScreens.kt         Cuenta, avisos, ajustes y grabaciones
+    ├── DetailScreens.kt       Detalle de película y de serie
     ├── LoginScreen.kt
-    ├── HomeScreen.kt    Pestañas En vivo / Películas / Series / Cuenta
-    ├── DetailScreens.kt Detalle de película y de serie
-    ├── Components.kt    Tarjetas y botones con foco para TV
-    └── Theme.kt
+    ├── Components.kt / BrowseComponents.kt / UiIcons.kt / Theme.kt / Format.kt
 ```
 
 El identificador de la app (`applicationId`) es `com.ultrapremier.tv`; el paquete interno del código sigue siendo `com.example.mitvplayer` y no afecta a los usuarios.
 
-## 7. Notas de seguridad y límites
+## 8. Notas de seguridad y límites
 
 - **Credenciales:** si marcas "Recordar sesión", se guardan cifradas con el Android Keystore. Cerrar sesión las borra. Las copias de seguridad de Android están desactivadas.
 - **HTTP sin cifrar:** muchos portales IPTV usan `http://`, por eso la app permite tráfico no cifrado (`usesCleartextTraffic`). Si tu portal tiene `https://`, úsalo. Para exigir HTTPS, quita ese atributo de `AndroidManifest.xml`.
-- **Conexiones simultáneas:** la mayoría de las cuentas permite una sola. La app abre solo un stream a la vez; si ves "máximo de conexiones", cierra la reproducción en otro dispositivo.
-- **Todavía no incluye:** búsqueda, favoritos, "continuar viendo", guía EPG completa en cuadrícula ni control parental.
-- El proyecto se entregó **sin compilar** (el entorno donde se escribió no tiene acceso a los repositorios de Android). Si Android Studio o GitHub Actions marcan algún error, hay que corregirlo; el código está escrito contra las versiones fijadas en `app/build.gradle.kts`.
+- **Conexiones simultáneas:** la mayoría de las cuentas permite una sola. La vista previa se corta antes de abrir pantalla completa. La **Pantalla múltiple** y las **grabaciones** necesitan más de una conexión: si tu cuenta solo permite una, solo abrirá un canal a la vez.
+- **Catch up y guía:** dependen de que tu proveedor las incluya; si no, la app lo indica.
+- **Todavía no incluye:** guía de TV en cuadrícula por horario ni control parental.

@@ -1,7 +1,11 @@
 package com.example.mitvplayer.ui
 
 import android.app.Application
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -12,6 +16,7 @@ import com.example.mitvplayer.Config
 import com.example.mitvplayer.MiTvApp
 import com.example.mitvplayer.PlayItem
 import com.example.mitvplayer.PlayerActivity
+import com.example.mitvplayer.RecordingManager
 import com.example.mitvplayer.RecordingService
 import com.example.mitvplayer.data.AccountInfo
 import com.example.mitvplayer.data.Credentials
@@ -355,7 +360,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Graba el canal a un archivo del equipo. [minutes] = null graba hasta que se detenga. */
     fun startRecording(context: Context, channel: LiveChannel, minutes: Int?) {
+        if (RecordingManager.current != null) {
+            Toast.makeText(context, "Ya hay una grabación en curso. Detenla en Grabaciones.", Toast.LENGTH_LONG).show()
+            return
+        }
+        // Android 13+: sin este permiso la grabación funciona, pero no se ve el aviso con el botón "Detener".
+        val activity = context.findActivity()
+        if (activity != null && Build.VERSION.SDK_INT >= 33 &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            activity.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 77)
+        }
         RecordingService.start(context, repo.recordUrl(channel.id), channel.name, minutes)
+        Toast.makeText(context, "Grabando ${channel.name}…", Toast.LENGTH_SHORT).show()
     }
 
     // ----------------------------------------------------------- pantalla múltiple

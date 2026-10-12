@@ -62,12 +62,17 @@ jobs:
               -storepass "$PASS" -keypass "$PASS" \
               -dname "CN=Ultra Premier TV, O=Ultra Premier TV, C=MX"
             echo "::notice::Llave de firma NUEVA (primera vez o se borró la anterior): esta versión sí exige desinstalar la anterior."
+            KEY_STATE="NUEVA: hay que desinstalar la versión anterior antes de instalar esta"
           else
             echo "::notice::Llave de firma restaurada: esta versión se instala encima de la anterior."
+            KEY_STATE="la misma de siempre: se instala encima de la versión anterior"
           fi
           PASS="$(cat "$DIR/pass.txt")"
           echo "::add-mask::$PASS"
+          FINGERPRINT="$(keytool -list -v -keystore "$DIR/release.jks" -storepass "$PASS" -alias ultrapremier | grep -m1 'SHA256:' | sed 's/^ *//')"
           {
+            echo "KEY_STATE=$KEY_STATE"
+            echo "KEY_FINGERPRINT=$FINGERPRINT"
             echo "KEYSTORE_PATH=$DIR/release.jks"
             echo "KEYSTORE_PASSWORD=$PASS"
             echo "KEY_ALIAS=ultrapremier"
@@ -111,6 +116,15 @@ jobs:
           echo "::notice::$(grep -m1 'Verified using v2' sign.log)"
           echo "::notice::depurable=no"
 
+      - name: Notas de la versión
+        run: |
+          {
+            echo "Ultra Premier TV 1.0.${{ github.run_number }}"
+            echo
+            echo "- Llave de firma: $KEY_STATE"
+            echo "- Huella de la llave: $KEY_FINGERPRINT"
+          } > release-notes.md
+
       - uses: actions/upload-artifact@v4
         with:
           name: UltraPremierTV-apk
@@ -122,4 +136,5 @@ jobs:
         with:
           tag_name: v1.0.${{ github.run_number }}
           name: Ultra Premier TV 1.0.${{ github.run_number }}
+          body_path: release-notes.md
           files: UltraPremierTV.apk

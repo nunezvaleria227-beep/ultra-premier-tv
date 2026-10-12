@@ -21,12 +21,14 @@
         android:banner="@drawable/banner"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
+        android:largeHeap="true"
         android:supportsRtl="true"
         android:theme="@style/Theme.MiTv"
         android:usesCleartextTraffic="true">
 
         <activity
             android:name=".MainActivity"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
             android:screenOrientation="sensorLandscape">
