@@ -1,0 +1,43 @@
+name: Build APK
+
+# Genera el APK en la nube (no hace falta Android Studio).
+#  - Al subir una etiqueta (por ejemplo v1.0) compila y publica el APK en "Releases".
+#  - También se puede lanzar a mano desde la pestaña Actions (el APK queda como artefacto).
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Compilar APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk UltraPremierTV.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UltraPremierTV-apk
+          path: UltraPremierTV.apk
+
+      - name: Publicar en Releases
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: UltraPremierTV.apk
