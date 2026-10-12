@@ -1,12 +1,14 @@
 name: Build APK
 
 # Genera el APK en la nube (no hace falta Android Studio).
-#  - Al subir una etiqueta (por ejemplo v1.0) compila y publica el APK en "Releases".
-#  - También se puede lanzar a mano desde la pestaña Actions (el APK queda como artefacto).
+#  - Cada vez que se sube código a la rama main compila el proyecto y publica el APK en "Releases".
+#  - También se puede lanzar a mano desde la pestaña Actions.
+#  - El enlace estable al último APK es:
+#    https://github.com/nunezvaleria227-beep/ultra-premier-tv/releases/latest/download/UltraPremierTV.apk
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -28,7 +30,15 @@ jobs:
       - name: Compilar APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          set -o pipefail
+          ./gradlew assembleDebug --console=plain --stacktrace 2>&1 | tee build.log || {
+            echo "---- ERRORES DE COMPILACION ----"
+            # Se publican como anotaciones para poder leerlos sin descargar el log completo.
+            grep -E "^e: |error: |What went wrong" -A2 build.log | grep -v '^--$' | head -60 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit 1
+          }
           cp app/build/outputs/apk/debug/app-debug.apk UltraPremierTV.apk
 
       - uses: actions/upload-artifact@v4
@@ -37,7 +47,9 @@ jobs:
           path: UltraPremierTV.apk
 
       - name: Publicar en Releases
-        if: startsWith(github.ref, 'refs/tags/')
+        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Ultra Premier TV 1.0.${{ github.run_number }}
           files: UltraPremierTV.apk
