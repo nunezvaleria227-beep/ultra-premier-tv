@@ -111,5 +111,6 @@ sub onLogin(event as Object)
     else
         setError(resp.error)
         m.list.setFocus(true)
+        m.top.event = { type: "loginFailed" }
     end if
 end sub

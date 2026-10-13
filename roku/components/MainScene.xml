@@ -2,6 +2,7 @@
 <component name="MainScene" extends="Scene">
   <interface>
     <field id="deepLink" type="assocarray" onChange="onDeepLink" alwaysNotify="true" />
+    <field id="memoryWarning" type="boolean" onChange="onMemoryWarning" alwaysNotify="true" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
   <script type="text/brightscript" uri="pkg:/components/common.brs" />

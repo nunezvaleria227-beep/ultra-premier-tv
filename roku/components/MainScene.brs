@@ -6,12 +6,37 @@ sub init()
     m.global.addFields({ session: { parental: true }, cache: CreateObject("roSGNode", "Node") })
     m.stack = []
     m.pendingLink = invalid
+    ' Avisos de arranque a Roku (lo exige la certificación): "AppLaunchComplete" cuando el inicio ya se ve y,
+    ' si antes hay que escribir usuario y contraseña, "AppDialogInitiate" / "AppDialogComplete" alrededor de esa espera.
+    m.launchDone = false
+    m.dialogOpen = false
     ' Tienda de Roku: solo se usa para la pantalla oficial "Solicitud de información" al iniciar sesión.
     m.store = CreateObject("roSGNode", "ChannelStore")
     m.store.observeField("userData", "onRokuUserData")
     showLogin()
-    ' Aviso a Roku de que la app ya está lista (lo exige la certificación).
+end sub
+
+' La persona tiene que escribir sus datos antes de ver el inicio: esa espera no cuenta como tiempo de arranque de la app.
+sub beginDialog()
+    if m.launchDone or m.dialogOpen then return
+    m.dialogOpen = true
+    m.top.signalBeacon("AppDialogInitiate")
+end sub
+
+' El inicio ya se muestra: se cierra la espera (si la hubo) y se avisa que la app está lista.
+sub finishLaunch()
+    if m.launchDone then return
+    if m.dialogOpen
+        m.dialogOpen = false
+        m.top.signalBeacon("AppDialogComplete")
+    end if
+    m.launchDone = true
     m.top.signalBeacon("AppLaunchComplete")
+end sub
+
+' Roku avisa que la app usa mucha memoria: se sueltan las listas guardadas para volver a pedirlas cuando se necesiten.
+sub onMemoryWarning()
+    cacheClear()
 end sub
 
 ' ----------------------------------------------------------------- pila de pantallas
@@ -57,6 +82,8 @@ end function
 sub showLogin()
     clearStack()
     pushScreen(CreateObject("roSGNode", "LoginScreen"))
+    ' Sin sesión guardada, la persona debe escribir usuario y contraseña antes de ver el inicio.
+    if regRead("user") = "" or regRead("pass") = "" then beginDialog()
 end sub
 
 sub showHome()
@@ -95,6 +122,9 @@ sub onEvent(event as Object)
     t = toS(e.type)
     if t = "loggedIn"
         onLoggedIn(e)
+    else if t = "loginFailed"
+        ' La entrada automática no funcionó: ahora la persona debe corregir sus datos.
+        beginDialog()
     else if t = "open"
         target = toS(e.target)
         if target = "live" or target = "movie" or target = "series"
@@ -143,6 +173,7 @@ sub onLoggedIn(e as Object)
     else
         showHome()
     end if
+    finishLaunch()
     ' Roku exige que las apps con inicio de sesión muestren su pantalla de "Solicitud de información"
     ' (getUserData) al entrar. Solo cuando la persona inicia sesión a mano, no en la entrada automática.
     if e.manual = true then askRokuEmail()
