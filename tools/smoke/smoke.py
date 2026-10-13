@@ -42,11 +42,19 @@ def sh(cmd, timeout=60):
 
 
 # ------------------------------------------------------------------ pantalla
+DUMP_ERRORS = [0]
+
+
 def dump():
     """Devuelve la lista de nodos visibles (texto, descripción, rectángulo)."""
-    for _ in range(3):
-        sh("uiautomator dump /sdcard/ui.xml", timeout=40)
-        xml = sh("cat /sdcard/ui.xml")
+    for attempt in range(3):
+        sh("rm -f /sdcard/ui.xml")
+        res = sh("uiautomator dump /sdcard/ui.xml 2>&1", timeout=40)
+        xml = sh("cat /sdcard/ui.xml 2>/dev/null")
+        if "hierarchy" not in xml:
+            DUMP_ERRORS[0] += 1
+            if DUMP_ERRORS[0] <= 6:
+                print(f"[dump falló, intento {attempt + 1}] {res.strip()[:200]}", flush=True)
         if xml.strip().startswith("<?xml") or "<hierarchy" in xml:
             try:
                 root = ET.fromstring(xml[xml.index("<"):])
@@ -127,11 +135,18 @@ def tap(sub, exact=False, wait=1.2, nodes=None):
 def wait_for(sub, timeout=25, exact=False):
     end = time.time() + timeout
     nodes = None
+    n = 0
     while time.time() < end:
         nodes = dump()
         if find(nodes, sub, exact):
             return nodes
+        n += 1
+        if n in (2, 6):
+            tag = re.sub(r"\W+", "_", sub)[:20]
+            shot(f"esperando_{tag}_{n}", with_texts=False)
         time.sleep(1.5)
+    sh("dumpsys window | grep -m2 'mCurrentFocus\\|mFocusedApp'")
+    log("INFO", "Ventana en primer plano al fallar: " + current_focus())
     return None
 
 
