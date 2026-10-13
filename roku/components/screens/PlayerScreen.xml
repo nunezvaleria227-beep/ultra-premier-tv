@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="PlayerScreen" extends="Group">
+  <interface>
+    <field id="params" type="assocarray" onChange="onParams" />
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/PlayerScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Rectangle color="0x000000FF" width="1280" height="720" />
+    <Video id="video" translation="[0,0]" width="1280" height="720" />
+    <Group id="banner" translation="[0,0]" visible="false">
+      <Rectangle width="1280" height="118" color="0x000000B8" />
+      <Label id="bannerTitle" translation="[40,12]" width="1200" height="40" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="bannerNow" translation="[40,56]" width="1200" height="28" font="font:SmallSystemFont" color="0xE0E6F5FF" />
+      <Label id="bannerNext" translation="[40,84]" width="1200" height="28" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    </Group>
+    <Timer id="bannerTimer" duration="6" repeat="false" />
+    <Timer id="saveTimer" duration="10" repeat="true" />
+  </children>
+</component>

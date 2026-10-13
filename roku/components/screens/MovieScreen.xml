@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="MovieScreen" extends="Group">
+  <interface>
+    <field id="item" type="assocarray" onChange="onItem" />
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/MovieScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
+    <Rectangle id="shade" color="0x050824B8" width="1280" height="720" />
+    <Poster id="cover" translation="[60,80]" width="300" height="450" loadDisplayMode="scaleToFit" />
+    <Label id="name" translation="[400,70]" width="820" height="80" wrap="true" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
+    <Label id="meta" translation="[400,160]" width="820" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <Label id="plot" translation="[400,200]" width="820" height="200" wrap="true" font="font:SmallSystemFont" color="0xF2F5FFFF" />
+    <Label id="extra" translation="[400,400]" width="820" height="60" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <LabelList id="actions" translation="[400,470]" itemSize="[380,46]" numRows="4" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <Label id="status" translation="[400,420]" width="820" height="40" font="font:SmallSystemFont" color="0xA3AECCFF" />
+  </children>
+</component>

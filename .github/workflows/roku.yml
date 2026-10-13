@@ -1,0 +1,63 @@
+name: Roku
+
+# Revisa la app de Roku con el compilador de BrightScript y arma el .zip que se instala en modo desarrollador.
+# El .zip se publica en la versión "roku-latest" (marcada como preliminar para no desplazar
+# al APK de Android, que usa "Latest").
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "roku/**"
+      - ".github/workflows/roku.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  roku:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar el compilador de BrightScript
+        run: npm install --no-save brighterscript
+
+      - name: Revisar el código (BrightScript y SceneGraph)
+        run: |
+          set -o pipefail
+          npx bsc --rootDir roku --stagingDir "$RUNNER_TEMP/bsc-out" --createPackage false 2>&1 | tee bsc.log
+          # Resumen como anotaciones para poder leerlo sin abrir el log.
+          grep -E "error|warning" bsc.log | head -60 | while IFS= read -r line; do
+            echo "::warning::${line}"
+          done || true
+
+      - name: Armar el .zip
+        run: |
+          rm -rf pkg && cp -r roku pkg
+          sed -i "s/^build_version=.*/build_version=${{ github.run_number }}/" pkg/manifest
+          (cd pkg && zip -r -9 -X ../UltraPremierTV-Roku.zip manifest source components images)
+          unzip -l UltraPremierTV-Roku.zip | tail -3
+          echo "::notice::$(grep -E '^(title|major_version|minor_version|build_version)=' pkg/manifest | tr '\n' ' ')"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UltraPremierTV-Roku
+          path: UltraPremierTV-Roku.zip
+
+      - name: Publicar en la versión "roku-latest"
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view roku-latest >/dev/null 2>&1; then
+            gh release create roku-latest --target "${{ github.sha }}" --prerelease --latest=false \
+              --title "Ultra Premier TV para Roku (más reciente)" \
+              --notes "Archivo para instalar en un Roku en modo desarrollador. Se actualiza solo con cada cambio de la app de Roku."
+          fi
+          gh release upload roku-latest UltraPremierTV-Roku.zip --clobber

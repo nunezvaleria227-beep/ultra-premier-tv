@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Busca un texto en las categorías de canales, películas y series, una por una. -->
+<component name="SearchTask" extends="Task">
+  <interface>
+    <field id="query" type="string" />
+    <field id="scope" type="string" value="all" />
+    <field id="cancel" type="boolean" value="false" />
+    <field id="results" type="array" />
+    <field id="progress" type="string" />
+    <field id="finished" type="boolean" value="false" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/tasks/SearchTask.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+</component>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="SettingsScreen" extends="Group">
+  <interface>
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/SettingsScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
+    <Rectangle id="shade" color="0x050824A0" width="1280" height="720" />
+    <Label id="title" text="Ajustes" translation="[40,28]" width="500" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
+    <LabelList id="list" translation="[40,100]" itemSize="[760,48]" numRows="9" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <Label id="status" translation="[40,560]" width="1200" height="80" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
+  </children>
+</component>

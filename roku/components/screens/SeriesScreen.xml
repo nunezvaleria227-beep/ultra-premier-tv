@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="SeriesScreen" extends="Group">
+  <interface>
+    <field id="item" type="assocarray" onChange="onItem" />
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/SeriesScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
+    <Rectangle id="shade" color="0x050824B8" width="1280" height="720" />
+    <Label id="name" translation="[40,28]" width="1200" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
+    <Poster id="cover" translation="[40,90]" width="220" height="330" loadDisplayMode="scaleToFit" />
+    <Label id="meta" translation="[40,430]" width="240" height="50" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <Label id="plot" translation="[40,484]" width="240" height="170" wrap="true" maxLines="8" font="font:SmallSystemFont" color="0xF2F5FFFF" />
+    <LabelList id="seasonList" translation="[300,100]" itemSize="[230,44]" numRows="10" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <LabelList id="episodeList" translation="[550,100]" itemSize="[690,44]" numRows="10" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <Label id="status" translation="[300,280]" width="940" height="120" horizAlign="center" wrap="true" font="font:MediumSystemFont" color="0xF2F5FFFF" />
+    <Label id="hint" translation="[40,672]" width="1200" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" text="OK: ver episodio      Play/Pausa: agregar o quitar de favoritos" />
+  </children>
+</component>

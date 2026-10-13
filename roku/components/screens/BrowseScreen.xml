@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Categorías a la izquierda; a la derecha canales (con guía) o carteles de películas / series. -->
+<component name="BrowseScreen" extends="Group">
+  <interface>
+    <field id="kind" type="string" onChange="onKind" />
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/BrowseScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
+    <Rectangle id="shade" color="0x050824A0" width="1280" height="720" />
+    <Label id="title" translation="[40,28]" width="500" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
+    <Label id="filterLabel" translation="[360,40]" width="880" height="30" horizAlign="right" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <LabelList id="cats" translation="[40,100]" itemSize="[300,44]" numRows="11" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <LabelList id="chans" translation="[360,100]" itemSize="[470,44]" numRows="11" visible="false" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <Group id="infoPanel" translation="[850,100]" visible="false">
+      <Rectangle width="390" height="330" color="0x0A0C22D0" />
+      <Poster id="chanLogo" translation="[18,18]" width="110" height="110" loadDisplayMode="scaleToFit" />
+      <Label id="chanName" translation="[142,18]" width="236" height="110" wrap="true" vertAlign="center" font="font:MediumBoldSystemFont" color="0xF2F5FFFF" />
+      <Label id="nowLabel" translation="[18,145]" width="354" height="100" wrap="true" font="font:SmallSystemFont" color="0xF2F5FFFF" />
+      <Label id="nextLabel" translation="[18,245]" width="354" height="75" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    </Group>
+    <PosterGrid id="grid" translation="[360,100]" visible="false" basePosterSize="[150,225]" itemSpacing="[20,50]" numColumns="5" numRows="2" caption1NumLines="2" caption1Color="0xF2F5FFFF" posterDisplayMode="scaleToFit" />
+    <Label id="status" translation="[360,280]" width="880" height="120" horizAlign="center" wrap="true" font="font:MediumSystemFont" color="0xF2F5FFFF" />
+    <Label id="hint" translation="[40,672]" width="1200" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <Timer id="epgTimer" duration="0.5" repeat="false" />
+  </children>
+</component>

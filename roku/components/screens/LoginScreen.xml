@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<component name="LoginScreen" extends="Group">
+  <interface>
+    <field id="event" type="assocarray" alwaysNotify="true" />
+    <function name="focusScreen" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/screens/LoginScreen.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
+    <Rectangle id="panel" color="0x070A24D8" translation="[390,90]" width="500" height="540" />
+    <Poster id="logo" uri="pkg:/images/logo.png" translation="[490,110]" width="300" height="170" />
+    <Label id="welcome" text="¡Bienvenido!" translation="[430,300]" width="420" height="40" font="font:MediumBoldSystemFont" color="0xF2F5FFFF" />
+    <Label id="hint" text="Entra con tu usuario y contraseña." translation="[430,342]" width="420" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <LabelList id="fields" translation="[430,385]" itemSize="[420,46]" numRows="3" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <Label id="error" translation="[430,540]" width="420" height="70" wrap="true" font="font:SmallSystemFont" color="0xFF6B6BFF" />
+    <Label id="status" translation="[430,540]" width="420" height="40" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <Timer id="autoTimer" duration="0.6" repeat="false" />
+  </children>
+</component>

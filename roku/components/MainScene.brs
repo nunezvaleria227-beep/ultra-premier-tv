@@ -1,0 +1,144 @@
+' Escena principal: guarda la sesión y maneja la pila de pantallas.
+
+sub init()
+    m.top.backgroundColor = "0x0A0C22FF"
+    m.global.addFields({ session: { parental: true } })
+    m.stack = []
+    showLogin()
+end sub
+
+' ----------------------------------------------------------------- pila de pantallas
+
+sub pushScreen(node as Object)
+    if m.stack.Count() > 0
+        m.stack[m.stack.Count() - 1].visible = false
+    end if
+    node.observeField("event", "onEvent")
+    m.stack.Push(node)
+    m.top.AppendChild(node)
+    node.callFunc("focusScreen")
+end sub
+
+sub popScreen()
+    if m.stack.Count() <= 1 then return
+    top = m.stack.Pop()
+    if top.subtype() = "SearchScreen" then top.callFunc("onClose")
+    m.top.RemoveChild(top)
+    prev = m.stack[m.stack.Count() - 1]
+    prev.visible = true
+    prev.callFunc("focusScreen")
+end sub
+
+sub clearStack()
+    for each s in m.stack
+        if s.subtype() = "SearchScreen" then s.callFunc("onClose")
+        m.top.RemoveChild(s)
+    end for
+    m.stack = []
+end sub
+
+function onKeyEvent(key as String, press as Boolean) as Boolean
+    if press and key = "back" and m.stack.Count() > 1
+        popScreen()
+        return true
+    end if
+    return false
+end function
+
+' ----------------------------------------------------------------- pantallas
+
+sub showLogin()
+    clearStack()
+    pushScreen(CreateObject("roSGNode", "LoginScreen"))
+end sub
+
+sub showHome()
+    clearStack()
+    pushScreen(CreateObject("roSGNode", "HomeScreen"))
+end sub
+
+sub openBrowse(kind as String)
+    s = CreateObject("roSGNode", "BrowseScreen")
+    s.kind = kind
+    pushScreen(s)
+end sub
+
+sub openMovie(item as Object)
+    s = CreateObject("roSGNode", "MovieScreen")
+    s.item = item
+    pushScreen(s)
+end sub
+
+sub openSeries(item as Object)
+    s = CreateObject("roSGNode", "SeriesScreen")
+    s.item = item
+    pushScreen(s)
+end sub
+
+sub openPlayer(params as Object)
+    s = CreateObject("roSGNode", "PlayerScreen")
+    pushScreen(s)
+    s.params = params
+end sub
+
+' ----------------------------------------------------------------- eventos de las pantallas
+
+sub onEvent(event as Object)
+    e = event.getData()
+    t = toS(e.type)
+    if t = "loggedIn"
+        onLoggedIn(e)
+    else if t = "open"
+        target = toS(e.target)
+        if target = "live" or target = "movie" or target = "series"
+            openBrowse(target)
+        else if target = "search"
+            pushScreen(CreateObject("roSGNode", "SearchScreen"))
+        else if target = "continue"
+            pushScreen(CreateObject("roSGNode", "ContinueScreen"))
+        else if target = "settings"
+            pushScreen(CreateObject("roSGNode", "SettingsScreen"))
+        end if
+    else if t = "openMovie"
+        openMovie(e.item)
+    else if t = "openSeries"
+        openSeries(e.item)
+    else if t = "playLive"
+        openPlayer({ mode: "live", items: e.items, index: e.index, start: 0 })
+    else if t = "play"
+        openPlayer({ mode: e.mode, items: e.items, index: e.index, start: e.start })
+    else if t = "playEntry"
+        playEntry(e.entry)
+    else if t = "logout"
+        regDelete("user")
+        regDelete("pass")
+        m.global.session = { parental: true }
+        showLogin()
+    else if t = "back"
+        popScreen()
+    end if
+end sub
+
+sub onLoggedIn(e as Object)
+    regWrite("user", toS(e.user))
+    regWrite("pass", toS(e.pass))
+    parental = (regRead("parental") <> "0")
+    m.global.session = {
+        base: portalBase()
+        user: toS(e.user)
+        pass: toS(e.pass)
+        liveExt: toS(e.liveExt)
+        parental: parental
+        account: e.account
+    }
+    showHome()
+end sub
+
+' Seguir viendo algo de la lista "Continuar viendo".
+sub playEntry(entry as Object)
+    kind = toS(entry.kind)
+    item = { id: toS(entry.id), name: toS(entry.name), icon: toS(entry.icon), ext: toS(entry.ext) }
+    mode = "movie"
+    if kind = "episode" then mode = "episode"
+    openPlayer({ mode: mode, items: [item], index: 0, start: toI(entry.pos) })
+end sub
