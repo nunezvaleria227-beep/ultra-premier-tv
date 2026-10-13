@@ -236,9 +236,9 @@ end sub
 
 sub onRetryTimer()
     if m.leaving or m.items.Count() = 0 then return
-    pos = 0
-    if m.mode <> "live" then pos = m.lastPos
-    playCurrent(pos, m.retryExt)
+    startAt = 0
+    if m.mode <> "live" then startAt = m.lastPos
+    playCurrent(startAt, m.retryExt)
 end sub
 
 sub setNotice(text as String)
@@ -285,9 +285,9 @@ sub onErrorChoice()
     if choice = 0
         m.tsTried = false
         m.retries = 0
-        pos = 0
-        if m.mode <> "live" then pos = m.lastPos
-        playCurrent(pos, "")
+        startAt = 0
+        if m.mode <> "live" then startAt = m.lastPos
+        playCurrent(startAt, "")
         m.video.setFocus(true)
     else
         leave()
@@ -302,13 +302,13 @@ sub handleFinished()
         return
     end if
     ' Película o episodio: si terminó muy antes del final, la conexión se cortó; se retoma donde iba.
-    pos = m.lastPos
+    cutAt = m.lastPos
     vp = Int(m.video.position)
-    if vp > pos then pos = vp
+    if vp > cutAt then cutAt = vp
     dur = Int(m.video.duration)
-    if dur > 120 and pos > 5 and pos < dur - 60 and Abs(pos - m.lastCutPos) > 20
-        m.lastCutPos = pos
-        m.lastPos = pos
+    if dur > 120 and cutAt > 5 and cutAt < dur - 60 and Abs(cutAt - m.lastCutPos) > 20
+        m.lastCutPos = cutAt
+        m.lastPos = cutAt
         m.resumedFromCut = true
         recover()
         return
