@@ -58,6 +58,7 @@ object RecordingConverter {
             toast(app, "Espera a que termine la grabación en curso para convertir.")
             return
         }
+        installSafetyNet(app)
         val work = workDir(app)
         val needed = recording.size * 2 + recording.size / 10 + 64L * 1024 * 1024
         if (work.usableSpace < needed) {
@@ -72,6 +73,31 @@ object RecordingConverter {
         temp = out
         current = ConvertProgress(recording.title, 0, 0, "Convirtiendo")
         attempt(app, recording, out, deleteOriginal, transcodeVideo = false)
+    }
+
+    private var safetyNetInstalled = false
+
+    /**
+     * Si el hilo de la conversión se queda sin memoria (grabaciones muy grandes), la app no se cierra:
+     * se avisa que no se pudo convertir y la grabación original sigue guardada tal cual.
+     */
+    private fun installSafetyNet(app: Context) {
+        if (safetyNetInstalled) return
+        safetyNetInstalled = true
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            if (error is OutOfMemoryError && transformer != null && thread.name.startsWith("Transformer")) {
+                main.post {
+                    transformer = null
+                    temp?.delete()
+                    temp = null
+                    current = null
+                    toast(app, "No se pudo convertir: la grabación es demasiado grande para la memoria de este equipo. Sigue guardada como estaba.")
+                }
+            } else {
+                previous?.uncaughtException(thread, error)
+            }
+        }
     }
 
     fun cancel() {

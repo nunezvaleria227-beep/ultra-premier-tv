@@ -685,23 +685,9 @@ def recording():
     if find(nodes, "Grabando"):
         log("OK", "Una grabación en curso: la programada desde la guía arrancó sola a su hora (o ya había una)")
     else:
-        # 2) Si no hay ninguna, se graba a mano un canal en vivo.
-        back(1.5)
-        nodes = go_home()
-        tap("TV EN DIRECTO", nodes=nodes, wait=3)
-        time.sleep(2)
-        nodes = dump()
-        tap("NOTICIAS", nodes=nodes, wait=2)
-        nodes = dump()
-        tap("Canal Uno FHD", nodes=nodes, wait=3)
-        nodes = dump()
-        if not tap("Grabar", nodes=nodes, wait=9):
-            log("FALLO", "No se encontró el botón Grabar: " + " | ".join(texts(nodes))[:300])
-            return
-        go_home()
-        tap_xy(1141, 64)
-        time.sleep(3)
-        nodes = shot("grabaciones_en_curso")
+        # Ya no hay botón para grabar a mano: sin una grabación programada en curso, este paso no tiene qué probar.
+        log("INFO", "No había grabación programada en curso en este momento; se omite la prueba de grabar y convertir")
+        return
     if not tap("Detener y guardar", nodes=nodes, wait=6):
         log("FALLO", "No hay botón «Detener y guardar» en Grabaciones")
         return
