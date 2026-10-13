@@ -4,7 +4,10 @@ sub init()
     m.top.backgroundColor = "0x0A0C22FF"
     m.global.addFields({ session: { parental: true } })
     m.stack = []
+    m.pendingLink = invalid
     showLogin()
+    ' Aviso a Roku de que la app ya está lista (lo exige la certificación).
+    m.top.signalBeacon("AppLaunchComplete")
 end sub
 
 ' ----------------------------------------------------------------- pila de pantallas
@@ -131,7 +134,40 @@ sub onLoggedIn(e as Object)
         parental: parental
         account: e.account
     }
+    if m.pendingLink <> invalid
+        applyDeepLink()
+    else
+        showHome()
+    end if
+end sub
+
+' ----------------------------------------------------------------- enlaces directos (deep linking)
+' mediaType: movie (contentId = id de la película), series (id de la serie), live (id del canal).
+
+sub onDeepLink(event as Object)
+    m.pendingLink = event.getData()
+    applyDeepLink()
+end sub
+
+sub applyDeepLink()
+    link = m.pendingLink
+    if link = invalid then return
+    s = m.global.session
+    ' Si todavía no hay sesión, se aplica en cuanto entre.
+    if s = invalid or s.user = invalid then return
+    m.pendingLink = invalid
+    id = toS(link.contentId)
+    kind = LCase(toS(link.mediaType))
     showHome()
+    if id = "" then return
+    item = { id: id, name: "", icon: "", ext: "" }
+    if kind = "movie"
+        openMovie(item)
+    else if kind = "series" or kind = "season" or kind = "episode"
+        openSeries(item)
+    else if kind = "live"
+        openPlayer({ mode: "live", items: [item], index: 0, start: 0 })
+    end if
 end sub
 
 ' Seguir viendo algo de la lista "Continuar viendo".

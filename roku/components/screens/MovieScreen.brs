@@ -43,6 +43,7 @@ sub onInfo(event as Object)
         return
     end if
     info = resp.info
+    if m.name.text = "" and info.name <> "" then m.name.text = info.name
     parts = []
     if info.year <> "" then parts.Push(info.year)
     if info.duration <> "" then parts.Push(info.duration)
@@ -100,7 +101,7 @@ sub onAction(event as Object)
     index = event.getData()
     action = m.actionIds[index]
     it = m.top.item
-    item = { id: toS(it.id), name: toS(it.name), icon: toS(it.icon), ext: m.ext }
+    item = { id: toS(it.id), name: m.name.text, icon: toS(it.icon), ext: m.ext }
     if action = "start"
         m.top.event = { type: "play", mode: "movie", items: [item], index: 0, start: 0 }
     else if action = "resume"

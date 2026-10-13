@@ -45,6 +45,7 @@ sub onInfo(event as Object)
     end if
     m.status.text = ""
     info = resp.info
+    if m.name.text = "" and info.name <> "" then m.name.text = info.name
     parts = ""
     if info.year <> "" then parts = info.year
     if info.rating <> "" and info.rating <> "0"
@@ -108,7 +109,7 @@ sub onEpisodeSelected(event as Object)
     for each e in m.flat
         image = e.image
         if image = "" then image = toS(it.icon)
-        items.Push({ id: e.id, name: e.title, icon: image, ext: e.ext, seriesName: toS(it.name), seriesId: toS(it.id), season: e.season, num: e.num })
+        items.Push({ id: e.id, name: e.title, icon: image, ext: e.ext, seriesName: m.name.text, seriesId: toS(it.id), season: e.season, num: e.num })
     end for
     secs = 0
     saved = findContinue("episode", items[flatIndex].id)

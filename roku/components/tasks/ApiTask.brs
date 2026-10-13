@@ -189,7 +189,10 @@ function doVodInfo(req as Object, res as Object) as Object
     year = toS(info.releasedate)
     if Len(year) >= 4 then year = Left(year, 4)
     res.ok = true
+    name = toS(info.name)
+    if name = "" and md <> invalid and Type(md) = "roAssociativeArray" then name = toS(md.name)
     res.info = {
+        name: name
         plot: plot
         genre: toS(info.genre)
         cast: toS(info.cast)
@@ -265,6 +268,7 @@ function doSeriesInfo(req as Object, res as Object) as Object
     if Len(year) >= 4 then year = Left(year, 4)
     res.ok = true
     res.info = {
+        name: toS(info.name)
         plot: toS(info.plot)
         genre: toS(info.genre)
         cast: toS(info.cast)
