@@ -118,7 +118,8 @@ sub doWork()
                 for j = i to last
                     urls.Push(apiUrl(itemAct, "&category_id=" + urlEscape(ids[j])))
                 end for
-                m.top.progress = "Buscando en " + labels[kind] + " (" + (last + 1).ToStr() + " de " + total.ToStr() + ")…"
+                upTo = last + 1
+                m.top.progress = "Buscando en " + labels[kind] + " (" + upTo.ToStr() + " de " + total.ToStr() + ")…"
                 bodies = fetchMany(urls, 40000)
                 before = found.Count()
                 for each body in bodies
