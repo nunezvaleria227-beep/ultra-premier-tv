@@ -14,6 +14,18 @@ import java.util.concurrent.TimeUnit
 
 class MiTvApp : Application(), ImageLoaderFactory {
 
+    override fun onCreate() {
+        super.onCreate()
+        // Abrir el almacén cifrado de la sesión tarda (Keystore): se hace en paralelo mientras se arma la pantalla.
+        Thread({
+            try {
+                repository.savedCredentials()
+            } catch (e: Exception) {
+                // Si falla aquí, volverá a intentarse cuando haga falta.
+            }
+        }, "warmup").start()
+    }
+
     val repository: Repository by lazy {
         val client = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)

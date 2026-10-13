@@ -35,9 +35,12 @@ import com.example.mitvplayer.data.Movie
 import com.example.mitvplayer.data.MovieInfo
 import com.example.mitvplayer.data.ParentalControl
 import com.example.mitvplayer.data.ResumeEntry
+import com.example.mitvplayer.data.SubtitleQuery
 import com.example.mitvplayer.data.SeriesDetail
 import com.example.mitvplayer.data.SeriesItem
+import com.example.mitvplayer.data.cleanTitle
 import com.example.mitvplayer.data.userMessage
+import com.example.mitvplayer.data.yearOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -426,7 +429,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** [fromStart] = true empieza desde el principio aunque haya un minuto guardado. */
-    fun playMovie(context: Context, movie: Movie, fromStart: Boolean = false) {
+    fun playMovie(context: Context, movie: Movie, fromStart: Boolean = false, info: MovieInfo? = null) {
         repo.library?.recentMovies?.touch(movie.id)
         val item = PlayItem(
             title = movie.name,
@@ -434,7 +437,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             url = repo.movieUrl(movie),
             isLive = false,
             resume = ResumeTag("movie", movie.id, movie.extension, movie.poster, movie.categoryId),
-            fromStart = fromStart
+            fromStart = fromStart,
+            subs = SubtitleQuery(
+                kind = "movie",
+                titles = listOfNotNull(info?.originalName?.let { cleanTitle(it) }?.takeIf { it.isNotBlank() }, cleanTitle(movie.name)).distinct(),
+                year = yearOf(movie.name) ?: info?.releaseDate?.take(4)?.toIntOrNull(),
+                imdbId = info?.imdbId,
+                tmdbId = info?.tmdbId,
+                cacheKey = "movie_${movie.id}"
+            )
         )
         PlayerActivity.start(context, listOf(item), 0)
     }
@@ -462,7 +473,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             subtitle = entry.subtitle,
             url = url,
             isLive = false,
-            resume = ResumeTag(entry.type, entry.id, entry.ext, entry.image, entry.category)
+            resume = ResumeTag(entry.type, entry.id, entry.ext, entry.image, entry.category),
+            subs = if (entry.type == "movie") {
+                SubtitleQuery(
+                    kind = "movie",
+                    titles = listOf(cleanTitle(entry.title)),
+                    year = yearOf(entry.title),
+                    cacheKey = "movie_${entry.id}"
+                )
+            } else {
+                val numbers = Regex("""T(\d+)\s*·\s*E(\d+)""").find(entry.subtitle.orEmpty())
+                SubtitleQuery(
+                    kind = "episode",
+                    titles = listOf(cleanTitle(entry.title)),
+                    season = numbers?.groupValues?.get(1)?.toIntOrNull(),
+                    episode = numbers?.groupValues?.get(2)?.toIntOrNull(),
+                    cacheKey = "episode_${entry.id}"
+                )
+            }
         )
         PlayerActivity.start(context, listOf(item), 0)
     }
@@ -489,7 +517,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 subtitle = "T${e.season} · E${e.number} — ${e.title}",
                 url = repo.episodeUrl(e),
                 isLive = false,
-                resume = ResumeTag("episode", e.id, e.extension, e.image ?: show.cover, show.categoryId)
+                resume = ResumeTag("episode", e.id, e.extension, e.image ?: show.cover, show.categoryId),
+                subs = SubtitleQuery(
+                    kind = "episode",
+                    titles = listOf(cleanTitle(show.name)),
+                    imdbId = detail.imdbId,
+                    tmdbId = detail.tmdbId,
+                    season = e.season,
+                    episode = e.number,
+                    cacheKey = "episode_${e.id}"
+                )
             )
         }
         PlayerActivity.start(context, playItems, start)

@@ -3,6 +3,7 @@ package com.example.mitvplayer.ui
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -23,6 +24,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,6 +60,20 @@ import com.example.mitvplayer.data.userMessage
 import kotlinx.coroutines.CancellationException
 
 // ------------------------------------------------------------------- película
+
+/** Lupa redonda en la esquina superior derecha (abre la búsqueda de películas o de series). */
+@Composable
+private fun BoxScope.SearchCorner(vm: AppViewModel, scope: SearchScope) {
+    IconAction(
+        onClick = { vm.open(Screen.Search(scope)) },
+        modifier = Modifier
+            .align(Alignment.TopEnd)
+            .padding(top = 8.dp, end = 10.dp)
+    ) {
+        Icon(Icons.Filled.Search, contentDescription = "Buscar", tint = TextPrimary)
+    }
+}
+
 
 /** Imagen grande de fondo con degradado para que se lea el texto. */
 @Composable
@@ -137,7 +155,8 @@ fun MovieDetailScreen(vm: AppViewModel, movie: Movie) {
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(end = 44.dp)
                 )
                 if (meta.isNotEmpty()) {
                     Spacer(Modifier.height(8.dp))
@@ -167,17 +186,17 @@ fun MovieDetailScreen(vm: AppViewModel, movie: Movie) {
                     if (saved != null) {
                         TvButton(
                             text = "▶  Continuar (${resumeText(saved)})",
-                            onClick = { vm.playMovie(context, movie) },
+                            onClick = { vm.playMovie(context, movie, info = details) },
                             modifier = Modifier.focusRequester(playFocus)
                         )
                         TvButton(
                             text = "⟲  Desde el inicio",
-                            onClick = { vm.playMovie(context, movie, fromStart = true) }
+                            onClick = { vm.playMovie(context, movie, fromStart = true, info = details) }
                         )
                     } else {
                         TvButton(
                             text = "▶  Reproducir",
-                            onClick = { vm.playMovie(context, movie) },
+                            onClick = { vm.playMovie(context, movie, info = details) },
                             modifier = Modifier.focusRequester(playFocus)
                         )
                     }
@@ -211,6 +230,7 @@ fun MovieDetailScreen(vm: AppViewModel, movie: Movie) {
                 }
             }
         }
+        SearchCorner(vm, SearchScope.MOVIES)
     }
 }
 
@@ -356,6 +376,7 @@ fun SeriesDetailScreen(vm: AppViewModel, show: SeriesItem) {
                 }
             }
         }
+        SearchCorner(vm, SearchScope.SERIES)
     }
 }
 
@@ -380,12 +401,12 @@ private fun EpisodeBrowser(
             TvButton(
                 text = label,
                 onClick = { vm.playEpisode(context, show, detail, episode) },
-                modifier = Modifier.padding(vertical = 4.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 4.dp, end = 48.dp)
             )
         }
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 6.dp)
+            contentPadding = PaddingValues(top = 6.dp, bottom = 6.dp, end = 48.dp)
         ) {
             items(seasonNumbers) { number ->
                 TvButton(

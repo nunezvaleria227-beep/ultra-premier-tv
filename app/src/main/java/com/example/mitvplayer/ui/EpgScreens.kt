@@ -207,7 +207,7 @@ private fun EpgRow(vm: AppViewModel, channel: LiveChannel, onClick: () -> Unit) 
                 )
                 if (upcoming.isEmpty()) {
                     Text(
-                        text = if (epg == null) "" else "No hemos encontrado ningún programa",
+                        text = if (epg == null) "" else "● En vivo",
                         color = TextSecondary,
                         fontSize = 12.sp
                     )

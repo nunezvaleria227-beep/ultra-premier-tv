@@ -226,7 +226,10 @@ class XtreamApi(private val client: OkHttpClient) {
             cast = info.str("cast") ?: info.str("actors"),
             director = info.str("director"),
             backdrop = info.backdrop(),
-            trailer = trailerUrl(info.str("youtube_trailer") ?: info.str("trailer"))
+            trailer = trailerUrl(info.str("youtube_trailer") ?: info.str("trailer")),
+            imdbId = info.str("imdb_id") ?: info.str("imdb"),
+            tmdbId = info.str("tmdb_id") ?: info.str("tmdb"),
+            originalName = info.str("o_name")
         )
     }
 
@@ -284,7 +287,9 @@ class XtreamApi(private val client: OkHttpClient) {
             trailer = trailerUrl(info?.str("youtube_trailer") ?: info?.str("trailer")),
             cast = info?.str("cast"),
             director = info?.str("director"),
-            releaseDate = info?.str("releaseDate") ?: info?.str("release_date") ?: info?.str("releasedate")
+            releaseDate = info?.str("releaseDate") ?: info?.str("release_date") ?: info?.str("releasedate"),
+            imdbId = info?.str("imdb_id") ?: info?.str("imdb"),
+            tmdbId = info?.str("tmdb_id") ?: info?.str("tmdb")
         )
     }
 

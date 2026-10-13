@@ -260,14 +260,15 @@ fun TopBar(
             )
         }
         trailing()
+        if (menu.isNotEmpty()) {
+            MoreMenu(menu)
+            Spacer(Modifier.width(4.dp))
+        }
+        // La lupa va siempre en la esquina superior derecha.
         if (onSearch != null) {
             IconAction(onClick = onSearch) {
                 Icon(Icons.Filled.Search, contentDescription = "Buscar", tint = TextPrimary)
             }
-        }
-        if (menu.isNotEmpty()) {
-            Spacer(Modifier.width(2.dp))
-            MoreMenu(menu)
         }
     }
 }

@@ -294,7 +294,7 @@ private fun ChannelRow(
     val programText = when {
         current != null && current.title.isNotBlank() -> current.title
         epg == null -> ""
-        else -> "No hemos encontrado ningún programa"
+        else -> "● En vivo"
     }
 
     FocusCard(

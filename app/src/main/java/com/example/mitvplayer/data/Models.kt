@@ -94,7 +94,11 @@ data class MovieInfo(
     /** Imagen grande de fondo. */
     val backdrop: String? = null,
     /** Dirección del tráiler (YouTube). */
-    val trailer: String? = null
+    val trailer: String? = null,
+    /** Datos para encontrar sus subtítulos en internet. */
+    val imdbId: String? = null,
+    val tmdbId: String? = null,
+    val originalName: String? = null
 )
 
 data class SeriesItem(
@@ -132,7 +136,9 @@ data class SeriesDetail(
     val trailer: String? = null,
     val cast: String? = null,
     val director: String? = null,
-    val releaseDate: String? = null
+    val releaseDate: String? = null,
+    val imdbId: String? = null,
+    val tmdbId: String? = null
 )
 
 data class EpgEntry(
@@ -142,7 +148,9 @@ data class EpgEntry(
     val start: Long,
     val end: Long,
     /** El servidor tiene grabado este programa (Catch up). */
-    val hasArchive: Boolean = false
+    val hasArchive: Boolean = false,
+    /** Bloque de relleno ("En vivo") para un canal que no manda guía; no es un programa real. */
+    val placeholder: Boolean = false
 )
 
 /** Una sección completa ya descargada: categorías y todos sus elementos. */

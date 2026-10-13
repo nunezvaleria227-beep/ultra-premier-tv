@@ -102,6 +102,9 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
 
+    // Instala el perfil de arranque (baseline-prof.txt) para que la app abra más rápido
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+
     // Convertir grabaciones (.ts) a MP4
     implementation("androidx.media3:media3-transformer:1.4.1")
 }

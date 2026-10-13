@@ -43,6 +43,7 @@ import com.example.mitvplayer.RecordingConverter
 import com.example.mitvplayer.SavedRecording
 import com.example.mitvplayer.UpdateManager
 import com.example.mitvplayer.data.LiveChannel
+import com.example.mitvplayer.data.SubtitleSettings
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -190,6 +191,8 @@ fun SettingsScreen(vm: AppViewModel) {
     var confirm by remember { mutableStateOf<String?>(null) }
     var pinFlow by remember { mutableStateOf<PinFlow?>(null) }
     val context = LocalContext.current
+    var subLang by remember { mutableStateOf(SubtitleSettings.language(context)) }
+    var subAccount by remember { mutableStateOf(false) }
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         withFrameNanos { }
@@ -242,6 +245,39 @@ fun SettingsScreen(vm: AppViewModel) {
         Spacer(Modifier.height(4.dp))
         ParentalSettings(vm, onFlow = { pinFlow = it })
         Spacer(Modifier.height(4.dp))
+        val subLangName = when (subLang) {
+            "es" -> "Español"
+            "en" -> "Inglés"
+            else -> "Apagados"
+        }
+        TvButton(
+            text = "Subtítulos al empezar: $subLangName (cambiar)",
+            onClick = {
+                subLang = when (subLang) {
+                    "off" -> "es"
+                    "es" -> "en"
+                    else -> "off"
+                }
+                SubtitleSettings.setLanguage(context, subLang)
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "Se activan solos en películas y series. También se cambian dentro del video (botón CC o tecla Menú).",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+        TvButton(
+            text = "Subtítulos en internet (OpenSubtitles)",
+            onClick = { subAccount = true },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "Si la película no trae subtítulos, la app los busca en internet y los guarda para la próxima vez.",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+        Spacer(Modifier.height(4.dp))
         TvButton(
             text = "Borrar favoritos",
             onClick = { confirm = "favoritos" },
@@ -253,6 +289,8 @@ fun SettingsScreen(vm: AppViewModel) {
             modifier = Modifier.fillMaxWidth()
         )
     }
+
+    if (subAccount) SubtitleAccountDialog(onDismiss = { subAccount = false })
 
     PinFlowDialogs(vm, pinFlow, onFlow = { pinFlow = it }, toast = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
 

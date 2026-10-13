@@ -1,7 +1,10 @@
 package com.example.mitvplayer
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,19 +21,31 @@ import androidx.annotation.OptIn
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.SubtitleView
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import com.example.mitvplayer.data.ResumeEntry
+import com.example.mitvplayer.data.SubtitleException
+import com.example.mitvplayer.data.SubtitleFiles
+import com.example.mitvplayer.data.SubtitleQuery
+import com.example.mitvplayer.data.SubtitleService
+import com.example.mitvplayer.data.SubtitleSettings
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -56,7 +71,9 @@ data class PlayItem(
     /** Si no es null, la app recuerda el minuto en que se dejó de ver. */
     val resume: ResumeTag? = null,
     /** true = empezar desde el principio aunque haya un minuto guardado. */
-    val fromStart: Boolean = false
+    val fromStart: Boolean = false,
+    /** Datos para buscar sus subtítulos en internet (películas y episodios). */
+    val subs: SubtitleQuery? = null
 )
 
 /** Lista que se le entrega al reproductor justo antes de abrirlo. */
@@ -84,6 +101,9 @@ class PlayerActivity : ComponentActivity() {
     private lateinit var nextText: TextView
     private lateinit var hintText: TextView
     private lateinit var errorText: TextView
+    private lateinit var optionsBar: View
+    private lateinit var btnSubtitles: TextView
+    private lateinit var btnSize: TextView
 
     private var player: ExoPlayer? = null
     private var items: List<PlayItem> = emptyList()
@@ -91,6 +111,10 @@ class PlayerActivity : ComponentActivity() {
     private var resumePositionMs = 0L
     private var retryCount = 0
     private var epgJob: Job? = null
+    private var fetchingSubs = false
+
+    /** Para buscar subtítulos solo una vez por película/episodio e idioma. */
+    private val autoSubTried = HashSet<String>()
 
     /** En el celular: deslizar arriba/abajo cambia de canal y tocar muestra la información. */
     private val gestures by lazy {
@@ -114,7 +138,17 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private val handler = Handler(Looper.getMainLooper())
-    private val hideBannerTask = Runnable { banner.visibility = View.GONE }
+    private val hideBannerTask = object : Runnable {
+        override fun run() {
+            if (optionsFocused()) {
+                // Mientras se usan los botones de arriba no se esconde nada.
+                handler.postDelayed(this, BANNER_DURATION_MS)
+            } else {
+                banner.visibility = View.GONE
+                if (items.getOrNull(index)?.isLive == true) optionsBar.visibility = View.GONE
+            }
+        }
+    }
     private val retryTask = Runnable { retryPlayback() }
     private val saveTask = object : Runnable {
         override fun run() {
@@ -137,6 +171,10 @@ class PlayerActivity : ComponentActivity() {
 
         override fun onPlayerError(error: PlaybackException) {
             handleError(error)
+        }
+
+        override fun onTracksChanged(tracks: Tracks) {
+            maybeAutoSubtitles(tracks)
         }
     }
 
@@ -161,10 +199,28 @@ class PlayerActivity : ComponentActivity() {
         nextText = findViewById(R.id.next_text)
         hintText = findViewById(R.id.hint_text)
         errorText = findViewById(R.id.error_text)
+        optionsBar = findViewById(R.id.options_bar)
+        btnSubtitles = findViewById(R.id.btn_subtitles)
+        btnSize = findViewById(R.id.btn_size)
+
+        btnSubtitles.setOnClickListener { showSubtitleDialog() }
+        btnSize.setOnClickListener { showSizeDialog() }
+        // En películas y series los botones aparecen junto con los controles.
+        playerView.setControllerVisibilityListener(
+            PlayerView.ControllerVisibilityListener { visibility ->
+                val item = items.getOrNull(index)
+                if (item != null && !item.isLive) {
+                    btnSubtitles.visibility = View.VISIBLE
+                    optionsBar.visibility = if (visibility == View.VISIBLE) View.VISIBLE else View.GONE
+                }
+            }
+        )
     }
 
     override fun onStart() {
         super.onStart()
+        // Si se cerró en onCreate (no había nada que reproducir), no hay vistas ni reproductor.
+        if (!::playerView.isInitialized || items.isEmpty()) return
 
         val dataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent(Config.USER_AGENT)
@@ -178,6 +234,19 @@ class PlayerActivity : ComponentActivity() {
         exo.addListener(listener)
         playerView.player = exo
         player = exo
+        playerView.subtitleView?.apply {
+            setStyle(
+                CaptionStyleCompat(
+                    Color.WHITE,
+                    Color.TRANSPARENT,
+                    Color.TRANSPARENT,
+                    CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                    Color.BLACK,
+                    null
+                )
+            )
+            setFractionalTextSize(SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * 1.1f)
+        }
         playerView.requestFocus()
 
         playCurrent(resumePositionMs)
@@ -187,6 +256,7 @@ class PlayerActivity : ComponentActivity() {
         super.onStop()
         handler.removeCallbacksAndMessages(null)
         epgJob?.cancel()
+        if (!::playerView.isInitialized || items.isEmpty()) return
 
         saveProgress()
         val exo = player
@@ -220,6 +290,8 @@ class PlayerActivity : ComponentActivity() {
         retryCount = 0
         errorText.visibility = View.GONE
         playerView.useController = !item.isLive
+        applySize(item)
+        applyTextPreference(item)
 
         var start = startPositionMs
         val tag = item.resume
@@ -233,9 +305,9 @@ class PlayerActivity : ComponentActivity() {
         }
 
         if (item.isLive || start <= 0L) {
-            exo.setMediaItem(MediaItem.fromUri(item.url))
+            exo.setMediaItem(buildMediaItem(item))
         } else {
-            exo.setMediaItem(MediaItem.fromUri(item.url), start)
+            exo.setMediaItem(buildMediaItem(item), start)
         }
         exo.prepare()
         exo.playWhenReady = true
@@ -332,6 +404,257 @@ class PlayerActivity : ComponentActivity() {
         return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
     }
 
+    // --------------------------------------------------- tamaño de la imagen
+
+    private fun sizeKind(item: PlayItem): String = when {
+        item.isLive -> "live"
+        item.resume?.type == "episode" -> "episode"
+        else -> "movie"
+    }
+
+    private fun applySize(item: PlayItem) {
+        playerView.resizeMode = when (PlayerPrefs.sizeMode(this, sizeKind(item))) {
+            PlayerPrefs.SIZE_FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            PlayerPrefs.SIZE_ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
+    }
+
+    private fun showSizeDialog() {
+        val item = items.getOrNull(index) ?: return
+        val kind = sizeKind(item)
+        val labels = arrayOf(
+            "Normal (se ve completa)",
+            "Llenar la pantalla (estira la imagen)",
+            "Acercar (recorta los bordes)"
+        )
+        AlertDialog.Builder(this)
+            .setTitle("Tamaño de la imagen")
+            .setSingleChoiceItems(labels, PlayerPrefs.sizeMode(this, kind)) { dialog, which ->
+                PlayerPrefs.setSizeMode(this, kind, which)
+                applySize(item)
+                dialog.dismiss()
+            }
+            .setOnDismissListener { playerView.requestFocus() }
+            .show()
+    }
+
+    private fun showOptionsMenu() {
+        val item = items.getOrNull(index) ?: return
+        if (item.isLive) {
+            showSizeDialog()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Opciones")
+            .setItems(arrayOf("Subtítulos", "Tamaño de la imagen")) { _, which ->
+                if (which == 0) showSubtitleDialog() else showSizeDialog()
+            }
+            .setOnDismissListener { playerView.requestFocus() }
+            .show()
+    }
+
+    private fun optionsFocused(): Boolean =
+        ::btnSize.isInitialized && (btnSize.hasFocus() || btnSubtitles.hasFocus())
+
+    // ------------------------------------------------------------- subtítulos
+
+    private class TextChoice(
+        val group: Tracks.Group,
+        val trackIndex: Int,
+        val label: String,
+        val lang: String?,
+        val selected: Boolean
+    )
+
+    /** "spa", "es-MX" → "es". */
+    private fun normalizedLang(code: String?): String? {
+        if (code.isNullOrBlank() || code == "und") return null
+        return Util.normalizeLanguageCode(code).substringBefore('-').lowercase().ifEmpty { null }
+    }
+
+    private fun languageDisplay(code: String): String =
+        java.util.Locale(code).getDisplayLanguage(java.util.Locale("es")).replaceFirstChar { it.uppercase() }.ifEmpty { code }
+
+    private fun textChoices(): List<TextChoice> {
+        val exo = player ?: return emptyList()
+        val out = ArrayList<TextChoice>()
+        for (group in exo.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_TEXT) continue
+            for (i in 0 until group.length) {
+                if (!group.isTrackSupported(i)) continue
+                val format = group.getTrackFormat(i)
+                val lang = normalizedLang(format.language)
+                val name = format.label?.takeIf { it.isNotBlank() }
+                    ?: lang?.let { languageDisplay(it) }
+                    ?: "Subtítulo ${out.size + 1}"
+                out += TextChoice(group, i, name, lang, group.isTrackSelected(i))
+            }
+        }
+        return out
+    }
+
+    /** Al empezar un video: subtítulos del idioma preferido si lo hay, o apagados. */
+    private fun applyTextPreference(item: PlayItem) {
+        val exo = player ?: return
+        val pref = if (item.isLive) "off" else SubtitleSettings.language(this)
+        exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, pref == "off")
+            .setPreferredTextLanguage(if (pref == "off") null else pref)
+            .build()
+    }
+
+    /** El video con los subtítulos que ya se bajaron de internet para esta película o episodio. */
+    private fun buildMediaItem(item: PlayItem): MediaItem {
+        val builder = MediaItem.Builder().setUri(item.url)
+        val key = item.subs?.cacheKey
+        if (!item.isLive && key != null) {
+            val configs = SubtitleFiles.saved(this, key).map { (lang, file) ->
+                MediaItem.SubtitleConfiguration.Builder(Uri.fromFile(file))
+                    .setMimeType(MimeTypes.APPLICATION_SUBRIP)
+                    .setLanguage(lang)
+                    .setLabel("${languageDisplay(lang)} (internet)")
+                    .build()
+            }
+            if (configs.isNotEmpty()) builder.setSubtitleConfigurations(configs)
+        }
+        return builder.build()
+    }
+
+    private fun showSubtitleDialog() {
+        val exo = player ?: return
+        val item = items.getOrNull(index) ?: return
+        if (item.isLive) return
+
+        val choices = textChoices()
+        val textOff = exo.trackSelectionParameters.disabledTrackTypes.contains(C.TRACK_TYPE_TEXT)
+        val labels = ArrayList<String>()
+        val actions = ArrayList<() -> Unit>()
+        var checked = 0
+
+        labels += "Desactivados"
+        actions += { turnOffSubtitles() }
+        choices.forEachIndexed { i, choice ->
+            labels += choice.label
+            actions += { chooseTrack(choice) }
+            if (choice.selected && !textOff) checked = i + 1
+        }
+        if (item.subs != null) {
+            for (lang in listOf("es", "en")) {
+                if (choices.none { it.lang == lang }) {
+                    labels += "Buscar en internet: ${languageDisplay(lang)}"
+                    actions += { searchOnline(lang, fromAuto = false) }
+                }
+            }
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Subtítulos")
+            .setSingleChoiceItems(labels.toTypedArray(), checked) { dialog, which ->
+                dialog.dismiss()
+                actions[which]()
+            }
+            .setOnDismissListener { playerView.requestFocus() }
+            .show()
+    }
+
+    private fun chooseTrack(choice: TextChoice) {
+        val exo = player ?: return
+        exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .setOverrideForType(TrackSelectionOverride(choice.group.mediaTrackGroup, choice.trackIndex))
+            .build()
+        // Se recuerda el idioma para los próximos videos.
+        choice.lang?.takeIf { it == "es" || it == "en" }?.let { SubtitleSettings.setLanguage(this, it) }
+    }
+
+    private fun turnOffSubtitles() {
+        val exo = player ?: return
+        exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+            .build()
+        SubtitleSettings.setLanguage(this, "off")
+    }
+
+    /** Si el idioma preferido no viene en el video, se busca en internet (una sola vez por video). */
+    private fun maybeAutoSubtitles(tracks: Tracks) {
+        val item = items.getOrNull(index) ?: return
+        val query = item.subs ?: return
+        if (item.isLive) return
+        val pref = SubtitleSettings.language(this)
+        if (pref == "off") return
+        if (!autoSubTried.add("${query.cacheKey}:$pref")) return
+        val hasLanguage = tracks.groups.any { group ->
+            group.type == C.TRACK_TYPE_TEXT &&
+                (0 until group.length).any { normalizedLang(group.getTrackFormat(it).language) == pref }
+        }
+        if (!hasLanguage) searchOnline(pref, fromAuto = true)
+    }
+
+    private fun searchOnline(lang: String, fromAuto: Boolean) {
+        val item = items.getOrNull(index) ?: return
+        val query = item.subs ?: return
+        if (SubtitleSettings.credentials(this) == null) {
+            if (!fromAuto) showNoKeyDialog()
+            return
+        }
+        if (fetchingSubs) return
+        fetchingSubs = true
+        Toast.makeText(this, "Buscando subtítulos en ${SubtitleService.languageName(lang)}…", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            try {
+                SubtitleService.fetch(this@PlayerActivity, query, lang)
+                reloadWithSubtitles(lang)
+                Toast.makeText(this@PlayerActivity, "Subtítulos en ${SubtitleService.languageName(lang)} listos", Toast.LENGTH_SHORT).show()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: SubtitleException) {
+                Toast.makeText(this@PlayerActivity, e.message ?: "No se pudieron conseguir los subtítulos.", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@PlayerActivity,
+                    "No se pudieron conseguir los subtítulos (${e.javaClass.simpleName}). Revisa tu conexión.",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                fetchingSubs = false
+            }
+        }
+    }
+
+    /** Vuelve a cargar el video en el mismo minuto, ahora con el subtítulo nuevo, y lo activa. */
+    private fun reloadWithSubtitles(lang: String) {
+        val exo = player ?: return
+        val item = items.getOrNull(index) ?: return
+        val position = exo.currentPosition
+        val wasPlaying = exo.playWhenReady
+        SubtitleSettings.setLanguage(this, lang)
+        exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .setPreferredTextLanguage(lang)
+            .build()
+        exo.setMediaItem(buildMediaItem(item), position)
+        exo.prepare()
+        exo.playWhenReady = wasPlaying
+    }
+
+    private fun showNoKeyDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Subtítulos en internet")
+            .setMessage(
+                "Para buscar subtítulos hace falta una clave gratuita de OpenSubtitles:\n\n" +
+                    "1. Entra a opensubtitles.com y crea una cuenta gratis.\n" +
+                    "2. En tu cuenta abre \"API consumers\" y crea una clave.\n" +
+                    "3. En Ultra Premier TV: Ajustes → Subtítulos en internet, y escribe la clave."
+            )
+            .setPositiveButton("Entendido", null)
+            .setOnDismissListener { playerView.requestFocus() }
+            .show()
+    }
+
     // ------------------------------------------------------------ control remoto
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
@@ -345,6 +668,29 @@ class PlayerActivity : ComponentActivity() {
             val isOk = key == KeyEvent.KEYCODE_DPAD_CENTER ||
                 key == KeyEvent.KEYCODE_ENTER ||
                 key == KeyEvent.KEYCODE_NUMPAD_ENTER
+
+            // Teclas de opciones: Menú (≡) abre Subtítulos / Tamaño; la tecla CC abre los subtítulos.
+            if (key == KeyEvent.KEYCODE_MENU) {
+                if (event.repeatCount == 0) showOptionsMenu()
+                return true
+            }
+            if (key == KeyEvent.KEYCODE_CAPTIONS) {
+                if (event.repeatCount == 0 && !items[index].isLive) showSubtitleDialog()
+                return true
+            }
+
+            // Con un botón de arriba enfocado: izquierda/derecha/OK los manejan ellos; abajo vuelve al video.
+            if (optionsFocused()) {
+                when (key) {
+                    KeyEvent.KEYCODE_DPAD_DOWN -> {
+                        playerView.requestFocus()
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_UP -> return true
+                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> return super.dispatchKeyEvent(event)
+                }
+                if (isOk) return super.dispatchKeyEvent(event)
+            }
 
             // Error definitivo: OK vuelve a intentar.
             if (isOk && errorText.visibility == View.VISIBLE && retryCount >= MAX_AUTO_RETRIES) {
@@ -369,6 +715,19 @@ class PlayerActivity : ComponentActivity() {
                     }
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_INFO -> {
                         if (firstPress) showBanner(item)
+                        return true
+                    }
+                    KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                        // Primero muestra la información; la siguiente pulsación pasa a los botones de arriba.
+                        if (firstPress) {
+                            if (optionsBar.visibility == View.VISIBLE) {
+                                btnSize.requestFocus()
+                                handler.removeCallbacks(hideBannerTask)
+                                handler.postDelayed(hideBannerTask, BANNER_DURATION_MS)
+                            } else {
+                                showBanner(item)
+                            }
+                        }
                         return true
                     }
                     KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> {
@@ -405,13 +764,17 @@ class PlayerActivity : ComponentActivity() {
         }
 
         if (item.isLive) {
-            hintText.text = "▲ ▼  Cambiar de canal      OK  Información      Atrás  Salir"
+            hintText.text = "▲ ▼  Cambiar de canal      OK  Información      ◀ ▶  Tamaño      Atrás  Salir"
             hintText.visibility = View.VISIBLE
         } else {
             hintText.visibility = View.GONE
         }
 
         banner.visibility = View.VISIBLE
+        if (item.isLive) {
+            btnSubtitles.visibility = View.GONE
+            optionsBar.visibility = View.VISIBLE
+        }
         handler.removeCallbacks(hideBannerTask)
         handler.postDelayed(hideBannerTask, BANNER_DURATION_MS)
 
@@ -426,7 +789,7 @@ class PlayerActivity : ComponentActivity() {
         epgJob = lifecycleScope.launch {
             val repository = (application as MiTvApp).repository
             val entries = try {
-                repository.shortEpg(streamId)
+                repository.epgNowNext(streamId)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

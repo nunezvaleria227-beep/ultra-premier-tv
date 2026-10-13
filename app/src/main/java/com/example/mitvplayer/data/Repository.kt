@@ -37,8 +37,17 @@ class Repository(
     private var moviesMemory: Catalog<Movie>? = null
     private var seriesMemory: Catalog<SeriesItem>? = null
 
-    private val epgCache = HashMap<String, Pair<Long, List<EpgEntry>>>()
-    private val tableCache = HashMap<String, Pair<Long, List<EpgEntry>>>()
+    /** Canales de En vivo agrupados por nombre base (quita HD/FHD/4K…), para prestar la guía entre versiones hermanas. */
+    @Volatile
+    private var siblingIndex: Map<String, List<String>>? = null
+
+    /** Cachés con tope (los más usados recientemente se quedan): recorrer miles de canales no llena la memoria. */
+    private class Lru(private val max: Int) : LinkedHashMap<String, Pair<Long, List<EpgEntry>>>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<Long, List<EpgEntry>>>?): Boolean = size > max
+    }
+
+    private val epgCache = Lru(EPG_CACHE_MAX)
+    private val tableCache = Lru(TABLE_CACHE_MAX)
     private val epgGate = Semaphore(3)
 
     /** Formato del video en vivo: "m3u8" (HLS) o "ts". */
@@ -80,6 +89,7 @@ class Repository(
 
     private fun clearMemory() {
         liveMemory = null
+        siblingIndex = null
         moviesMemory = null
         seriesMemory = null
         synchronized(epgCache) { epgCache.clear() }
@@ -97,7 +107,10 @@ class Repository(
     suspend fun liveCatalog(force: Boolean = false): Catalog<LiveChannel> {
         if (!force) liveMemory?.let { return it }
         return loadCatalog(Kind.LIVE, force) { file, category -> api.parseLive(file, category) }
-            .also { liveMemory = it }
+            .also {
+                liveMemory = it
+                siblingIndex = null
+            }
     }
 
     suspend fun movieCatalog(force: Boolean = false): Catalog<Movie> {
@@ -187,17 +200,42 @@ class Repository(
     suspend fun shortEpg(streamId: String): List<EpgEntry> =
         withContext(Dispatchers.IO) { api.shortEpg(creds(), streamId) }
 
-    /** Programa actual y siguientes de un canal, con caché de 5 minutos y como máximo 3 consultas a la vez. */
-    suspend fun epgNowNext(streamId: String): List<EpgEntry> {
+    /** Otras versiones del mismo canal (mismo nombre sin HD/FHD/4K…), las que ya se sabe que tienen guía primero. */
+    private fun siblingIds(streamId: String): List<String> {
+        val live = liveMemory ?: return emptyList()
+        val index = siblingIndex ?: live.items.groupBy({ epgBaseKey(it.name) }, { it.id })
+            .filterKeys { it != null }
+            .mapKeys { it.key!! }
+            .also { siblingIndex = it }
+        val key = live.byId[streamId]?.let { epgBaseKey(it.name) } ?: return emptyList()
+        val others = index[key].orEmpty().filter { it != streamId }
+        if (others.isEmpty()) return others
+        val known = synchronized(epgCache) { others.filter { epgCache[it]?.second?.isNotEmpty() == true } }
+        return (known + others.filter { it !in known }).take(MAX_SIBLINGS)
+    }
+
+    /** "Ahora y después" de UN canal (sin prestar de otros), con caché. Los vacíos se recuerdan más tiempo. */
+    private suspend fun nowNextOwn(streamId: String): List<EpgEntry> {
         val now = System.currentTimeMillis()
         synchronized(epgCache) {
             val cached = epgCache[streamId]
-            if (cached != null && now - cached.first < EPG_MAX_AGE_MS) return cached.second
+            if (cached != null) {
+                val maxAge = if (cached.second.isEmpty()) EMPTY_MAX_AGE_MS else EPG_MAX_AGE_MS
+                if (now - cached.first < maxAge) return cached.second
+            }
         }
         val list = epgGate.withPermit {
             withContext(Dispatchers.IO) {
                 try {
-                    api.shortEpg(creds(), streamId, 4).sortedBy { it.start }
+                    val c = creds()
+                    val short = api.shortEpg(c, streamId, 4).sortedBy { it.start }
+                    if (short.isNotEmpty()) {
+                        short
+                    } else {
+                        // Algunos servidores no llenan "short" pero sí la tabla del día.
+                        val nowSec = System.currentTimeMillis() / 1000
+                        api.epgTable(c, streamId).sortedBy { it.start }.filter { it.end > nowSec }.take(4)
+                    }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -209,12 +247,29 @@ class Repository(
         return list
     }
 
-    /** Guía completa de un canal con caché de 15 minutos (para la guía en cuadrícula). Si falla, devuelve vacío. */
-    suspend fun epgTableCached(streamId: String): List<EpgEntry> {
+    /**
+     * Programa actual y siguientes de un canal. Si el canal no tiene guía, se presta la de una
+     * versión hermana (por ejemplo "ESPN FHD" para "ESPN HD"). Máximo 3 consultas a la vez.
+     */
+    suspend fun epgNowNext(streamId: String): List<EpgEntry> {
+        val own = nowNextOwn(streamId)
+        if (own.isNotEmpty()) return own
+        for (sibling in siblingIds(streamId).take(2)) {
+            val borrowed = nowNextOwn(sibling)
+            if (borrowed.isNotEmpty()) return borrowed
+        }
+        return emptyList()
+    }
+
+    /** Guía completa de UN canal (sin prestar), con caché de 15 minutos. */
+    private suspend fun tableOwn(streamId: String): List<EpgEntry> {
         val now = System.currentTimeMillis()
         synchronized(tableCache) {
             val cached = tableCache[streamId]
-            if (cached != null && now - cached.first < TABLE_MAX_AGE_MS) return cached.second
+            if (cached != null) {
+                val maxAge = if (cached.second.isEmpty()) EMPTY_MAX_AGE_MS else TABLE_MAX_AGE_MS
+                if (now - cached.first < maxAge) return cached.second
+            }
         }
         val list = epgGate.withPermit {
             withContext(Dispatchers.IO) {
@@ -229,6 +284,20 @@ class Repository(
         }
         synchronized(tableCache) { tableCache[streamId] = now to list }
         return list
+    }
+
+    /**
+     * Guía completa de un canal (para la guía en cuadrícula). Si el canal no tiene guía,
+     * se presta la de una versión hermana. Si falla, devuelve vacío.
+     */
+    suspend fun epgTableCached(streamId: String): List<EpgEntry> {
+        val own = tableOwn(streamId)
+        if (own.isNotEmpty()) return own
+        for (sibling in siblingIds(streamId)) {
+            val borrowed = tableOwn(sibling)
+            if (borrowed.isNotEmpty()) return borrowed
+        }
+        return emptyList()
     }
 
     /** Guía completa de un canal, para elegir un programa de Catch up. */
@@ -263,5 +332,11 @@ class Repository(
         const val CACHE_MAX_AGE_MS = 12L * 60 * 60 * 1000
         const val EPG_MAX_AGE_MS = 5L * 60 * 1000
         const val TABLE_MAX_AGE_MS = 15L * 60 * 1000
+
+        /** Los canales sin guía se vuelven a consultar con menos frecuencia. */
+        const val EMPTY_MAX_AGE_MS = 20L * 60 * 1000
+        const val MAX_SIBLINGS = 3
+        const val EPG_CACHE_MAX = 600
+        const val TABLE_CACHE_MAX = 120
     }
 }

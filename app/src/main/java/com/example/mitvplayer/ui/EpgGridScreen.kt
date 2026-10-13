@@ -166,14 +166,17 @@ fun EpgGridScreen(vm: AppViewModel, categoryId: String, title: String) {
     if (target != null) {
         val channel = target.first
         val entry = target.second
-        val airing = nowSec >= entry.start && nowSec < entry.end
-        val past = entry.end <= nowSec
+        val airing = !entry.placeholder && nowSec >= entry.start && nowSec < entry.end
+        val past = !entry.placeholder && entry.end <= nowSec
         val scheduleId = RecordingScheduler.store(context).idFor(channel.id, entry.start)
         val scheduled = vm.isScheduled(channel.id, entry.start)
         val channelIndex = channels.indexOfFirst { it.id == channel.id }.coerceAtLeast(0)
 
         val options = ArrayList<Opt>()
-        if (airing) {
+        if (entry.placeholder) {
+            options.add(Opt("Ver ahora") { vm.playLive(context, channels, channelIndex) })
+            options.add(Opt("Grabar (máximo 2 horas)") { vm.startRecording(context, channel) })
+        } else if (airing) {
             options.add(Opt("Ver ahora") { vm.playLive(context, channels, channelIndex) })
             options.add(
                 Opt("Grabar lo que queda") {
@@ -197,7 +200,7 @@ fun EpgGridScreen(vm: AppViewModel, categoryId: String, title: String) {
         val description = entry.description.trim().take(200)
         OptionsDialog(
             title = entry.title.ifBlank { channel.name },
-            message = "${channel.name} · ${formatHm(entry.start)} – ${formatHm(entry.end)}" +
+            message = (if (entry.placeholder) channel.name else "${channel.name} · ${formatHm(entry.start)} – ${formatHm(entry.end)}") +
                 (if (description.isNotEmpty()) "\n\n$description" else "") +
                 (if (!airing && !past && entry.end - entry.start > 7200) "\n\nSe grabarán como máximo 2 horas." else ""),
             options = options,
@@ -266,14 +269,51 @@ private fun GuideRow(
                             .align(Alignment.CenterStart)
                     )
                 } else if (programs.isEmpty()) {
-                    Text(
-                        text = "Sin información de programación",
-                        color = TextSecondary,
-                        fontSize = 11.sp,
+                    // El canal no manda guía (ni él ni sus versiones hermanas): bloque de relleno para que no quede vacío.
+                    FocusCard(
+                        onClick = {
+                            onPick(
+                                EpgEntry(
+                                    title = "En vivo",
+                                    description = "Este canal no envía guía de programación.",
+                                    start = windowStart,
+                                    end = windowEnd,
+                                    placeholder = true
+                                )
+                            )
+                        },
                         modifier = Modifier
-                            .padding(start = 8.dp)
-                            .align(Alignment.CenterStart)
-                    )
+                            .width(totalWidth - 3.dp)
+                            .fillMaxHeight()
+                            .padding(vertical = 3.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        scaleOnFocus = 1f,
+                        background = Color(0x33232A63),
+                        focusedBackground = PanelFocusedColor
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "● En vivo",
+                                color = TextPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = "Este canal no manda guía de programación",
+                                color = TextSecondary,
+                                fontSize = 10.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
                 programs.forEach { entry ->
                     val from = maxOf(entry.start, windowStart)
