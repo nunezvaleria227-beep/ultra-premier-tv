@@ -5,7 +5,7 @@ end sub
 sub doWork()
     req = m.top.request
     action = toS(req.action)
-    res = { ok: false, action: action, tag: toS(req.tag), error: "" }
+    res = { ok: false, action: action, tag: toS(req.tag), error: "", diag: "", authFailed: false }
     if action = "login"
         res = doLogin(req, res)
     else if action = "categories"
@@ -62,23 +62,27 @@ function doLogin(req as Object, res as Object) as Object
     if Type(json) <> "roAssociativeArray"
         res.error = "Usuario o contraseña incorrectos."
         res.diag = "el servidor no aceptó el usuario o la contraseña"
+        res.authFailed = true
         return res
     end if
     ui = json.user_info
     if ui = invalid or Type(ui) <> "roAssociativeArray"
         res.error = "Usuario o contraseña incorrectos."
         res.diag = "el servidor no aceptó el usuario o la contraseña"
+        res.authFailed = true
         return res
     end if
     if toS(ui.auth) <> "1"
         res.error = "Usuario o contraseña incorrectos."
         res.diag = "el servidor no aceptó el usuario o la contraseña"
+        res.authFailed = true
         return res
     end if
     status = toS(ui.status)
     if status <> "" and LCase(status) <> "active"
         res.error = "Tu cuenta no está activa (" + status + ")."
         res.diag = "cuenta no activa (" + status + ")"
+        res.authFailed = true
         return res
     end if
     liveExt = "m3u8"

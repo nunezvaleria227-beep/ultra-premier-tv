@@ -151,6 +151,8 @@ sub onEvent(event as Object)
     else if t = "logout"
         regDelete("user")
         regDelete("pass")
+        regDelete("account")
+        regDelete("liveExt")
         m.prefetchUser = ""
         cacheClear()
         m.global.session = { parental: true }
@@ -163,6 +165,8 @@ end sub
 sub onLoggedIn(e as Object)
     regWrite("user", toS(e.user))
     regWrite("pass", toS(e.pass))
+    regWrite("liveExt", toS(e.liveExt))
+    if e.account <> invalid then regWrite("account", FormatJson(e.account))
     parental = (regRead("parental") <> "0")
     m.global.session = {
         base: portalBase()
@@ -182,6 +186,45 @@ sub onLoggedIn(e as Object)
     ' (getUserData) al entrar. Solo cuando la persona inicia sesión a mano, no en la entrada automática.
     if e.manual = true then askRokuEmail()
     prefetchCategories(toS(e.user))
+    ' Si se abrió con la sesión guardada, la cuenta se comprueba ahora en segundo plano.
+    if e.restored = true then checkSession(toS(e.user), toS(e.pass))
+end sub
+
+' Vuelve a comprobar usuario y contraseña sin hacer esperar a nadie. Si el servidor ya no los acepta, se pide entrar de nuevo.
+sub checkSession(user as String, pass as String)
+    t = CreateObject("roSGNode", "ApiTask")
+    t.request = { action: "login", user: user, pass: pass, tag: user }
+    t.observeField("response", "onSessionChecked")
+    m.checkTask = t
+    t.control = "RUN"
+end sub
+
+sub onSessionChecked(event as Object)
+    resp = event.getData()
+    s = m.global.session
+    if resp = invalid or s = invalid or s.user = invalid then return
+    if toS(resp.tag) <> toS(s.user) then return
+    if resp.ok = true
+        regWrite("liveExt", toS(resp.liveExt))
+        if resp.account <> invalid then regWrite("account", FormatJson(resp.account))
+        fresh = {}
+        for each k in s
+            fresh[k] = s[k]
+        end for
+        fresh.liveExt = toS(resp.liveExt)
+        fresh.account = resp.account
+        m.global.session = fresh
+    else if resp.authFailed = true
+        regDelete("user")
+        regDelete("pass")
+        regDelete("account")
+        regDelete("liveExt")
+        regWrite("lastTry", "Tu sesión ya no es válida. Escribe tu usuario y contraseña otra vez.")
+        m.prefetchUser = ""
+        cacheClear()
+        m.global.session = { parental: true }
+        showLogin()
+    end if
 end sub
 
 ' Mientras la persona mira el inicio, se bajan en segundo plano las categorías de canales, películas y series

@@ -13,8 +13,7 @@ sub init()
     m.user = regRead("user")
     m.pass = regRead("pass")
     ' Si el intento anterior no funcionó, se deja a la vista el motivo (ayuda a corregir y a pedir soporte).
-    lastTry = regRead("lastTry")
-    if lastTry <> "" then m.lastTry.text = "Último intento: " + lastTry
+    m.lastTry.text = regRead("lastTry")
 
     root = CreateObject("roSGNode", "ContentNode")
     root.CreateChild("ContentNode")
@@ -26,7 +25,7 @@ sub init()
 
     ' Si ya había una sesión guardada, entra sola.
     if m.user <> "" and m.pass <> ""
-        m.status.text = "Entrando… un momento"
+        m.status.text = "Abriendo…"
         m.autoTimer.observeField("fire", "onAutoLogin")
         m.autoTimer.control = "start"
     end if
@@ -43,8 +42,19 @@ sub refreshList()
     c.getChild(2).title = "Entrar"
 end sub
 
+' Con una sesión guardada se abre el inicio al instante; la cuenta se vuelve a comprobar en segundo plano.
 sub onAutoLogin()
-    submit()
+    liveExt = regRead("liveExt")
+    if liveExt = "" then liveExt = "m3u8"
+    account = invalid
+    raw = regRead("account")
+    if raw <> ""
+        a = ParseJson(raw)
+        if a <> invalid and Type(a) = "roAssociativeArray"
+            account = { exp: toI(a.exp), maxCon: toI(a.maxCon), activeCon: toI(a.activeCon), status: toS(a.status), user: toS(a.user) }
+        end if
+    end if
+    m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: account, liveExt: liveExt, manual: false, restored: true }
 end sub
 
 sub onSelected(event as Object)
@@ -154,14 +164,15 @@ sub onLogin(event as Object)
     if resp.ok = true
         if regRead("lastTry") <> "" then regDelete("lastTry")
         m.lastTry.text = ""
-        m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: resp.account, liveExt: resp.liveExt, manual: manual }
+        m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: resp.account, liveExt: resp.liveExt, manual: manual, restored: false }
     else
         setError(resp.error)
         userLen = Len(m.user)
         passLen = Len(m.pass)
-        diag = "usuario " + Chr(34) + m.user + Chr(34) + " (" + userLen.ToStr() + "), contraseña " + passLen.ToStr() + ". " + toS(resp.diag) + ". Teclado u " + m.dbgUser + ", c " + m.dbgPass
+        diag = toS(resp.diag) + ". Usuario " + Chr(34) + m.user + Chr(34) + " (" + userLen.ToStr() + "), contraseña " + passLen.ToStr() + ". Teclado u " + m.dbgUser + ", c " + m.dbgPass
+        diag = "Último intento: " + diag
         regWrite("lastTry", diag)
-        m.lastTry.text = "Último intento: " + diag
+        m.lastTry.text = diag
         m.list.setFocus(true)
         m.top.event = { type: "loginFailed" }
     end if
