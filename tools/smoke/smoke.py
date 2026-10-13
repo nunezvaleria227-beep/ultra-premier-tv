@@ -13,7 +13,7 @@ import time
 import traceback
 import xml.etree.ElementTree as ET
 
-OUT = sys.argv[1] if len(sys.argv) > 1 else "out"
+OUT = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else "out"
 os.makedirs(OUT, exist_ok=True)
 PKG = "com.ultrapremier.tv"
 REPORT = []
@@ -336,7 +336,7 @@ def live():
         nodes = dump()
         log("INFO", "Actividad en primer plano: " + current_focus())
         key(22, 1.5)  # flecha derecha → muestra la barra y enfoca «Tamaño»
-        shot("vivo_barra_opciones")
+        shot("vivo_barra_opciones", with_texts=False)  # sin leer textos: la barra se esconde a los 5 s
         key(66, 1.5)  # OK abre el cuadro de tamaño
         nodes = shot("vivo_dialogo_tamano")
         txt = " | ".join(texts(nodes))
@@ -668,24 +668,33 @@ def other_screens():
 
 @step("grabar y convertir a MP4")
 def recording():
-    nodes = go_home()
-    if not tap("TV EN DIRECTO", nodes=nodes, wait=3):
-        return
-    time.sleep(2)
-    nodes = dump()
-    tap("NOTICIAS", nodes=nodes, wait=2)
-    nodes = dump()
-    tap("Canal Uno FHD", nodes=nodes, wait=3)
-    nodes = dump()
-    if not tap("Grabar", nodes=nodes, wait=9):
-        log("FALLO", "No se encontró el botón Grabar")
-        return
-    nodes = shot("grabar_empezo")
-    log("INFO", "Tras pulsar Grabar: " + " | ".join(texts(nodes))[:300])
+    # 1) La grabación programada desde la guía debió arrancar sola a su hora.
     go_home()
     tap_xy(1141, 64)  # Grabaciones
     time.sleep(3)
-    nodes = shot("grabaciones_en_curso")
+    nodes = shot("grabaciones_inicio")
+    txt = " | ".join(texts(nodes))
+    log("INFO", "Grabaciones al empezar este paso: " + txt[:400])
+    if find(nodes, "Grabando"):
+        log("OK", "Una grabación en curso: la programada desde la guía arrancó sola a su hora (o ya había una)")
+    else:
+        # 2) Si no hay ninguna, se graba a mano un canal en vivo.
+        back(1.5)
+        nodes = go_home()
+        tap("TV EN DIRECTO", nodes=nodes, wait=3)
+        time.sleep(2)
+        nodes = dump()
+        tap("NOTICIAS", nodes=nodes, wait=2)
+        nodes = dump()
+        tap("Canal Uno FHD", nodes=nodes, wait=3)
+        nodes = dump()
+        if not tap("Grabar", nodes=nodes, wait=9):
+            log("FALLO", "No se encontró el botón Grabar: " + " | ".join(texts(nodes))[:300])
+            return
+        go_home()
+        tap_xy(1141, 64)
+        time.sleep(3)
+        nodes = shot("grabaciones_en_curso")
     if not tap("Detener y guardar", nodes=nodes, wait=6):
         log("FALLO", "No hay botón «Detener y guardar» en Grabaciones")
         return
@@ -698,22 +707,26 @@ def recording():
         if not tap("conservar la original", nodes=nodes, wait=2):
             log("FALLO", "No se ofrecieron las opciones de conversión")
             return
+        t0 = time.time()
         done = False
-        for i in range(40):
+        i = 0
+        while time.time() - t0 < 300:
             nodes = dump()
             t = " | ".join(texts(nodes))
-            if i in (1, 8):
+            if i in (1, 6, 14):
                 shot(f"mp4_progreso_{i}", with_texts=False)
-            if "Convirtiendo" not in t and "Guardando el MP4" not in t:
-                if i >= 2:
-                    done = True
-                    break
+                log("INFO", "Progreso: " + t[:300])
+            i += 1
+            if "Convirtiendo" not in t and "Guardando el MP4" not in t and time.time() - t0 > 8:
+                done = True
+                break
             time.sleep(3)
+        log("INFO", f"La conversión tardó unos {int(time.time() - t0)} s (terminó: {done})")
         nodes = shot("mp4_final")
         txt = " | ".join(texts(nodes))
         log("INFO", "Pantalla tras convertir: " + txt[:500])
         files = sh("ls -la /sdcard/Movies/'Ultra Premier TV'/ /sdcard/Android/data/com.ultrapremier.tv/files/Movies/Grabaciones 2>&1")
-        log("INFO", "Archivos guardados: " + files.replace("\n", " / ")[:500])
+        log("INFO", "Archivos guardados: " + files.replace("\n", " / ")[:600])
         expect(".mp4" in files.lower(), "Se creó un archivo MP4", "No se encontró ningún archivo MP4 tras convertir")
     back(1.5)
 
@@ -732,6 +745,53 @@ def final_logs():
     with open(os.path.join(OUT, "errores.txt"), "w") as f:
         f.write("\n".join(bad + ["---- errores de la app ----"] + own[:200]))
     expect(not bad, "No hubo cierres inesperados (FATAL EXCEPTION) en el registro", f"Hubo {len(bad)} líneas de cierre/ANR; ver errores.txt")
+
+
+def start_total_ms():
+    out = sh("am start -W -n com.ultrapremier.tv/com.example.mitvplayer.MainActivity", timeout=90)
+    m = re.search(r"TotalTime:\s*(\d+)", out)
+    return int(m.group(1)) if m else None
+
+
+def median(values):
+    v = sorted(x for x in values if x is not None)
+    return v[len(v) // 2] if v else None
+
+
+def main_perf():
+    """Mide el arranque en frío (ms) con la sesión sin iniciar y con sesión y listas guardadas."""
+    prepare()
+    cold = []
+    for _ in range(6):
+        sh("am force-stop com.ultrapremier.tv")
+        time.sleep(3)
+        cold.append(start_total_ms())
+        time.sleep(4)
+    log("PERF", f"Arranque en frío SIN sesión (ms): {cold}  → mediana {median(cold[1:])}")
+    if login():
+        time.sleep(12)
+        warm = []
+        for _ in range(6):
+            sh("am force-stop com.ultrapremier.tv")
+            time.sleep(3)
+            warm.append(start_total_ms())
+            time.sleep(7)
+        log("PERF", f"Arranque en frío CON sesión y listas guardadas (ms): {warm}  → mediana {median(warm[1:])}")
+        # abrir TV en directo y Cine: cuánto tarda en aparecer algo (aproximado, ±2 s por la lectura de pantalla)
+        for label, expect_text in (("TV EN DIRECTO", "Canal Uno"), ("CINE", "Película")):
+            nodes = go_home()
+            t0 = time.time()
+            tap(label, nodes=nodes, wait=0)
+            seen = None
+            while time.time() - t0 < 30:
+                nodes = dump()
+                if find(nodes, expect_text):
+                    seen = time.time() - t0
+                    break
+            log("PERF", f"Abrir «{label}» hasta ver contenido (s, aprox.): {None if seen is None else round(seen, 1)}")
+            back(1.5)
+    with open(os.path.join(OUT, "perf.txt"), "w") as f:
+        f.write("\n".join(l for l in REPORT if "PERF" in l))
 
 
 def main():
@@ -754,4 +814,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--perf" in sys.argv:
+        main_perf()
+    else:
+        main()

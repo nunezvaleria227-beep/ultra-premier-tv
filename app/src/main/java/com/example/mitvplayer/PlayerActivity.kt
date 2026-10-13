@@ -105,6 +105,14 @@ class PlayerActivity : ComponentActivity() {
     private lateinit var btnSubtitles: TextView
     private lateinit var btnSize: TextView
 
+    /** En vivo: con ◀ ▶ se marca el botón "Tamaño" (sin depender del foco, que no funciona en modo táctil); OK lo abre. */
+    private var sizeMarked = false
+
+    private fun markSize(on: Boolean) {
+        sizeMarked = on
+        if (::btnSize.isInitialized) btnSize.isSelected = on
+    }
+
     private var player: ExoPlayer? = null
     private var items: List<PlayItem> = emptyList()
     private var index = 0
@@ -146,6 +154,7 @@ class PlayerActivity : ComponentActivity() {
                 handler.postDelayed(this, BANNER_DURATION_MS)
             } else {
                 banner.visibility = View.GONE
+                markSize(false)
                 if (items.getOrNull(index)?.isLive == true) optionsBar.visibility = View.GONE
             }
         }
@@ -733,22 +742,31 @@ class PlayerActivity : ComponentActivity() {
                 val firstPress = event.repeatCount == 0
                 when (key) {
                     KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> {
+                        markSize(false)
                         if (firstPress) zap(+1)
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                        markSize(false)
                         if (firstPress) zap(-1)
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_INFO -> {
-                        if (firstPress) showBanner(item)
+                        if (sizeMarked && optionsBar.visibility == View.VISIBLE && key != KeyEvent.KEYCODE_INFO) {
+                            if (firstPress) {
+                                markSize(false)
+                                showSizeDialog()
+                            }
+                        } else if (firstPress) {
+                            showBanner(item)
+                        }
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        // Muestra la información y deja enfocado el botón de Tamaño: OK lo abre.
+                        // Muestra la información y marca el botón "Tamaño": OK lo abre.
                         if (firstPress) {
                             if (optionsBar.visibility != View.VISIBLE) showBanner(item)
-                            btnSize.requestFocus()
+                            markSize(true)
                             handler.removeCallbacks(hideBannerTask)
                             handler.postDelayed(hideBannerTask, BANNER_DURATION_MS)
                         }

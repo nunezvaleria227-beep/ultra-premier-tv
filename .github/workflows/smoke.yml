@@ -5,6 +5,15 @@ name: Prueba de humo
 # en la rama "smoke-results". No publica nada.
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Versión del código a probar (rama, etiqueta o commit). Vacío = la más reciente"
+        required: false
+        default: ""
+      mode:
+        description: "full = recorrido completo; perf = solo mide la velocidad de arranque"
+        required: false
+        default: "full"
 
 permissions:
   contents: write
@@ -14,7 +23,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v4
+      - name: Código de la app (la versión a probar)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Guion de la prueba (siempre el más reciente)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: _h
 
       - uses: actions/setup-java@v4
         with:
@@ -33,13 +51,15 @@ jobs:
         run: |
           sudo apt-get update -y
           sudo apt-get install -y ffmpeg
-          bash tools/smoke/make_media.sh "$RUNNER_TEMP/media"
+          bash _h/tools/smoke/make_media.sh "$RUNNER_TEMP/media"
 
       - name: Apuntar la app al servidor de prueba
         run: |
           sed -i 's#http://gazytv.vip:8880#http://10.0.2.2:8880#' app/src/main/java/com/example/mitvplayer/Config.kt
-          sed -i 's#https://api.opensubtitles.com/api/v1#http://10.0.2.2:8880/os/api/v1#' app/src/main/java/com/example/mitvplayer/data/SubtitleService.kt
-          grep -n "10.0.2.2" app/src/main/java/com/example/mitvplayer/Config.kt app/src/main/java/com/example/mitvplayer/data/SubtitleService.kt
+          SUB=app/src/main/java/com/example/mitvplayer/data/SubtitleService.kt
+          if [ -f "$SUB" ]; then sed -i 's#https://api.opensubtitles.com/api/v1#http://10.0.2.2:8880/os/api/v1#' "$SUB"; fi
+          grep -rn "10.0.2.2" app/src/main/java/com/example/mitvplayer/ || true
+          git log -1 --format='Probando el commit %h: %s' | head -c 200
 
       - name: Compilar (depuración)
         run: |
@@ -56,9 +76,12 @@ jobs:
 
       - name: Servidor de prueba
         run: |
-          nohup python3 tools/smoke/mock_xtream.py --media "$RUNNER_TEMP/media" > mock.log 2>&1 &
+          nohup python3 _h/tools/smoke/mock_xtream.py --media "$RUNNER_TEMP/media" > mock.log 2>&1 &
           sleep 2
           curl -s "http://127.0.0.1:8880/player_api.php?username=demo&password=demo" | head -c 300
+
+      - name: Modo de la prueba
+        run: echo "SMOKE_MODE=${{ inputs.mode || 'full' }}" >> "$GITHUB_ENV"
 
       - name: Android virtual y recorrido
         uses: reactivecircus/android-emulator-runner@v2
@@ -69,7 +92,7 @@ jobs:
           profile: pixel_c
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: bash tools/smoke/run.sh
+          script: bash _h/tools/smoke/run.sh
 
       - name: Registro del servidor
         if: always()
