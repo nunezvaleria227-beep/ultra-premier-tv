@@ -339,7 +339,10 @@ def live():
         shot("vivo_reproduciendo", with_texts=False)
         nodes = dump()
         log("INFO", "Actividad en primer plano: " + current_focus())
-        key(22, 1.5)  # flecha derecha → muestra la barra y enfoca «Tamaño»
+        # En modo táctil Android se "come" la primera flecha para salir de ese modo (con control remoto no pasa):
+        # primero un OK (muestra la información), luego la flecha.
+        key(66, 1.0)
+        key(22, 1.5)  # flecha derecha → marca «Tamaño»
         shot("vivo_barra_opciones", with_texts=False)  # sin leer textos: la barra se esconde a los 5 s
         key(66, 1.5)  # OK abre el cuadro de tamaño
         nodes = shot("vivo_dialogo_tamano")
@@ -890,6 +893,10 @@ def main_perf():
                     break
             log("PERF", f"Búsqueda maestra «mero 19»: resultados en (s): {got}")
             shot("perf_busqueda", with_texts=False)
+    uptv = adb("logcat", "-d", "-s", "UPTV:D", timeout=60)
+    with open(os.path.join(OUT, "uptv-log.txt"), "w") as f:
+        f.write(uptv)
+    log("INFO", "Mediciones internas (UPTV): " + " ; ".join(l[l.find("UPTV"):] for l in uptv.splitlines() if "UPTV" in l and ("lista" in l or "listas" in l))[:1500])
     with open(os.path.join(OUT, "perf.txt"), "w") as f:
         f.write("\n".join(l for l in REPORT if "PERF" in l))
 

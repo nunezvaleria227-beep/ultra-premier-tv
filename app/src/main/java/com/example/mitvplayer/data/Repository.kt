@@ -131,11 +131,23 @@ class Repository(
         parse: (File, String) -> List<T>
     ): Catalog<T> = withContext(Dispatchers.IO) {
         val c = creds()
-        val categories = api.categories(c, kind.categoriesAction)
-        val file = File(cacheDir, "${kind.cacheName}_${cacheKey(c)}.json")
+        val key = cacheKey(c)
+        val file = File(cacheDir, "${kind.cacheName}_$key.json")
+        val categoriesFile = File(cacheDir, "${kind.cacheName}_categories_$key.json")
+        val started = System.nanoTime()
+
+        val fresh = file.exists() && System.currentTimeMillis() - file.lastModified() < CACHE_MAX_AGE_MS
+        // Con la lista guardada al día también se usan las categorías guardadas: se abre sin esperar a la red.
+        var categories: List<Category>? = if (!force && fresh) readCategories(categoriesFile) else null
+        val categoriesFromDisk = categories != null
+        if (categories == null) {
+            categories = api.categories(c, kind.categoriesAction)
+            saveCategories(categoriesFile, categories)
+        }
+        val afterCategories = System.nanoTime()
 
         var items: List<T>? = null
-        val fresh = file.exists() && System.currentTimeMillis() - file.lastModified() < CACHE_MAX_AGE_MS
+        var source = "caché"
         if (!force && fresh) {
             items = try {
                 parse(file, "").takeIf { it.isNotEmpty() }
@@ -144,6 +156,7 @@ class Repository(
             }
         }
         if (items == null) {
+            source = "red"
             api.downloadList(c, kind.streamsAction, file)
             var parsed = parse(file, "")
             if (parsed.isEmpty() && categories.isNotEmpty()) {
@@ -153,7 +166,40 @@ class Repository(
             }
             items = parsed
         }
+        PerfLog.log {
+            "lista ${kind.cacheName}: categorías ${(afterCategories - started) / 1_000_000} ms (${if (categoriesFromDisk) "disco" else "red"}), " +
+                "elementos ${PerfLog.ms(afterCategories)} ms ($source), ${items.size} elementos"
+        }
         Catalog(categories, items, file.lastModified())
+    }
+
+    private fun readCategories(file: File): List<Category>? =
+        try {
+            if (!file.exists()) {
+                null
+            } else {
+                val array = org.json.JSONArray(file.readText())
+                val list = ArrayList<Category>(array.length())
+                for (i in 0 until array.length()) {
+                    val o = array.getJSONObject(i)
+                    list.add(Category(o.getString("i"), o.getString("n")))
+                }
+                list.takeIf { it.isNotEmpty() }
+            }
+        } catch (e: Exception) {
+            null
+        }
+
+    private fun saveCategories(file: File, categories: List<Category>) {
+        try {
+            val array = org.json.JSONArray()
+            for (category in categories) {
+                array.put(org.json.JSONObject().put("i", category.id).put("n", category.name))
+            }
+            file.writeText(array.toString())
+        } catch (e: Exception) {
+            // Sin guardar: la próxima vez se piden de nuevo.
+        }
     }
 
     private fun <T : Item> loadPerCategory(

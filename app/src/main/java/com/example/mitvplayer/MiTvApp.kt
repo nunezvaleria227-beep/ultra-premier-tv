@@ -16,6 +16,8 @@ class MiTvApp : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        com.example.mitvplayer.data.PerfLog.enabled =
+            (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
         // Abrir el almacén cifrado de la sesión tarda (Keystore): se hace en paralelo mientras se arma la pantalla.
         Thread({
             try {

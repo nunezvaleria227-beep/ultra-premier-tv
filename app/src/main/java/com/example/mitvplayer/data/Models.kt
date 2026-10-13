@@ -2,11 +2,33 @@ package com.example.mitvplayer.data
 
 import java.text.Normalizer
 
-private val COMBINING_MARKS = Regex("\\p{M}+")
-
-/** Texto sin acentos y en minúsculas, para comparar al buscar. */
-fun searchKey(text: String): String =
-    Normalizer.normalize(text, Normalizer.Form.NFD).replace(COMBINING_MARKS, "").lowercase()
+/**
+ * Texto sin acentos y en minúsculas, para comparar al buscar.
+ * Se calcula para cada canal, película y serie al leer las listas (decenas de miles): el texto sin acentos
+ * (lo más común) no pasa por el normalizador, y los acentos se quitan sin expresiones regulares.
+ */
+fun searchKey(text: String): String {
+    var ascii = true
+    for (ch in text) {
+        if (ch.code >= 128) {
+            ascii = false
+            break
+        }
+    }
+    if (ascii) return text.lowercase()
+    val decomposed = Normalizer.normalize(text, Normalizer.Form.NFD)
+    val out = StringBuilder(decomposed.length)
+    for (ch in decomposed) {
+        val type = Character.getType(ch)
+        if (type != Character.NON_SPACING_MARK.toInt() &&
+            type != Character.COMBINING_SPACING_MARK.toInt() &&
+            type != Character.ENCLOSING_MARK.toInt()
+        ) {
+            out.append(ch)
+        }
+    }
+    return out.toString().lowercase()
+}
 
 /** Las tres secciones que se descargan completas del servidor. */
 enum class Kind(val streamsAction: String, val categoriesAction: String, val cacheName: String) {

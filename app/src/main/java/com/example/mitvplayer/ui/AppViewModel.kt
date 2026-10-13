@@ -42,6 +42,8 @@ import com.example.mitvplayer.data.cleanTitle
 import com.example.mitvplayer.data.userMessage
 import com.example.mitvplayer.data.yearOf
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 
 enum class SearchScope(val label: String) {
@@ -277,12 +279,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Descarga las tres listas en segundo plano, una tras otra, para que ya estén al abrir cada sección. */
+    /** Lee las tres listas en segundo plano, a la vez, para que ya estén al abrir cada sección. */
     private fun preload() {
         viewModelScope.launch {
-            live.loadNow()
-            movies.loadNow()
-            series.loadNow()
+            val started = System.nanoTime()
+            val jobs = listOf(
+                async { live.loadNow() },
+                async { movies.loadNow() },
+                async { series.loadNow() }
+            )
+            jobs.awaitAll()
+            com.example.mitvplayer.data.PerfLog.log { "las tres listas listas en ${com.example.mitvplayer.data.PerfLog.ms(started)} ms" }
         }
     }
 
