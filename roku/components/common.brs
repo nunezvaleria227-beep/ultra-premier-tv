@@ -318,7 +318,8 @@ sub cachePut(key as String, node as Object)
     node.id = key
     node.addFields({ ts: nowSecs() })
     holder.appendChild(node)
-    while holder.getChildCount() > 5
+    ' Caben las 3 listas de categorías (canales, películas, series) y varias listas abiertas.
+    while holder.getChildCount() > 9
         holder.removeChildIndex(0)
     end while
 end sub
@@ -364,6 +365,15 @@ function httpGet(url as String, timeoutMs = 25000 as Integer) as Dynamic
         http.AsyncCancel()
     end if
     return invalid
+end function
+
+' Igual que httpGet, pero si falla (sin respuesta o error del servidor) lo intenta una segunda vez tras una pausa corta.
+' Así un tropiezo momentáneo de la red no se ve como un error en pantalla.
+function httpGetRetry(url as String, firstMs = 20000 as Integer, secondMs = 25000 as Integer) as Dynamic
+    txt = httpGet(url, firstMs)
+    if txt <> invalid then return txt
+    Sleep(500)
+    return httpGet(url, secondMs)
 end function
 
 ' Llamada al servidor de la cuenta ya iniciada.

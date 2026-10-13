@@ -91,6 +91,8 @@ sub setParental(value as Boolean)
     s = m.global.session
     s.parental = value
     m.global.session = s
+    ' Las categorías guardadas en la memoria rápida dependen de este ajuste: se vuelven a pedir.
+    cacheClear()
     if value
         regWrite("parental", "1")
     else

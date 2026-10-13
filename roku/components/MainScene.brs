@@ -10,6 +10,8 @@ sub init()
     ' si antes hay que escribir usuario y contraseña, "AppDialogInitiate" / "AppDialogComplete" alrededor de esa espera.
     m.launchDone = false
     m.dialogOpen = false
+    m.prefetch = []
+    m.prefetchUser = ""
     ' Tienda de Roku: solo se usa para la pantalla oficial "Solicitud de información" al iniciar sesión.
     m.store = CreateObject("roSGNode", "ChannelStore")
     m.store.observeField("userData", "onRokuUserData")
@@ -149,6 +151,8 @@ sub onEvent(event as Object)
     else if t = "logout"
         regDelete("user")
         regDelete("pass")
+        m.prefetchUser = ""
+        cacheClear()
         m.global.session = { parental: true }
         showLogin()
     else if t = "back"
@@ -177,6 +181,31 @@ sub onLoggedIn(e as Object)
     ' Roku exige que las apps con inicio de sesión muestren su pantalla de "Solicitud de información"
     ' (getUserData) al entrar. Solo cuando la persona inicia sesión a mano, no en la entrada automática.
     if e.manual = true then askRokuEmail()
+    prefetchCategories(toS(e.user))
+end sub
+
+' Mientras la persona mira el inicio, se bajan en segundo plano las categorías de canales, películas y series
+' para que esas pantallas abran al instante.
+sub prefetchCategories(user as String)
+    m.prefetchUser = user
+    m.prefetch = []
+    for each kind in ["live", "movie", "series"]
+        t = CreateObject("roSGNode", "ApiTask")
+        t.request = { action: "categories", type: kind, tag: kind }
+        t.observeField("response", "onPrefetched")
+        m.prefetch.Push(t)
+        t.control = "RUN"
+    end for
+end sub
+
+sub onPrefetched(event as Object)
+    resp = event.getData()
+    if resp = invalid or resp.ok <> true or resp.content = invalid then return
+    ' Si entretanto se cerró la sesión o entró otra cuenta, esa respuesta ya no sirve.
+    s = m.global.session
+    if s = invalid or s.user = invalid then return
+    if toS(s.user) <> m.prefetchUser then return
+    cachePut("cats_" + toS(resp.tag), resp.content)
 end sub
 
 ' Muestra la pantalla de Roku que pide compartir el correo de la cuenta Roku. Es opcional para la persona:

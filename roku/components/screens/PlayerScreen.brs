@@ -7,6 +7,11 @@ sub init()
     m.bannerNext = m.top.findNode("bannerNext")
     m.bannerTimer = m.top.findNode("bannerTimer")
     m.saveTimer = m.top.findNode("saveTimer")
+    m.watchTimer = m.top.findNode("watchTimer")
+    m.retryTimer = m.top.findNode("retryTimer")
+    m.zapTimer = m.top.findNode("zapTimer")
+    m.notice = m.top.findNode("notice")
+    m.noticeText = m.top.findNode("noticeText")
     m.tasks = []
     m.items = []
     m.index = 0
@@ -17,10 +22,27 @@ sub init()
     m.leaving = false
     m.lastRecentId = ""
 
+    ' Recuperación automática de la señal (cortes, señal atorada, reconexión del canal en vivo).
+    m.stopwatch = CreateObject("roTimespan")
+    m.retries = 0              ' intentos seguidos de recuperar la señal
+    m.everPlayed = false       ' si esta reproducción ya llegó a verse alguna vez
+    m.bufferSince = -1         ' milisegundos en que empezó a "cargar" (-1 si no está cargando)
+    m.playingSince = -1        ' milisegundos en que empezó a reproducirse (-1 si no se reproduce)
+    m.lastPos = 0              ' última posición vista (para retomar película o serie donde iba)
+    m.lastCutPos = -100        ' posición del último corte detectado antes del final
+    m.resumedFromCut = false
+    m.retryExt = ""
+    m.errorOpen = false
+    m.liveExt = "m3u8"
+
     m.video.observeField("state", "onState")
     m.video.observeField("availableSubtitleTracks", "onSubTracks")
     m.bannerTimer.observeField("fire", "hideBanner")
     m.saveTimer.observeField("fire", "saveProgress")
+    m.watchTimer.observeField("fire", "onWatch")
+    m.retryTimer.observeField("fire", "onRetryTimer")
+    m.zapTimer.observeField("fire", "onZapTimer")
+    m.watchTimer.control = "start"
 end sub
 
 sub focusScreen()
@@ -34,6 +56,9 @@ sub onParams()
     m.index = p.index
     m.lastStart = toI(p.start)
     m.tsTried = false
+    m.retries = 0
+    m.lastCutPos = -100
+    m.resumedFromCut = false
     playCurrent(m.lastStart, "")
     m.video.setFocus(true)
 end sub
@@ -51,6 +76,13 @@ sub playCurrent(startPos as Integer, forceExt as String)
     it = m.items[m.index]
     id = toS(it.id)
     m.autoSubsDone = false
+    m.everPlayed = false
+    m.bufferSince = -1
+    m.playingSince = -1
+    m.retryTimer.control = "stop"
+    setNotice("")
+    m.lastPos = 0
+    if m.mode <> "live" then m.lastPos = startPos
     content = CreateObject("roSGNode", "ContentNode")
     if m.mode = "live"
         ext = toS(m.global.session.liveExt)
@@ -75,12 +107,13 @@ sub playCurrent(startPos as Integer, forceExt as String)
     m.video.control = "play"
     m.saveTimer.control = "stop"
     m.saveTimer.control = "start"
-    showBanner(it)
+    showBanner(it, true)
 end sub
 
 ' ----------------------------------------------------------------- aviso con el nombre (y la guía en vivo)
 
-sub showBanner(it as Object)
+' withEpg: false al cambiar de canal rápido (solo se pone el nombre; la guía se pide cuando ya se quedó en el canal).
+sub showBanner(it as Object, withEpg as Boolean)
     m.bannerTitle.text = displayTitle(it)
     m.bannerNow.text = ""
     m.bannerNext.text = ""
@@ -91,6 +124,7 @@ sub showBanner(it as Object)
     if m.mode = "live"
         ' Número de identificación del canal en el portal (sirve para registrar enlaces directos y para soporte).
         m.bannerId.text = "ID del canal: " + toS(it.id)
+        if not withEpg then return
         m.epgId = toS(it.id)
         t = CreateObject("roSGNode", "ApiTask")
         t.request = { action: "epg", id: m.epgId, tag: m.epgId }
@@ -122,6 +156,21 @@ end sub
 
 sub onState()
     state = m.video.state
+    now = m.stopwatch.TotalMilliseconds()
+    ' Se anota desde cuándo está cargando o reproduciéndose; el vigilante usa esto para detectar señal atorada.
+    if state = "buffering"
+        if m.bufferSince < 0 then m.bufferSince = now
+    else
+        m.bufferSince = -1
+    end if
+    if state = "playing"
+        if m.playingSince < 0 then m.playingSince = now
+        m.everPlayed = true
+        m.resumedFromCut = false
+        setNotice("")
+    else
+        m.playingSince = -1
+    end if
     if state = "error"
         handleError()
     else if state = "finished"
@@ -131,17 +180,92 @@ sub onState()
     end if
 end sub
 
+' ----------------------------------------------------------------- recuperación automática de la señal
+
+' Cada 2 segundos revisa que la señal no se haya quedado atorada y recuerda dónde va la película o serie.
+sub onWatch()
+    if m.leaving or m.errorOpen or m.items.Count() = 0 then return
+    state = m.video.state
+    now = m.stopwatch.TotalMilliseconds()
+    if state = "playing"
+        if m.mode <> "live"
+            p = Int(m.video.position)
+            if p > 0 then m.lastPos = p
+        else if m.playingSince >= 0 and now - m.playingSince > 5000
+            ' El canal ya se ve: se recuerda en "Continuar viendo".
+            it = m.items[m.index]
+            if toS(it.id) <> m.lastRecentId
+                m.lastRecentId = toS(it.id)
+                touchRecentLive(it)
+            end if
+        end if
+        ' Si lleva un rato viéndose bien, se borran los intentos de recuperación.
+        if m.playingSince >= 0 and now - m.playingSince > 20000 then m.retries = 0
+    else if state = "buffering" and m.bufferSince >= 0
+        ' Cargando demasiado tiempo = señal atorada. Al empezar se espera más que a media reproducción.
+        limit = 60000
+        if m.mode = "live" then limit = 30000
+        if m.everPlayed
+            limit = 40000
+            if m.mode = "live" then limit = 15000
+        end if
+        if now - m.bufferSince > limit then recover()
+    end if
+end sub
+
+' Intenta volver a pedir la señal sin molestar a la persona. Si no se logra después de varios intentos, muestra el aviso.
+sub recover()
+    if m.leaving then return
+    limit = 2
+    if m.everPlayed then limit = 4
+    if m.retries >= limit
+        showErrorDialog()
+        return
+    end if
+    m.retries = m.retries + 1
+    m.bufferSince = -1
+    m.video.control = "stop"
+    m.retryExt = ""
+    if m.mode = "live" then m.retryExt = m.liveExt
+    setNotice("Reconectando…")
+    ' Una pausa corta deja que el servidor libere la conexión anterior (2, 3, 4… segundos).
+    m.retryTimer.control = "stop"
+    m.retryTimer.duration = 1 + m.retries
+    m.retryTimer.control = "start"
+end sub
+
+sub onRetryTimer()
+    if m.leaving or m.items.Count() = 0 then return
+    pos = 0
+    if m.mode <> "live" then pos = m.lastPos
+    playCurrent(pos, m.retryExt)
+end sub
+
+sub setNotice(text as String)
+    m.noticeText.text = text
+    m.notice.visible = (text <> "")
+end sub
+
 sub handleError()
-    ' En vivo: si .m3u8 falla, se prueba una vez con .ts.
-    if m.mode = "live" and m.liveExt = "m3u8" and not m.tsTried
+    ' En vivo: si .m3u8 falla al empezar, se prueba una vez con .ts.
+    if m.mode = "live" and m.liveExt = "m3u8" and not m.tsTried and not m.everPlayed and m.retries = 0
         m.tsTried = true
         playCurrent(0, "ts")
         return
     end if
+    ' Se retomó una película o serie justo donde se había cortado y ya no hay nada más: es el final de verdad.
+    if m.mode <> "live" and m.resumedFromCut and not m.everPlayed
+        finishPlayback()
+        return
+    end if
+    recover()
+end sub
+
+sub showErrorDialog()
+    setNotice("")
     detail = "Código " + toS(m.video.errorCode)
     if toS(m.video.errorMsg) <> "" then detail = detail + ": " + toS(m.video.errorMsg)
-    m.lastPos = 0
-    if m.mode <> "live" then m.lastPos = Int(m.video.position)
+    m.errorOpen = true
     dlg = CreateObject("roSGNode", "Dialog")
     dlg.title = "No se pudo reproducir"
     dlg.message = "Revisa tu conexión o prueba con otro título." + Chr(10) + detail
@@ -157,9 +281,13 @@ sub onErrorChoice()
     choice = dlg.buttonSelected
     dlg.close = true
     m.dialog = invalid
+    m.errorOpen = false
     if choice = 0
         m.tsTried = false
-        playCurrent(m.lastPos, "")
+        m.retries = 0
+        pos = 0
+        if m.mode <> "live" then pos = m.lastPos
+        playCurrent(pos, "")
         m.video.setFocus(true)
     else
         leave()
@@ -167,18 +295,38 @@ sub onErrorChoice()
 end sub
 
 sub handleFinished()
+    if m.leaving then return
     if m.mode = "live"
-        ' La transmisión se cortó: se vuelve a pedir.
-        playCurrent(0, "")
+        ' La transmisión en vivo no termina nunca: si "terminó", el servidor cortó la conexión y se vuelve a pedir.
+        recover()
         return
     end if
-    ' Terminó: se quita de "Continuar viendo".
+    ' Película o episodio: si terminó muy antes del final, la conexión se cortó; se retoma donde iba.
+    pos = m.lastPos
+    vp = Int(m.video.position)
+    if vp > pos then pos = vp
+    dur = Int(m.video.duration)
+    if dur > 120 and pos > 5 and pos < dur - 60 and Abs(pos - m.lastCutPos) > 20
+        m.lastCutPos = pos
+        m.lastPos = pos
+        m.resumedFromCut = true
+        recover()
+        return
+    end if
+    finishPlayback()
+end sub
+
+' Terminó de verdad: se quita de "Continuar viendo" y se sigue con el siguiente episodio, o se sale.
+sub finishPlayback()
     it = m.items[m.index]
     kind = "movie"
     if m.mode = "episode" then kind = "episode"
     updateContinue({ kind: kind, id: toS(it.id), pos: 1000000, dur: 1000000 })
     if m.mode = "episode" and m.index + 1 < m.items.Count()
         m.index = m.index + 1
+        m.retries = 0
+        m.lastCutPos = -100
+        m.resumedFromCut = false
         playCurrent(0, "")
         return
     end if
@@ -211,6 +359,9 @@ end sub
 
 sub leave()
     m.saveTimer.control = "stop"
+    m.watchTimer.control = "stop"
+    m.retryTimer.control = "stop"
+    m.zapTimer.control = "stop"
     saveProgress()
     m.leaving = true
     m.video.control = "stop"
@@ -375,6 +526,18 @@ sub zap(delta as Integer)
     if n < 2 then return
     m.index = (m.index + delta + n) mod n
     m.tsTried = false
+    m.retries = 0
+    m.playingSince = -1
+    m.retryTimer.control = "stop"
+    ' Se muestra el nombre del canal al instante, pero la señal se pide cuando la persona deja de cambiar
+    ' (si pasa canales muy rápido no se abren conexiones de más, que el servidor cuenta como pantallas).
+    showBanner(m.items[m.index], false)
+    m.zapTimer.control = "stop"
+    m.zapTimer.control = "start"
+end sub
+
+sub onZapTimer()
+    if m.leaving then return
     playCurrent(0, "")
 end sub
 
@@ -396,7 +559,7 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             zap(-1)
             return true
         else if key = "OK"
-            showBanner(m.items[m.index])
+            showBanner(m.items[m.index], true)
             return true
         end if
     end if

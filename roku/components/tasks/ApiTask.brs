@@ -25,7 +25,7 @@ sub doWork()
 end sub
 
 function getJson(url as String) as Dynamic
-    txt = httpGet(url)
+    txt = httpGetRetry(url)
     if txt = invalid then return invalid
     return ParseJson(txt)
 end function
@@ -40,7 +40,10 @@ end function
 
 function doLogin(req as Object, res as Object) as Object
     url = portalBase() + "/player_api.php?username=" + urlEscape(toS(req.user)) + "&password=" + urlEscape(toS(req.pass))
-    json = getJson(url)
+    ' Para entrar se espera menos que en las demás consultas: si el servidor no contesta, la persona lo sabe pronto.
+    txt = httpGetRetry(url, 12000, 18000)
+    json = invalid
+    if txt <> invalid then json = ParseJson(txt)
     if json = invalid
         res.error = "No se pudo conectar con el servidor. Revisa tu internet e inténtalo otra vez."
         return res
@@ -101,6 +104,10 @@ function doCategories(req as Object, res as Object) as Object
     end if
     hideAdult = parentalOn()
     root = CreateObject("roSGNode", "ContentNode")
+    ' La fila "Favoritos" va siempre primero (así la lista se puede guardar tal cual en la memoria rápida).
+    fav = root.CreateChild("ContentNode")
+    fav.id = "__fav__"
+    fav.title = "Favoritos"
     for each c in json
         if Type(c) = "roAssociativeArray"
             name = toS(c.category_name)

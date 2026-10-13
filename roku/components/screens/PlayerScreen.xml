@@ -17,7 +17,14 @@
       <Label id="bannerNow" translation="[40,56]" width="1200" height="28" font="font:SmallSystemFont" color="0xE0E6F5FF" />
       <Label id="bannerNext" translation="[40,84]" width="1200" height="28" font="font:SmallSystemFont" color="0xA3AECCFF" />
     </Group>
+    <Group id="notice" translation="[0,0]" visible="false">
+      <Rectangle translation="[440,628]" width="400" height="46" color="0x000000C8" />
+      <Label id="noticeText" translation="[440,628]" width="400" height="46" horizAlign="center" vertAlign="center" font="font:SmallBoldSystemFont" color="0xFFFFFFFF" />
+    </Group>
     <Timer id="bannerTimer" duration="6" repeat="false" />
-    <Timer id="saveTimer" duration="5" repeat="true" />
+    <Timer id="saveTimer" duration="15" repeat="true" />
+    <Timer id="watchTimer" duration="2" repeat="true" />
+    <Timer id="retryTimer" duration="2" repeat="false" />
+    <Timer id="zapTimer" duration="0.35" repeat="false" />
   </children>
 </component>

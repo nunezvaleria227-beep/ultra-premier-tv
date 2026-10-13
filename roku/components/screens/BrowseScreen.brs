@@ -40,8 +40,16 @@ sub onKind()
         m.title.text = "Series"
     end if
     m.hint.text = "OK: abrir      Play/Pausa: favorito      Asterisco (*): buscar en la lista"
+    ' Si las categorías ya se bajaron hace poco (por ejemplo al entrar a la app), se muestran al instante.
+    cachedCats = cacheGet("cats_" + kind, 900)
+    if cachedCats <> invalid and cachedCats.getChildCount() > 1
+        m.cats.content = cachedCats
+        showStatus("Elige una categoría con OK")
+        focusPane("cats")
+        return
+    end if
     showStatus("Cargando categorías…")
-    runApi({ action: "categories", type: kind }, "onCategories")
+    runApi({ action: "categories", type: kind, tag: kind }, "onCategories")
 end sub
 
 sub focusScreen()
@@ -91,10 +99,7 @@ sub onCategories(event as Object)
         return
     end if
     root = resp.content
-    fav = CreateObject("roSGNode", "ContentNode")
-    fav.id = "__fav__"
-    fav.title = "Favoritos"
-    root.InsertChild(fav, 0)
+    cachePut("cats_" + m.top.kind, root)
     m.cats.content = root
     showStatus("Elige una categoría con OK")
     focusPane("cats")
