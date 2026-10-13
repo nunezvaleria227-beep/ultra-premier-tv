@@ -119,7 +119,7 @@ Todas las imágenes están en `app/src/main/res/` y se pueden cambiar por otras 
 | `drawable-nodpi/art_series.jpg` | Mosaico y fondo de **Series** |
 | `drawable-nodpi/banner.png` (1280×720) y `ic_launcher.png` (1024×1024) | Banner e ícono en el Fire TV / celular |
 
-Las imágenes de fondo (1280×720) son arte original generado por código; si prefieres otras (por ejemplo, hechas con una IA), basta con reemplazar esos archivos y volver a compilar.
+Las imágenes de fondo (1280×720) son arte original generado por código (`tools/make_art.py`; el logo vectorial sale de `tools/logo_original.png` con `tools/vectorize_logo.py`); si prefieres otras (por ejemplo, hechas con una IA), basta con reemplazar esos archivos y volver a compilar.
 
 ## 8. Estructura del proyecto
 
