@@ -145,6 +145,7 @@ fun TvButton(
             .onFocusChanged { focused = it.isFocused }
             .clip(shape)
             .background(background, shape)
+            .then(if (selected && !focused) Modifier.border(2.dp, AccentColor, shape) else Modifier)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = if (compact) 12.dp else 24.dp, vertical = if (compact) 8.dp else 12.dp),
         contentAlignment = Alignment.Center

@@ -727,7 +727,23 @@ def recording():
         log("INFO", "Pantalla tras convertir: " + txt[:500])
         files = sh("ls -la /sdcard/Movies/'Ultra Premier TV'/ /sdcard/Android/data/com.ultrapremier.tv/files/Movies/Grabaciones 2>&1")
         log("INFO", "Archivos guardados: " + files.replace("\n", " / ")[:600])
-        expect(".mp4" in files.lower(), "Se creó un archivo MP4", "No se encontró ningún archivo MP4 tras convertir")
+        has_mp4 = ".mp4" in files.lower()
+        expect(has_mp4, "Se creó un archivo MP4", "No se encontró ningún archivo MP4 tras convertir")
+        if has_mp4:
+            mp4dir = os.path.join(OUT, "mp4")
+            os.makedirs(mp4dir, exist_ok=True)
+            names = [l.split()[-1] for l in files.splitlines() if l.strip().lower().endswith(".mp4")]
+            for name in names[:1]:
+                adb("pull", f"/sdcard/Movies/Ultra Premier TV/{name}", os.path.join(mp4dir, "convertido.mp4"), timeout=120)
+            local = os.path.join(mp4dir, "convertido.mp4")
+            if os.path.isfile(local):
+                probe = subprocess.run(
+                    ["ffprobe", "-v", "error", "-show_entries", "stream=codec_name,codec_type,width,height:format=duration,size",
+                     "-of", "compact", local], capture_output=True, text=True)
+                log("INFO", "ffprobe del MP4: " + (probe.stdout + probe.stderr).replace("\n", " ; ")[:400])
+                expect("h264" in probe.stdout and "aac" in probe.stdout, "El MP4 tiene video H.264 y audio AAC y se puede leer", "El MP4 no se pudo leer bien")
+                if os.path.getsize(local) > 30 * 1024 * 1024:
+                    os.remove(local)
     back(1.5)
 
 
@@ -745,6 +761,41 @@ def final_logs():
     with open(os.path.join(OUT, "errores.txt"), "w") as f:
         f.write("\n".join(bad + ["---- errores de la app ----"] + own[:200]))
     expect(not bad, "No hubo cierres inesperados (FATAL EXCEPTION) en el registro", f"Hubo {len(bad)} líneas de cierre/ANR; ver errores.txt")
+
+
+def main_keys():
+    """Prueba corta del control remoto en pantalla completa de TV en vivo."""
+    prepare()
+    if not login():
+        return
+    time.sleep(6)
+    nodes = go_home()
+    tap("TV EN DIRECTO", nodes=nodes, wait=3)
+    time.sleep(2)
+    nodes = dump()
+    tap("DEPORTES", nodes=nodes, wait=2.5)
+    nodes = dump()
+    tap("Deportes 1", nodes=nodes, wait=3)
+    nodes = dump()
+    tap("Pantalla completa", nodes=nodes, wait=9)
+    log("INFO", "Actividad: " + current_focus())
+    for name, code in (("derecha", 22), ("OK", 66), ("derecha", 22), ("OK", 66)):
+        sh("logcat -c -s UPTV")
+        key(code, 1.2)
+        shot(f"teclas_{name}_{code}", with_texts=False)
+        out = adb("logcat", "-d", "-s", "UPTV:D", timeout=30)
+        log("INFO", f"Tecla {name}: " + out.strip().replace("\n", " ; ")[-300:])
+        time.sleep(1)
+    key(20, 1.2)  # abajo = canal anterior
+    shot("teclas_abajo", with_texts=False)
+    out = adb("logcat", "-d", "-s", "UPTV:D", timeout=30)
+    log("INFO", "Tras ABAJO: " + out.strip().replace("\n", " ; ")[-300:])
+    key(22, 1.2)
+    shot("teclas_derecha_final", with_texts=False)
+    key(66, 1.5)
+    nodes = shot("teclas_dialogo_final")
+    log("INFO", "Textos tras OK: " + " | ".join(texts(nodes))[:300])
+    crash_check("teclas")
 
 
 def start_total_ms():
@@ -814,7 +865,9 @@ def main():
 
 
 if __name__ == "__main__":
-    if "--perf" in sys.argv:
+    if "--keys" in sys.argv:
+        main_keys()
+    elif "--perf" in sys.argv:
         main_perf()
     else:
         main()

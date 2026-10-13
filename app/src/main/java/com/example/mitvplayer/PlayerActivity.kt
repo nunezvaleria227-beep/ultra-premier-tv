@@ -108,6 +108,9 @@ class PlayerActivity : ComponentActivity() {
     /** En vivo: con ◀ ▶ se marca el botón "Tamaño" (sin depender del foco, que no funciona en modo táctil); OK lo abre. */
     private var sizeMarked = false
 
+    private val debuggable: Boolean
+        get() = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
     private fun markSize(on: Boolean) {
         sizeMarked = on
         if (::btnSize.isInitialized) btnSize.isSelected = on
@@ -699,6 +702,13 @@ class PlayerActivity : ComponentActivity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (debuggable && event.action == KeyEvent.ACTION_DOWN) {
+            android.util.Log.d(
+                "UPTV",
+                "tecla=${KeyEvent.keyCodeToString(event.keyCode)} repeticion=${event.repeatCount} vivo=${items.getOrNull(index)?.isLive} " +
+                    "opcionesEnfocadas=${optionsFocused()} marcado=$sizeMarked barra=${if (::optionsBar.isInitialized) optionsBar.visibility else -1}"
+            )
+        }
         if (event.action == KeyEvent.ACTION_DOWN && items.isNotEmpty()) {
             val key = event.keyCode
             val isOk = key == KeyEvent.KEYCODE_DPAD_CENTER ||

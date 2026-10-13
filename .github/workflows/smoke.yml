@@ -11,7 +11,7 @@ on:
         required: false
         default: ""
       mode:
-        description: "full = recorrido completo; perf = solo mide la velocidad de arranque"
+        description: "full = recorrido completo; perf = mide la velocidad de arranque; keys = prueba corta del control remoto"
         required: false
         default: "full"
 
@@ -111,7 +111,7 @@ jobs:
           done
           git init -q
           BR="smoke-results"
-          if [ "${SMOKE_MODE:-full}" = "perf" ]; then BR="smoke-perf-${{ github.run_number }}"; fi
+          if [ "${SMOKE_MODE:-full}" != "full" ]; then BR="smoke-${SMOKE_MODE}-${{ github.run_number }}"; fi
           git checkout -q -b "$BR"
           git add -A
           git -c user.name="smoke" -c user.email="smoke@example.com" commit -q -m "Resultados de la prueba de humo ${{ github.run_number }}"

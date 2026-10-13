@@ -10,6 +10,8 @@ adb install -r -g "$APK" > "$OUT/install.txt" 2>&1 || { cat "$OUT/install.txt"; 
 cat "$OUT/install.txt"
 if [ "${SMOKE_MODE:-full}" = "perf" ]; then
   python3 _h/tools/smoke/smoke.py "$OUT" --perf 2>&1 | tee "$OUT/smoke-console.txt"
+elif [ "${SMOKE_MODE:-full}" = "keys" ]; then
+  python3 _h/tools/smoke/smoke.py "$OUT" --keys 2>&1 | tee "$OUT/smoke-console.txt"
 else
   python3 _h/tools/smoke/smoke.py "$OUT" 2>&1 | tee "$OUT/smoke-console.txt"
 fi

@@ -21,6 +21,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
+import androidx.media3.transformer.InAppMuxer
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
 import java.io.File
@@ -85,7 +86,11 @@ object RecordingConverter {
     @androidx.annotation.OptIn(UnstableApi::class)
     private fun attempt(app: Context, recording: SavedRecording, out: File, deleteOriginal: Boolean, transcodeVideo: Boolean) {
         out.delete()
-        val builder = Transformer.Builder(app).setAudioMimeType(MimeTypes.AUDIO_AAC)
+        // Se usa el empaquetador MP4 de la propia librería (Java puro): el del sistema, en algunos Android, puede cerrar la app
+        // de golpe (error nativo) con ciertas grabaciones.
+        val builder = Transformer.Builder(app)
+            .setAudioMimeType(MimeTypes.AUDIO_AAC)
+            .setMuxerFactory(InAppMuxer.Factory.Builder().build())
         if (transcodeVideo) builder.setVideoMimeType(MimeTypes.VIDEO_H264)
         lateinit var t: Transformer
         t = builder
