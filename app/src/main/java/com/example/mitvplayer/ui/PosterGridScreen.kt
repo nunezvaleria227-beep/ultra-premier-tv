@@ -1,5 +1,6 @@
 package com.example.mitvplayer.ui
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -42,6 +43,7 @@ fun <T : Item> PosterGridScreen(
     kind: Kind,
     searchScope: SearchScope,
     noun: String,
+    @DrawableRes art: Int,
     posterOf: (T) -> String?,
     onOpen: (T) -> Unit
 ) {
@@ -75,7 +77,7 @@ fun <T : Item> PosterGridScreen(
         else -> "No hay $noun en esta categoría"
     }
 
-    AppBackground {
+    AppBackground(art = art, dim = 0.5f) {
         Row(Modifier.fillMaxSize()) {
             if (state.sidebarOpen) {
                 CategorySidebar(

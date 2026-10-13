@@ -68,6 +68,7 @@ private fun AppRoot(vm: AppViewModel) {
             kind = Kind.MOVIES,
             searchScope = SearchScope.MOVIES,
             noun = "películas",
+            art = R.drawable.art_movies,
             posterOf = { it.poster },
             onOpen = { vm.openMovie(it) }
         )
@@ -77,6 +78,7 @@ private fun AppRoot(vm: AppViewModel) {
             kind = Kind.SERIES,
             searchScope = SearchScope.SERIES,
             noun = "series",
+            art = R.drawable.art_series,
             posterOf = { it.cover },
             onOpen = { vm.openSeries(it) }
         )

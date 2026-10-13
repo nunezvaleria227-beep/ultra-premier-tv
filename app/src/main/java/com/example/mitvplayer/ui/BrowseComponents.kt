@@ -76,7 +76,7 @@ fun <T : Item> CategorySidebar(
     firstRowRequester: FocusRequester? = null,
     onSelected: () -> Unit = {}
 ) {
-    Column(modifier.background(SidebarColor)) {
+    Column(modifier.background(SidebarColor.copy(alpha = 0.80f))) {
         header()
         SearchField(
             value = state.categoryQuery,

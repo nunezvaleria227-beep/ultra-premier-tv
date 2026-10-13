@@ -178,15 +178,16 @@ fun IconAction(
     }
 }
 
+/** Proporción del logo vectorial (res/drawable/logo_ultra.xml): se ve nítido a cualquier tamaño, también en 4K. */
+const val LOGO_RATIO = 2906f / 1593f
+
 @Composable
 fun AppLogo(modifier: Modifier = Modifier) {
     Image(
-        painter = painterResource(R.drawable.banner),
+        painter = painterResource(R.drawable.logo_ultra),
         contentDescription = stringResource(R.string.app_name),
-        contentScale = ContentScale.Crop,
-        modifier = modifier
-            .aspectRatio(16f / 9f)
-            .clip(RoundedCornerShape(8.dp))
+        contentScale = ContentScale.Fit,
+        modifier = modifier.aspectRatio(LOGO_RATIO)
     )
 }
 

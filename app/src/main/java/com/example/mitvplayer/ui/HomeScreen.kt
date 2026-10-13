@@ -3,6 +3,7 @@ package com.example.mitvplayer.ui
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,12 +38,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.mitvplayer.R
 import kotlinx.coroutines.delay
 
 tailrec fun Context.findActivity(): Activity? = when (this) {
@@ -90,7 +94,7 @@ fun HomeScreen(vm: AppViewModel) {
         ) {
             // ------------------------------------------------ encabezado
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                AppLogo(Modifier.height(50.dp))
+                AppLogo(Modifier.height(58.dp))
                 Spacer(Modifier.width(14.dp))
                 Column {
                     Text(formatClock(now), color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -154,6 +158,8 @@ fun HomeScreen(vm: AppViewModel) {
                 SectionTile(
                     title = "TV EN DIRECTO",
                     glyph = Glyph.TV,
+                    art = R.drawable.art_live,
+                    count = countText(vm.live, "canales"),
                     status = statusText(vm.live, now),
                     onOpen = { vm.open(Screen.Live) },
                     onRefresh = { vm.live.refresh() },
@@ -164,6 +170,8 @@ fun HomeScreen(vm: AppViewModel) {
                 SectionTile(
                     title = "CINE",
                     glyph = Glyph.CLAPPER,
+                    art = R.drawable.art_movies,
+                    count = countText(vm.movies, "películas"),
                     status = statusText(vm.movies, now),
                     onOpen = { vm.open(Screen.Movies) },
                     onRefresh = { vm.movies.refresh() },
@@ -174,6 +182,8 @@ fun HomeScreen(vm: AppViewModel) {
                 SectionTile(
                     title = "SERIES",
                     glyph = Glyph.SERIES,
+                    art = R.drawable.art_series,
+                    count = countText(vm.series, "series"),
                     status = statusText(vm.series, now),
                     onOpen = { vm.open(Screen.SeriesList) },
                     onRefresh = { vm.series.refresh() },
@@ -194,7 +204,8 @@ fun HomeScreen(vm: AppViewModel) {
             }
 
             Text(
-                text = if (expiresAt != null) "EXPIRACIÓN: ${formatDateLong(expiresAt * 1000)}" else "SIN FECHA DE VENCIMIENTO",
+                text = (account?.username?.let { "Hola, $it  ·  " } ?: "") +
+                    (if (expiresAt != null) "EXPIRACIÓN: ${formatDateLong(expiresAt * 1000)}" else "SIN FECHA DE VENCIMIENTO"),
                 color = TextPrimary,
                 fontSize = 13.sp,
                 modifier = Modifier
@@ -219,17 +230,24 @@ fun HomeScreen(vm: AppViewModel) {
 }
 
 private fun statusText(state: BrowseState<*>, now: Long): String = when {
-    state.loading && state.catalog == null -> "Cargando…"
+    state.loading && state.catalog == null -> "Preparando tu lista… (solo tarda la primera vez)"
     state.loading -> "Actualizando…"
     state.catalog == null && state.error != null -> "No se pudo cargar. Toca para reintentar."
-    state.catalog == null -> "Pendiente de cargar"
+    state.catalog == null -> "Toca para abrir"
     else -> "Última actualización: ${agoText(state.updatedAt, now)}"
+}
+
+private fun countText(state: BrowseState<*>, noun: String): String? {
+    val total = state.catalog?.items?.size ?: return null
+    return "%,d %s".format(total, noun)
 }
 
 @Composable
 private fun SectionTile(
     title: String,
     glyph: Glyph,
+    art: Int,
+    count: String?,
     status: String,
     onOpen: () -> Unit,
     onRefresh: () -> Unit,
@@ -249,16 +267,42 @@ private fun SectionTile(
                 .weight(1f)
                 .fillMaxWidth(),
             shape = RoundedCornerShape(22.dp),
-            scaleOnFocus = 1f
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                GlyphIcon(glyph, Modifier.size(64.dp))
-                Spacer(Modifier.height(8.dp))
-                Text(title, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            scaleOnFocus = 1f,
+            background = Color.Transparent,
+            focusedBackground = Color.Transparent
+        ) { focused ->
+            Box(Modifier.fillMaxSize()) {
+                Image(
+                    bitmap = rememberArt(art),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                // Oscurece abajo para que el título se lea sobre cualquier imagen.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color(0x22000000),
+                                    if (focused) Color(0x55000000) else Color(0x99000000)
+                                )
+                            )
+                        )
+                )
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    GlyphIcon(glyph, Modifier.size(64.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    if (count != null) {
+                        Text(count, color = Color(0xFFD8E4FF), fontSize = 12.sp)
+                    }
+                }
             }
         }
         Row(

@@ -1,5 +1,6 @@
 package com.example.mitvplayer.ui
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mitvplayer.RecordingManager
 import com.example.mitvplayer.RecordingService
+import com.example.mitvplayer.SavedRecording
 import com.example.mitvplayer.data.LiveChannel
 import kotlinx.coroutines.delay
 import java.io.File
@@ -245,14 +247,13 @@ fun SettingsScreen(vm: AppViewModel) {
 fun RecordingsScreen(vm: AppViewModel) {
     val context = LocalContext.current
     val active = RecordingManager.current
-    var files by remember { mutableStateOf(RecordingService.listRecordings(context)) }
+    var files by remember { mutableStateOf(RecordingService.listSaved(context)) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
-    var deleting by remember { mutableStateOf<File?>(null) }
+    var deleting by remember { mutableStateOf<SavedRecording?>(null) }
     var picking by remember { mutableStateOf(false) }
-    var target by remember { mutableStateOf<LiveChannel?>(null) }
 
     // Cuando termina una grabación se actualiza la lista; mientras graba se actualiza el tiempo.
-    LaunchedEffect(active == null) { files = RecordingService.listRecordings(context) }
+    LaunchedEffect(active == null) { files = RecordingService.listSaved(context) }
     LaunchedEffect(active != null) {
         while (active != null) {
             now = System.currentTimeMillis()
@@ -261,16 +262,21 @@ fun RecordingsScreen(vm: AppViewModel) {
     }
 
     SimplePage(vm, "Grabaciones") {
+        Text(
+            "Cada grabación dura como máximo 2 horas. Al terminar se guarda sola en la memoria de este dispositivo (Películas / Ultra Premier TV).",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
         if (active != null) {
             Card {
                 Text("● Grabando: ${active.channelName}", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold)
                 val elapsed = ((now - active.startedAt) / 1000).coerceAtLeast(0)
-                val remaining = active.endsAt?.let { " · termina en ${formatDuration(((it - now) / 1000).coerceAtLeast(0))}" } ?: ""
+                val remaining = formatDuration(((active.endsAt - now) / 1000).coerceAtLeast(0))
                 Text(
-                    "${formatDuration(elapsed)} · ${formatSize(active.bytes)}$remaining",
+                    "${formatDuration(elapsed)} · ${formatSize(active.bytes)} · se guarda sola en $remaining",
                     color = TextPrimary
                 )
-                TvButton(text = "Detener grabación", onClick = { RecordingManager.stop() }, modifier = Modifier.fillMaxWidth())
+                TvButton(text = "Detener y guardar", onClick = { RecordingManager.stop() }, modifier = Modifier.fillMaxWidth())
             }
         } else {
             TvButton(text = "● Grabar un canal…", onClick = { picking = true }, modifier = Modifier.fillMaxWidth())
@@ -283,33 +289,33 @@ fun RecordingsScreen(vm: AppViewModel) {
                 fontSize = 13.sp
             )
         }
-        files.forEach { file ->
+        files.forEach { recording ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 FocusCard(
-                    onClick = { vm.playFile(context, file.nameWithoutExtension, android.net.Uri.fromFile(file).toString()) },
+                    onClick = { vm.playFile(context, recording.title, recording.url) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(8.dp),
                     scaleOnFocus = 1.01f
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         Text(
-                            file.nameWithoutExtension.replace('_', ' '),
+                            recording.title.replace('_', ' '),
                             color = TextPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            "${formatSize(file.length())} · ${formatDateLong(file.lastModified())} ${formatClock(file.lastModified())}",
+                            "${formatSize(recording.size)} · ${formatDateLong(recording.dateMs)} ${formatClock(recording.dateMs)}",
                             color = TextSecondary,
                             fontSize = 11.sp
                         )
                     }
                 }
-                TvButton(text = "Borrar", onClick = { deleting = file }, compact = true)
+                TvButton(text = "Borrar", onClick = { deleting = recording }, compact = true)
             }
         }
     }
@@ -318,11 +324,13 @@ fun RecordingsScreen(vm: AppViewModel) {
     if (toDelete != null) {
         OptionsDialog(
             title = "¿Borrar esta grabación?",
-            message = toDelete.nameWithoutExtension.replace('_', ' '),
+            message = toDelete.title.replace('_', ' '),
             options = listOf(
                 Opt("Sí, borrar") {
-                    toDelete.delete()
-                    files = RecordingService.listRecordings(context)
+                    if (!RecordingService.delete(context, toDelete)) {
+                        Toast.makeText(context, "No se pudo borrar. Bórrala desde la app de Archivos.", Toast.LENGTH_LONG).show()
+                    }
+                    files = RecordingService.listSaved(context)
                 },
                 Opt("Cancelar") { }
             ),
@@ -331,22 +339,13 @@ fun RecordingsScreen(vm: AppViewModel) {
     }
 
     if (picking) {
-        ChannelPickerDialog(vm = vm, onPick = { target = it }, onDismiss = { picking = false })
-    }
-
-    val channel = target
-    if (channel != null) {
-        OptionsDialog(
-            title = "Grabar ${channel.name}",
-            message = "La grabación usa una conexión de tu cuenta. Se guarda en este dispositivo.",
-            options = listOf(
-                Opt("30 minutos") { vm.startRecording(context, channel, 30) },
-                Opt("1 hora") { vm.startRecording(context, channel, 60) },
-                Opt("2 horas") { vm.startRecording(context, channel, 120) },
-                Opt("Hasta que la detenga") { vm.startRecording(context, channel, null) },
-                Opt("Cancelar") { }
-            ),
-            onDismiss = { target = null }
+        ChannelPickerDialog(
+            vm = vm,
+            onPick = { channel ->
+                picking = false
+                vm.startRecording(context, channel)
+            },
+            onDismiss = { picking = false }
         )
     }
 }

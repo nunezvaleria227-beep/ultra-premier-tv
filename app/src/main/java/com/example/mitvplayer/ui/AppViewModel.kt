@@ -358,21 +358,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     // ---------------------------------------------------------------- grabación
 
-    /** Graba el canal a un archivo del equipo. [minutes] = null graba hasta que se detenga. */
-    fun startRecording(context: Context, channel: LiveChannel, minutes: Int?) {
+    /** Graba el canal (máximo 2 horas) y lo guarda en la memoria del dispositivo. */
+    fun startRecording(context: Context, channel: LiveChannel) {
         if (RecordingManager.current != null) {
-            Toast.makeText(context, "Ya hay una grabación en curso. Detenla en Grabaciones.", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Ya hay una grabación en curso. Puedes detenerla en Grabaciones.", Toast.LENGTH_LONG).show()
             return
         }
-        // Android 13+: sin este permiso la grabación funciona, pero no se ve el aviso con el botón "Detener".
         val activity = context.findActivity()
-        if (activity != null && Build.VERSION.SDK_INT >= 33 &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            activity.requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 77)
+        if (activity != null) {
+            val needed = ArrayList<String>()
+            // Android 13+: sin este permiso la grabación funciona, pero no se ve el aviso con el botón "Detener".
+            if (Build.VERSION.SDK_INT >= 33 &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) needed.add(Manifest.permission.POST_NOTIFICATIONS)
+            // Android 9 o menos: hace falta para guardar en la carpeta Películas.
+            if (Build.VERSION.SDK_INT < 29 &&
+                context.checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+            ) needed.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            if (needed.isNotEmpty()) activity.requestPermissions(needed.toTypedArray(), 77)
         }
-        RecordingService.start(context, repo.recordUrl(channel.id), channel.name, minutes)
-        Toast.makeText(context, "Grabando ${channel.name}…", Toast.LENGTH_SHORT).show()
+        RecordingService.start(context, repo.recordUrl(channel.id), channel.name)
+        Toast.makeText(
+            context,
+            "Grabando ${channel.name}. Máximo 2 horas; se guarda sola en Películas/Ultra Premier TV.",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     // ----------------------------------------------------------- pantalla múltiple

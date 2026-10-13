@@ -12,7 +12,7 @@ Inicia sesión con **usuario y contraseña** contra un portal **Xtream Codes** y
 | **Catch up** | Canales con archivo en el servidor → día → programa ya emitido. |
 | **Pantalla múltiple** | Elige entre 6 diseños y pon un canal en cada recuadro; solo uno suena a la vez. |
 | **Búsqueda maestra** | Canales, películas y series a la vez (sin importar acentos ni mayúsculas). |
-| **Grabaciones** | Graba un canal en vivo a un archivo del dispositivo y lo reproduce después. |
+| **Grabaciones** | Graba un canal en vivo con un solo toque, máximo **2 horas**. Al cumplirse (o al detenerla) se guarda sola en la memoria del dispositivo, en **Películas / Ultra Premier TV**, y se puede ver desde la propia app. |
 | **Favoritos e historial** | Mantén pulsado un canal/póster (o la tecla **Menú** del control) para marcarlo como favorito. |
 
 Funciona con Fire OS 6 en adelante (Android 7.1+). Se maneja con el control remoto (D-pad) y también con el dedo.
@@ -104,21 +104,36 @@ Si un canal se corta o no abre, en **Ajustes** puedes cambiar el formato de TV e
 
 Al iniciar sesión la app descarga **completas** las listas de canales, películas y series (por eso cada categoría muestra su cantidad y la búsqueda es instantánea) y las guarda en el dispositivo. Se vuelven a descargar solas cada 12 horas, o cuando pulsas el botón de actualizar de un mosaico (o **Ajustes → Actualizar todas las listas**). La primera vez puede tardar según el tamaño de tu lista.
 
-Las grabaciones se guardan en `Android/data/com.ultrapremier.tv/files/Movies/Grabaciones` y cada una usa una conexión de tu cuenta.
+Las grabaciones duran como máximo 2 horas y se guardan en la carpeta **Películas / Ultra Premier TV** del dispositivo (visible en la app de Archivos o Galería; son archivos `.ts`, que se reproducen en la propia app y en VLC o MX Player). Si la señal se cae, la app reintenta unas veces; si casi no queda espacio, se detiene y conserva lo grabado. Cada grabación usa una conexión de tu cuenta; si solo tiene una, la vista previa se pausa mientras grabas. En Android 9 o anterior, si no das el permiso de almacenamiento, se guardan en la carpeta de la app (`Android/data/com.ultrapremier.tv/files/Movies/Grabaciones`).
 
-## 7. Estructura del proyecto
+## 7. Imágenes y logo
+
+Todas las imágenes están en `app/src/main/res/` y se pueden cambiar por otras **con el mismo nombre** sin tocar el código:
+
+| Archivo | Dónde se ve |
+|---|---|
+| `drawable/logo_ultra.xml` | Logo en vector (nítido en cualquier pantalla, incluida 4K): inicio, encabezados y pantalla de acceso |
+| `drawable-nodpi/bg_home.jpg` | Fondo general de la app y de la pantalla de acceso |
+| `drawable-nodpi/art_live.jpg` | Mosaico y fondo de **TV en directo** |
+| `drawable-nodpi/art_movies.jpg` | Mosaico y fondo de **Cine** |
+| `drawable-nodpi/art_series.jpg` | Mosaico y fondo de **Series** |
+| `drawable-nodpi/banner.png` (1280×720) y `ic_launcher.png` (1024×1024) | Banner e ícono en el Fire TV / celular |
+
+Las imágenes de fondo (1280×720) son arte original generado por código; si prefieres otras (por ejemplo, hechas con una IA), basta con reemplazar esos archivos y volver a compilar.
+
+## 8. Estructura del proyecto
 
 ```
 .github/workflows/build-apk.yml   Compila, firma y publica el APK en GitHub
 app/src/main/res/
-├── drawable-xhdpi/banner.png     Banner del launcher y logo (de tu logotipo)
-└── drawable-nodpi/ic_launcher.png Ícono de la app (de tu logotipo)
+├── drawable/logo_ultra.xml        Logo en vector (de tu logotipo)
+└── drawable-nodpi/                Banner, ícono y fondos (banner.png, ic_launcher.png, bg_home/art_*.jpg)
 app/src/main/java/com/example/mitvplayer/
 ├── Config.kt            URL del portal y User-Agent
 ├── MiTvApp.kt           Application: crea el repositorio
 ├── MainActivity.kt      Navegación entre todas las pantallas
 ├── PlayerActivity.kt    Reproductor a pantalla completa (ExoPlayer)
-├── RecordingService.kt  Grabación de canales en vivo
+├── RecordingService.kt  Grabación de canales en vivo (máx. 2 h, se guarda en Películas)
 ├── data/
 │   ├── XtreamApi.kt     Cliente de player_api.php (login, listas, EPG, Catch up)
 │   ├── JsonStream.kt    Lectura de listas JSON enormes sin gastar memoria
@@ -143,7 +158,7 @@ app/src/main/java/com/example/mitvplayer/
 
 El identificador de la app (`applicationId`) es `com.ultrapremier.tv`; el paquete interno del código sigue siendo `com.example.mitvplayer` y no afecta a los usuarios.
 
-## 8. Notas de seguridad y límites
+## 9. Notas de seguridad y límites
 
 - **Credenciales:** si marcas "Recordar sesión", se guardan cifradas con el Android Keystore. Cerrar sesión las borra. Las copias de seguridad de Android están desactivadas.
 - **HTTP sin cifrar:** muchos portales IPTV usan `http://`, por eso la app permite tráfico no cifrado (`usesCleartextTraffic`). Si tu portal tiene `https://`, úsalo. Para exigir HTTPS, quita ese atributo de `AndroidManifest.xml`.

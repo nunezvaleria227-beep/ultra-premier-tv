@@ -1,6 +1,8 @@
 package com.example.mitvplayer.ui
 
 import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,6 +61,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.example.mitvplayer.Config
+import com.example.mitvplayer.R
+import com.example.mitvplayer.RecordingManager
 import com.example.mitvplayer.data.EpgEntry
 import com.example.mitvplayer.data.Kind
 import com.example.mitvplayer.data.LiveChannel
@@ -111,6 +116,11 @@ class LivePreview(private val context: Context) {
         channel = null
     }
 
+    /** Libera la conexión pero deja el canal elegido (por ejemplo, mientras se graba con una sola conexión). */
+    fun pauseKeepingChannel() {
+        release()
+    }
+
     private fun release() {
         player?.let {
             it.removeListener(listener)
@@ -154,7 +164,6 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
     val context = LocalContext.current
     val preview = remember { LivePreview(context) }
     val firstRow = remember { FocusRequester() }
-    var recordChannel by remember { mutableStateOf<LiveChannel?>(null) }
 
     LaunchedEffect(Unit) { state.ensureLoaded() }
     LaunchedEffect(state.catalog) {
@@ -180,7 +189,7 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
 
     val channels = state.items
 
-    AppBackground {
+    AppBackground(art = R.drawable.art_live, dim = 0.58f) {
         Column(Modifier.fillMaxSize()) {
             TopBar(
                 title = "|  $title",
@@ -247,26 +256,25 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
                         val index = channels.indexOfFirst { it.id == channel.id }.coerceAtLeast(0)
                         vm.playLive(context, channels, index)
                     },
-                    onRecord = { recordChannel = it }
+                    onRecord = { target ->
+                        if (RecordingManager.current != null) {
+                            RecordingManager.stop()
+                        } else {
+                            // Con una sola conexión en la cuenta, la vista previa se pausa para no tumbar la grabación.
+                            if ((vm.account?.maxConnections ?: 1) <= 1 && preview.player != null) {
+                                preview.pauseKeepingChannel()
+                                Toast.makeText(
+                                    context,
+                                    "Tu cuenta permite una sola conexión: la vista previa se pausa mientras grabas.",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                            vm.startRecording(context, target)
+                        }
+                    }
                 )
             }
         }
-    }
-
-    val toRecord = recordChannel
-    if (toRecord != null) {
-        OptionsDialog(
-            title = "Grabar ${toRecord.name}",
-            message = "La grabación usa una conexión de tu cuenta. Se guarda en este dispositivo.",
-            options = listOf(
-                Opt("30 minutos") { vm.startRecording(context, toRecord, 30) },
-                Opt("1 hora") { vm.startRecording(context, toRecord, 60) },
-                Opt("2 horas") { vm.startRecording(context, toRecord, 120) },
-                Opt("Hasta que la detenga") { vm.startRecording(context, toRecord, null) },
-                Opt("Cancelar") { }
-            ),
-            onDismiss = { recordChannel = null }
-        )
     }
 }
 
@@ -355,6 +363,14 @@ private fun PreviewPane(
 ) {
     val channel = preview.channel
     val player = preview.player
+    val recording = RecordingManager.current
+    var tick by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(recording != null) {
+        while (recording != null) {
+            tick = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
 
     Column(
         modifier = modifier
@@ -369,6 +385,14 @@ private fun PreviewPane(
                 .background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
+            if (channel == null) {
+                Image(
+                    bitmap = rememberArt(R.drawable.art_live),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
             if (player != null) {
                 AndroidView(
                     factory = { ctx ->
@@ -391,10 +415,21 @@ private fun PreviewPane(
                     modifier = Modifier.padding(8.dp)
                 )
                 channel == null -> Text(
-                    "Presiona OK para jugar",
+                    "Elige un canal y pulsa OK",
                     color = TextPrimary,
                     fontSize = 14.sp,
-                    textAlign = TextAlign.Center
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .background(Color(0x99000000), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+                player == null && recording != null -> Text(
+                    "Grabando…\nLa vista previa está en pausa.",
+                    color = TextPrimary,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(8.dp)
                 )
                 preview.buffering -> CircularProgressIndicator(color = AccentColor, modifier = Modifier.size(28.dp))
             }
@@ -443,7 +478,23 @@ private fun PreviewPane(
                 )
                 TvButton(text = "Pantalla completa", onClick = { onFullscreen(channel) }, compact = true)
             }
-            TvButton(text = "● Grabar", onClick = { onRecord(channel) }, compact = true)
+            if (recording != null) {
+                val elapsed = ((tick - recording.startedAt) / 1000).coerceAtLeast(0)
+                Text(
+                    "● Grabando ${recording.channelName} · ${formatDuration(elapsed)}",
+                    color = Color(0xFFFF6B6B),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            TvButton(
+                text = if (recording != null) "■ Detener grabación" else "● Grabar (máx. 2 h)",
+                onClick = { onRecord(channel) },
+                compact = true,
+                selected = recording != null
+            )
         }
     }
 }
