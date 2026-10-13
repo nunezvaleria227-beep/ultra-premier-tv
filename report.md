@@ -1,0 +1,12 @@
+# Informe de la prueba de humo
+
+- **INFO** tamaño de pantalla: Physical size: 2560x1800 Override size: 1280x720 densidad Physical density: 320 Override density: 160
+- **OK** Pantalla de inicio de sesión visible
+- **OK** Inicio de sesión correcto y pantalla principal visible
+- **INFO** Actividad: mResumedActivity: ActivityRecord{6aff883 u0 com.ultrapremier.tv/com.example.mitvplayer.PlayerActivity t9}
+- **INFO** Tecla derecha: --------- beginning of main ; --------- beginning of system
+- **INFO** Tecla OK: --------- beginning of main ; --------- beginning of system ; --------- beginning of kernel ; 10-13 03:00:55.358  3210  3210 D UPTV    : tecla=KEYCODE_ENTER repeticion=0 vivo=true opcionesEnfocadas=false marcado=false barra=8
+- **INFO** Tecla derecha: --------- beginning of main ; --------- beginning of kernel ; 10-13 03:00:58.737  3210  3210 D UPTV    : tecla=KEYCODE_DPAD_RIGHT repeticion=0 vivo=true opcionesEnfocadas=false marcado=false barra=0
+- **INFO** Tecla OK: --------- beginning of main ; --------- beginning of kernel ; --------- beginning of system ; 10-13 03:01:02.056  3210  3210 D UPTV    : tecla=KEYCODE_ENTER repeticion=0 vivo=true opcionesEnfocadas=false marcado=true barra=0
+- **INFO** Tras ABAJO: --------- beginning of main ; --------- beginning of kernel ; --------- beginning of system ; 10-13 03:01:02.056  3210  3210 D UPTV    : tecla=KEYCODE_ENTER repeticion=0 vivo=true opcionesEnfocadas=false marcado=true barra=0
+- **INFO** Textos tras OK: 
