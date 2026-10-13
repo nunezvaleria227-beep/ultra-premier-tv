@@ -321,9 +321,14 @@ def live():
         txt = " | ".join(texts(nodes))
         has_prog = re.search(r"(Noticiero|Película de la noche|Deportes en vivo|Documental|Serie estelar|Magacín) \d+", txt)
         expect(bool(has_prog), "El canal sin guía propia muestra la guía de su canal hermano", "El canal sin guía propia NO muestra programación")
+    # grabar el canal (máx. 2 h) unos segundos
+    nodes = dump()
+    if tap("Grabar", nodes=nodes, wait=8):
+        nodes = shot("vivo_grabando")
+        log("INFO", "Después de pulsar Grabar: " + " | ".join(texts(nodes))[:400])
     # canal sin hermano
-    back()
-    tap("Deportes", wait=2.5)
+    nodes = dump()
+    tap("DEPORTES", nodes=nodes, wait=2.5)
     nodes = shot("vivo_deportes")
     if tap("Deportes 2", wait=3):
         nodes = shot("vivo_deportes2")
@@ -344,8 +349,8 @@ def live():
                "El canal ofrece exactamente las 3 opciones de tamaño", "No se ve el cuadro de tamaño con 3 opciones: " + txt[:200])
         if tap("Llenar", nodes=nodes, wait=1.5):
             shot("vivo_tamano_llenar", with_texts=False)
-        back()
-        back()
+        back(1.5)
+        shot("vivo_tras_tamano", with_texts=False)
 
 
 @step("guía EPG")
@@ -354,11 +359,15 @@ def epg():
     if not tap("EPG", nodes=nodes, exact=True, wait=4):
         log("FALLO", "No se pudo abrir la guía EPG")
         return
-    time.sleep(5)
+    time.sleep(2)
+    nodes = dump()
+    if not tap("TODO", nodes=nodes, exact=True, wait=6):
+        tap("Noticias", nodes=nodes, wait=6)
     nodes = shot("epg_cuadricula")
     txt = " | ".join(texts(nodes))
-    log("INFO", "Textos de la guía: " + txt[:600])
-    expect("En vivo" in txt or find(nodes, "Noticiero") is not None, "La guía muestra programas o «En vivo»", "La guía está vacía")
+    log("INFO", "Textos de la guía: " + txt[:900])
+    prog = re.search(r"(Noticiero|Película de la noche|Deportes en vivo|Documental|Serie estelar|Magacín) \d+", txt)
+    expect(bool(prog), "La guía muestra programas", "La guía no muestra programas")
     n_envivo = txt.count("En vivo")
     log("INFO", f"Bloques «En vivo» visibles: {n_envivo}")
     key(20, 0.5)
@@ -473,10 +482,9 @@ def settings_key():
     tap_xy(*center(edits[0]))
     time.sleep(0.5)
     sh("input text TESTKEY")
-    back(0.8)  # cierra el teclado si estaba
+    time.sleep(0.8)
     nodes = dump()
-    if not find(nodes, "Guardar"):
-        nodes = dump()
+    shot("ajustes_clave_escrita", with_texts=False)
     tap("Guardar", nodes=nodes, wait=2.5)
     nodes = shot("ajustes_clave_guardada")
     log("INFO", "Después de guardar: " + " | ".join(texts(nodes))[:300])
@@ -497,6 +505,8 @@ def online_subs():
     if not (tap("Reproducir", nodes=nodes, wait=8) or tap("Desde el inicio", nodes=nodes, wait=8) or tap("Continuar", nodes=nodes, wait=8)):
         log("FALLO", "No se pudo reproducir la película la segunda vez")
         return
+    shot("pelicula_subtitulo_automatico", with_texts=False)
+    log("INFO", "Captura pelicula_subtitulo_automatico: debe verse «SUBTITULO INCLUIDO EN EL VIDEO» sin tocar nada (español recordado)")
     key(82, 1.5)
     nodes = dump()
     tap("Subtítulos", exact=True, nodes=nodes, wait=1.5)
@@ -551,6 +561,92 @@ def series():
         log("FALLO", "No se encontró el episodio 1")
 
 
+def pin_enter(digits):
+    for d in digits:
+        nodes = dump()
+        n = find(nodes, d, exact=True)
+        if not n:
+            log("FALLO", f"No se ve la tecla {d} del teclado de PIN")
+            return False
+        tap_xy(*center(n))
+        time.sleep(0.6)
+    time.sleep(1.0)
+    return True
+
+
+@step("control parental")
+def parental():
+    nodes = go_home()
+    if not tap("Ajustes", nodes=nodes, wait=3):
+        log("FALLO", "No se pudo abrir Ajustes (parental)")
+        return
+    nodes = dump()
+    if not tap("Control parental: poner un PIN", nodes=nodes, wait=1.5):
+        log("FALLO", "No hay botón de control parental")
+        return
+    nodes = shot("pin_elegir")
+    if not pin_enter("1234"):
+        return
+    nodes = shot("pin_siguiente")
+    if find(nodes, "✕"):  # sigue el cuadro: pide repetir el PIN
+        pin_enter("1234")
+        nodes = shot("pin_repetido")
+    nodes = shot("parental_activado")
+    txt = " | ".join(texts(nodes))
+    expect("Control parental activado" in txt or "escondido" in txt, "El control parental quedó activado", "No se ve el control parental activado: " + txt[:300])
+    back(1.5)
+    nodes = go_home()
+    tap("TV EN DIRECTO", nodes=nodes, wait=3)
+    time.sleep(2)
+    nodes = shot("parental_vivo")
+    txt = " | ".join(texts(nodes))
+    expect("XXX" not in txt, "Con el control parental, la categoría XXX no aparece en TV", "La categoría XXX sigue visible con el control parental")
+    expect("Canal Adulto" not in txt, "El canal para adultos no aparece", "El canal para adultos sigue en la lista")
+    back(1.5)
+    nodes = go_home()
+    tap("CINE", nodes=nodes, wait=3)
+    time.sleep(2)
+    nodes = shot("parental_cine")
+    txt = " | ".join(texts(nodes))
+    expect("+18" not in txt and "Para Adultos" not in txt, "En Cine no aparecen las películas ni la categoría +18", "En Cine sigue habiendo contenido para adultos: " + txt[:300])
+    back(1.5)
+    # ver el contenido con el PIN
+    nodes = go_home()
+    tap("Ajustes", nodes=nodes, wait=3)
+    nodes = dump()
+    if tap("Ver contenido para adultos", nodes=nodes, wait=1.5):
+        nodes = shot("pin_pedir")
+        pin_enter("1234")
+        nodes = shot("parental_desbloqueado")
+        txt = " | ".join(texts(nodes))
+        expect("visible" in txt, "Con el PIN correcto el contenido para adultos se muestra", "El PIN correcto no desbloqueó: " + txt[:300])
+    else:
+        log("FALLO", "No se encontró «Ver contenido para adultos (PIN)»")
+    back(1.5)
+
+
+@step("otras pantallas")
+def other_screens():
+    for label, exact in (("PANTALLA MÚLTIPLE", False), ("CATCH UP", False), ("CONTINUAR VIENDO", False),
+                         ("Búsqueda maestra", False), ("Avisos", False), ("Mi cuenta", False)):
+        nodes = go_home()
+        if not tap(label, nodes=nodes, exact=exact, wait=3.5):
+            log("FALLO", f"No se pudo abrir «{label}»")
+            continue
+        nodes = shot("pantalla_" + re.sub(r"\W+", "_", label.lower()))
+        txt = " | ".join(texts(nodes))
+        log("INFO", f"«{label}»: " + txt[:250])
+        back(1.5)
+    # radio y grabaciones: íconos sin texto, arriba a la derecha de la pantalla principal
+    for name, x, y in (("radio", 1009, 64), ("grabaciones", 1141, 64)):
+        go_home()
+        tap_xy(x, y)
+        time.sleep(3.5)
+        nodes = shot("pantalla_" + name)
+        log("INFO", f"«{name}»: " + " | ".join(texts(nodes))[:300])
+        back(1.5)
+
+
 @step("registro final")
 def final_logs():
     for _ in range(4):
@@ -577,6 +673,8 @@ def main():
         settings_key()
         online_subs()
         series()
+        other_screens()
+        parental()
     final_logs()
     # resumen
     fails = [l for l in REPORT if l.startswith("- **FALLO**")]

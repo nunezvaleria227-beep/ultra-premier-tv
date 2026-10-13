@@ -115,6 +115,7 @@ class PlayerActivity : ComponentActivity() {
 
     /** Para buscar subtítulos solo una vez por película/episodio e idioma. */
     private val autoSubTried = HashSet<String>()
+    private val autoPicked = HashSet<String>()
 
     /** En el celular: deslizar arriba/abajo cambia de canal y tocar muestra la información. */
     private val gestures by lazy {
@@ -578,19 +579,45 @@ class PlayerActivity : ComponentActivity() {
         SubtitleSettings.setLanguage(this, "off")
     }
 
-    /** Si el idioma preferido no viene en el video, se busca en internet (una sola vez por video). */
+    /**
+     * Con un idioma preferido (español o inglés): si el video trae ese subtítulo se activa solo (se elige la pista
+     * a propósito, sin depender de cómo escriba el idioma el archivo: "spa", "es", "es-MX"…); si no lo trae,
+     * se busca en internet (una sola vez por video).
+     */
     private fun maybeAutoSubtitles(tracks: Tracks) {
         val item = items.getOrNull(index) ?: return
-        val query = item.subs ?: return
         if (item.isLive) return
         val pref = SubtitleSettings.language(this)
         if (pref == "off") return
-        if (!autoSubTried.add("${query.cacheKey}:$pref")) return
-        val hasLanguage = tracks.groups.any { group ->
-            group.type == C.TRACK_TYPE_TEXT &&
-                (0 until group.length).any { normalizedLang(group.getTrackFormat(it).language) == pref }
+        val exo = player ?: return
+
+        var foundGroup: Tracks.Group? = null
+        var foundIndex = 0
+        var anySelected = false
+        for (group in tracks.groups) {
+            if (group.type != C.TRACK_TYPE_TEXT) continue
+            for (i in 0 until group.length) {
+                if (!group.isTrackSupported(i)) continue
+                if (group.isTrackSelected(i)) anySelected = true
+                if (foundGroup == null && normalizedLang(group.getTrackFormat(i).language) == pref) {
+                    foundGroup = group
+                    foundIndex = i
+                }
+            }
         }
-        if (!hasLanguage) searchOnline(pref, fromAuto = true)
+        val group = foundGroup
+        if (group != null) {
+            if (!anySelected && autoPicked.add("${item.url}|$pref")) {
+                exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                    .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, foundIndex))
+                    .build()
+            }
+            return
+        }
+        val query = item.subs ?: return
+        if (!autoSubTried.add("${query.cacheKey}:$pref")) return
+        searchOnline(pref, fromAuto = true)
     }
 
     private fun searchOnline(lang: String, fromAuto: Boolean) {
