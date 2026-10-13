@@ -161,12 +161,33 @@ def back(wait=1.0):
     key(4, wait)
 
 
+CRASHES = [0]
+
+
+def crash_check(name):
+    """Si la app se cerró durante el paso, lo anota con el inicio del error."""
+    out = adb("logcat", "-d", "-b", "crash", "-v", "time", timeout=60)
+    n = out.count("FATAL EXCEPTION")
+    if n > CRASHES[0]:
+        lines = out.splitlines()
+        idx = [i for i, l in enumerate(lines) if "FATAL EXCEPTION" in l]
+        start = idx[CRASHES[0]]
+        trace = [re.sub(r"^\S+ \S+ ", "", l)[:230] for l in lines[start:start + 14]]
+        log("FALLO", f"La app se CERRÓ durante «{name}»: " + " / ".join(trace[:8]))
+        with open(os.path.join(OUT, f"cierre_{len(idx)}.txt"), "w") as f:
+            f.write("\n".join(lines[start:start + 60]))
+        CRASHES[0] = n
+        return True
+    return False
+
+
 def step(name):
     def deco(fn):
         def run(*a, **k):
             print(f"\n=== {name}", flush=True)
+            result = None
             try:
-                return fn(*a, **k)
+                result = fn(*a, **k)
             except Exception as e:  # un paso roto no detiene la prueba
                 log("FALLO", f"{name}: excepción {e!r}")
                 traceback.print_exc()
@@ -174,6 +195,11 @@ def step(name):
                     shot("excepcion_" + re.sub(r"\W+", "_", name)[:30])
                 except Exception:
                     pass
+            try:
+                crash_check(name)
+            except Exception:
+                pass
+            return result
         return run
     return deco
 
@@ -196,7 +222,17 @@ def dismiss_update(nodes):
     return False
 
 
+def ensure_app():
+    """Si la app se cerró (o se salió al escritorio), se vuelve a abrir; la sesión guardada entra sola."""
+    if PKG in current_focus():
+        return
+    log("INFO", "La app no estaba en primer plano; se vuelve a abrir")
+    sh("am start -n com.ultrapremier.tv/com.example.mitvplayer.MainActivity")
+    time.sleep(8)
+
+
 def go_home():
+    ensure_app()
     for _ in range(6):
         nodes = dump()
         if dismiss_update(nodes):

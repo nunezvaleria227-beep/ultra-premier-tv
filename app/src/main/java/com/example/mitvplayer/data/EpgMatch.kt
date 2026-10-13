@@ -1,6 +1,6 @@
 package com.example.mitvplayer.data
 
-private val BRACKETS = Regex("""\[[^\]]*]|\([^)]*\)|\{[^}]*}""")
+private val BRACKETS = Regex("""\[[^\]]*\]|\([^)]*\)|\{[^}]*\}""")
 private val QUALITY = Regex("""\b(uhd|fhd|hd|sd|4k|8k|hevc|h\.?26[45]|raw|backup|\d{3,4}p|\d{2,3}fps)\b""")
 private val NON_ALNUM = Regex("""[^\p{L}\p{N}]+""")
 

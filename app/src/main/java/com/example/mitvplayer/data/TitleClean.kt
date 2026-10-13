@@ -1,6 +1,6 @@
 package com.example.mitvplayer.data
 
-private val BRACKETS = Regex("""\[[^\]]*]|\{[^}]*}""")
+private val BRACKETS = Regex("""\[[^\]]*\]|\{[^}]*\}""")
 private val PAREN_YEAR = Regex("""\(\s*((?:19|20)\d{2})\s*\)""")
 private val PAREN = Regex("""\([^)]*\)""")
 private val PREFIX = Regex(
