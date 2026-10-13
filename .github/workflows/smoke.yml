@@ -10,6 +10,10 @@ on:
         description: "Versión del código a probar (rama, etiqueta o commit). Vacío = la más reciente"
         required: false
         default: ""
+      variant:
+        description: "debug = compilación de depuración; release = la misma que se publica (con R8)"
+        required: false
+        default: "debug"
       big:
         description: "true = el servidor de mentira entrega listas enormes (6 mil canales, 20 mil películas)"
         required: false
@@ -65,18 +69,21 @@ jobs:
           grep -rn "10.0.2.2" app/src/main/java/com/example/mitvplayer/ || true
           git log -1 --format='Probando el commit %h: %s' | head -c 200
 
-      - name: Compilar (depuración)
+      - name: Compilar
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew assembleDebug --console=plain --stacktrace 2>&1 | tee build.log || {
+          VARIANT="${{ inputs.variant || 'debug' }}"
+          if [ "$VARIANT" = "release" ]; then TASK=assembleRelease; APK=app/build/outputs/apk/release/app-release.apk; else TASK=assembleDebug; APK=app/build/outputs/apk/debug/app-debug.apk; fi
+          echo "SMOKE_APK=$APK" >> "$GITHUB_ENV"
+          ./gradlew $TASK --console=plain --stacktrace 2>&1 | tee build.log || {
             echo "---- ERRORES DE COMPILACION ----"
             grep -E "^e: |error: |What went wrong" -A2 build.log | grep -v '^--$' | head -80 | while IFS= read -r line; do
               echo "::error::${line}"
             done
             exit 1
           }
-          ls -la app/build/outputs/apk/debug/
+          ls -la "$(dirname "$APK")"
 
       - name: Servidor de prueba
         run: |

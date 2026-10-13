@@ -49,7 +49,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: quita lo que no se usa y acorta el código; la app pesa menos y abre más rápido.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             isDebuggable = false
             signingConfig = if (releaseKeystorePath != null) {
                 signingConfigs.getByName("release")
