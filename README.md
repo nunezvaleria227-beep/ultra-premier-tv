@@ -191,6 +191,8 @@ No trae: grabaciones, pantalla múltiple, Catch up ni subtítulos de internet (R
 
 Cada cambio en `roku/` revisa el código con el compilador de BrightScript (`brighterscript`) y vuelve a publicar el .zip (`.github/workflows/roku.yml`).
 
+**Tienda de Roku (canal público):** `roku/store/FICHA_TIENDA.md` trae los textos, capturas requeridas, enlaces de privacidad y términos (`docs/PRIVACIDAD.md`, `docs/TERMINOS.md`), los pasos para empaquetar el .pkg firmado y las notas de certificación. El envío lo hace el dueño de la cuenta de desarrollador de Roku.
+
 ## 9. Notas de seguridad y límites
 
 - **Credenciales:** se guardan cifradas con el Android Keystore al entrar. Cerrar sesión las borra. Las copias de seguridad de Android están desactivadas.
