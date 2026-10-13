@@ -20,6 +20,10 @@ Inicia sesión con **usuario y contraseña** contra un portal **Xtream Codes** y
 | **Grabaciones a MP4** | En Grabaciones, el botón **A MP4** convierte una grabación (.ts) a MP4 para abrirla en cualquier celular o programa. |
 | **Control parental** | En Ajustes se pone un PIN de 4 números: las categorías para adultos (XXX, +18, adultos…) se esconden en listas, buscador, guía y "Continuar viendo" hasta escribir el PIN. |
 | **Detalle de película/serie** | Fondo grande, sinopsis, reparto, director, botón de **tráiler** (YouTube), minuto en que vas y episodios en curso. |
+| **Guía completa** | Si un canal no trae programación, toma la de su "hermano" (el mismo canal en HD / FHD / 4K del mismo país). Si ninguno tiene, la guía muestra **● En vivo** en lugar de quedar vacía (no se inventan programas). |
+| **Subtítulos en español o inglés** | En cualquier película o episodio: tecla **Menú** (o botón **CC Subtítulos** arriba) → Subtítulos. Se ven los que trae el video; si el idioma elegido no viene, la app lo **busca en internet (OpenSubtitles)**, lo guarda y la próxima vez ya está. Se recuerda el idioma para los siguientes videos. Hace falta una clave gratuita de OpenSubtitles (Ajustes → Subtítulos en internet). |
+| **Tamaño de imagen** | Canal, película y serie tienen tres opciones: **Normal** (completa), **Llenar la pantalla** y **Acercar** (recorta bordes). En vivo: ◀ ▶ o Menú; en películas y series: Menú → Tamaño. Se recuerda por tipo (canal / película / episodio). |
+| **Lupa en el detalle** | Película y serie tienen la lupa de búsqueda arriba a la derecha. |
 | **Actualizaciones** | Al abrir la app avisa si hay una versión nueva (de GitHub Releases); se descarga e instala desde la propia app. También en Ajustes → "Buscar actualización de la app". |
 
 Funciona con Fire OS 6 en adelante (Android 7.1+). Se maneja con el control remoto (D-pad) y también con el dedo.
@@ -101,7 +105,9 @@ Play Protect (Google) existe en celulares, tablets y Android TV; **el Fire TV no
 | Pantalla completa en vivo | ▲ / CH+ | Canal siguiente |
 | Pantalla completa en vivo | ▼ / CH− | Canal anterior |
 | Pantalla completa en vivo | OK | Muestra nombre del canal y la guía |
-| Películas / series | OK, ◀ ▶, Play/Pausa | Controles de Media3 (adelantar, pausar, audio y subtítulos) |
+| Películas / series | OK, ◀ ▶, Play/Pausa | Controles de Media3 (adelantar y pausar) |
+| Películas / series | **Menú** (≡) o tecla **CC** | Subtítulos (español / inglés / apagados) y Tamaño de la imagen |
+| Pantalla completa en vivo | ◀ ▶ o **Menú** | Tamaño de la imagen (Normal / Llenar / Acercar) |
 
 En el celular: tocar elige, mantener pulsado marca favorito, y en un canal en vivo a pantalla completa deslizar hacia arriba/abajo cambia de canal.
 
@@ -139,13 +145,16 @@ app/src/main/java/com/example/mitvplayer/
 ├── Config.kt            URL del portal y User-Agent
 ├── MiTvApp.kt           Application: crea el repositorio
 ├── MainActivity.kt      Navegación entre todas las pantallas
-├── PlayerActivity.kt    Reproductor a pantalla completa (ExoPlayer)
+├── PlayerActivity.kt    Reproductor a pantalla completa (ExoPlayer): subtítulos y tamaño de imagen
+├── PlayerPrefs.kt       Tamaño de imagen recordado por tipo
 ├── RecordingService.kt  Grabación de canales en vivo (máx. 2 h, se guarda en Películas)
 ├── data/
 │   ├── XtreamApi.kt     Cliente de player_api.php (login, listas, EPG, Catch up)
 │   ├── JsonStream.kt    Lectura de listas JSON enormes sin gastar memoria
 │   ├── Repository.kt    Listas completas con caché en disco, guía y sesión
 │   ├── Library.kt       Favoritos e historial
+│   ├── EpgMatch.kt      Nombre base de un canal (quita HD/FHD/4K) para prestar la guía entre hermanos
+│   ├── SubtitleService.kt / SubtitleSettings.kt / TitleClean.kt   Subtítulos de internet y limpieza de títulos
 │   ├── SessionStore.kt  Guarda la sesión cifrada (Android Keystore)
 │   └── Models.kt
 └── ui/
@@ -171,4 +180,6 @@ El identificador de la app (`applicationId`) es `com.ultrapremier.tv`; el paquet
 - **HTTP sin cifrar:** muchos portales IPTV usan `http://`, por eso la app permite tráfico no cifrado (`usesCleartextTraffic`). Si tu portal tiene `https://`, úsalo. Para exigir HTTPS, quita ese atributo de `AndroidManifest.xml`.
 - **Conexiones simultáneas:** la mayoría de las cuentas permite una sola. La vista previa se corta antes de abrir pantalla completa. La **Pantalla múltiple** y las **grabaciones** necesitan más de una conexión: si tu cuenta solo permite una, solo abrirá un canal a la vez.
 - **Catch up y guía:** dependen de que tu proveedor las incluya; si no, la app lo indica.
-- **Todavía no incluye:** guía de TV en cuadrícula por horario ni control parental.
+- **Subtítulos en internet:** usan la API oficial de OpenSubtitles.com con tu propia clave gratuita (Ajustes → Subtítulos en internet); el plan gratis tiene un tope diario de descargas. La app no crea subtítulos desde el audio: busca los que ya existen para esa película o serie.
+- **Guía:** cuando se toma la de un canal hermano o se muestra "● En vivo", es para que no quede vacía; los horarios reales los pone tu proveedor.
+- **Prueba automática:** `.github/workflows/smoke.yml` abre la app en un Android virtual con un servidor de mentira (`tools/smoke/`) y recorre las pantallas; las capturas quedan en la rama `smoke-results`. No publica nada.

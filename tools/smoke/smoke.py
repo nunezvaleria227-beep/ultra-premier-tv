@@ -321,11 +321,6 @@ def live():
         txt = " | ".join(texts(nodes))
         has_prog = re.search(r"(Noticiero|Película de la noche|Deportes en vivo|Documental|Serie estelar|Magacín) \d+", txt)
         expect(bool(has_prog), "El canal sin guía propia muestra la guía de su canal hermano", "El canal sin guía propia NO muestra programación")
-    # grabar el canal (máx. 2 h) unos segundos
-    nodes = dump()
-    if tap("Grabar", nodes=nodes, wait=8):
-        nodes = shot("vivo_grabando")
-        log("INFO", "Después de pulsar Grabar: " + " | ".join(texts(nodes))[:400])
     # canal sin hermano
     nodes = dump()
     tap("DEPORTES", nodes=nodes, wait=2.5)
@@ -340,9 +335,9 @@ def live():
         shot("vivo_reproduciendo", with_texts=False)
         nodes = dump()
         log("INFO", "Actividad en primer plano: " + current_focus())
-        key(22, 1.0)  # flecha derecha → botón de tamaño
+        key(22, 1.5)  # flecha derecha → muestra la barra y enfoca «Tamaño»
         shot("vivo_barra_opciones")
-        key(66, 1.5)  # abrir tamaño
+        key(66, 1.5)  # OK abre el cuadro de tamaño
         nodes = shot("vivo_dialogo_tamano")
         txt = " | ".join(texts(nodes))
         expect("Normal" in txt and "Llenar" in txt and "Acercar" in txt,
@@ -370,9 +365,30 @@ def epg():
     expect(bool(prog), "La guía muestra programas", "La guía no muestra programas")
     n_envivo = txt.count("En vivo")
     log("INFO", f"Bloques «En vivo» visibles: {n_envivo}")
-    key(20, 0.5)
-    key(20, 0.5)
-    shot("epg_abajo")
+    nodes = dump()
+    if tap("Ver en cuadrícula", nodes=nodes, wait=6):
+        nodes = shot("epg_grilla")
+        txt = " | ".join(texts(nodes))
+        log("INFO", "Guía en cuadrícula: " + txt[:600])
+        expect("En vivo" in txt, "La cuadrícula muestra «En vivo» en los canales sin guía", "La cuadrícula no muestra «En vivo»")
+        # abrir un programa futuro y programar su grabación
+        done = False
+        for name in ("Deportes en vivo 4", "Noticiero 4", "Película de la noche 3", "Magacín 3"):
+            n = find(nodes, name)
+            if n:
+                tap_xy(*center(n))
+                time.sleep(1.5)
+                nodes = shot("epg_grilla_dialogo")
+                txt = " | ".join(texts(nodes))
+                log("INFO", f"Opciones al pulsar «{name}»: " + txt[:300])
+                if tap("Programar grabación", nodes=nodes, wait=2):
+                    nodes = shot("epg_grilla_programada")
+                    done = True
+                else:
+                    tap("Cerrar", nodes=nodes, wait=1)
+                break
+        log("OK" if done else "AVISO", "Se programó una grabación desde la guía" if done else "No se pudo programar una grabación desde la guía (solo había programas en curso)")
+        back()
     back()
 
 
@@ -444,7 +460,10 @@ def player_checks(tag):
     nodes = dump()
     tap("Subtítulos", exact=True, nodes=nodes, wait=1.5)
     nodes = dump()
-    if tap("Buscar en internet: Inglés", nodes=nodes, wait=2):
+    if find(nodes, "Inglés (internet)"):
+        log("INFO", "El inglés ya estaba descargado (se buscó solo al empezar, por el idioma recordado)")
+        back(1.0)
+    elif tap("Buscar en internet: Inglés", nodes=nodes, wait=2):
         shot(f"{tag}_sin_clave")
         nodes = dump()
         txt = " | ".join(texts(nodes))
@@ -647,6 +666,58 @@ def other_screens():
         back(1.5)
 
 
+@step("grabar y convertir a MP4")
+def recording():
+    nodes = go_home()
+    if not tap("TV EN DIRECTO", nodes=nodes, wait=3):
+        return
+    time.sleep(2)
+    nodes = dump()
+    tap("NOTICIAS", nodes=nodes, wait=2)
+    nodes = dump()
+    tap("Canal Uno FHD", nodes=nodes, wait=3)
+    nodes = dump()
+    if not tap("Grabar", nodes=nodes, wait=9):
+        log("FALLO", "No se encontró el botón Grabar")
+        return
+    nodes = shot("grabar_empezo")
+    log("INFO", "Tras pulsar Grabar: " + " | ".join(texts(nodes))[:300])
+    go_home()
+    tap_xy(1141, 64)  # Grabaciones
+    time.sleep(3)
+    nodes = shot("grabaciones_en_curso")
+    if not tap("Detener y guardar", nodes=nodes, wait=6):
+        log("FALLO", "No hay botón «Detener y guardar» en Grabaciones")
+        return
+    nodes = shot("grabaciones_guardada")
+    txt = " | ".join(texts(nodes))
+    log("INFO", "Después de detener: " + txt[:400])
+    expect("A MP4" in txt, "La grabación guardada ofrece «A MP4»", "No aparece «A MP4» tras guardar")
+    if tap("A MP4", nodes=nodes, wait=2):
+        nodes = shot("mp4_opciones")
+        if not tap("conservar la original", nodes=nodes, wait=2):
+            log("FALLO", "No se ofrecieron las opciones de conversión")
+            return
+        done = False
+        for i in range(40):
+            nodes = dump()
+            t = " | ".join(texts(nodes))
+            if i in (1, 8):
+                shot(f"mp4_progreso_{i}", with_texts=False)
+            if "Convirtiendo" not in t and "Guardando el MP4" not in t:
+                if i >= 2:
+                    done = True
+                    break
+            time.sleep(3)
+        nodes = shot("mp4_final")
+        txt = " | ".join(texts(nodes))
+        log("INFO", "Pantalla tras convertir: " + txt[:500])
+        files = sh("ls -la /sdcard/Movies/'Ultra Premier TV'/ /sdcard/Android/data/com.ultrapremier.tv/files/Movies/Grabaciones 2>&1")
+        log("INFO", "Archivos guardados: " + files.replace("\n", " / ")[:500])
+        expect(".mp4" in files.lower(), "Se creó un archivo MP4", "No se encontró ningún archivo MP4 tras convertir")
+    back(1.5)
+
+
 @step("registro final")
 def final_logs():
     for _ in range(4):
@@ -674,6 +745,7 @@ def main():
         online_subs()
         series()
         other_screens()
+        recording()
         parental()
     final_logs()
     # resumen

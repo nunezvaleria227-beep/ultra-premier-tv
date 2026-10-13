@@ -745,15 +745,12 @@ class PlayerActivity : ComponentActivity() {
                         return true
                     }
                     KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                        // Primero muestra la información; la siguiente pulsación pasa a los botones de arriba.
+                        // Muestra la información y deja enfocado el botón de Tamaño: OK lo abre.
                         if (firstPress) {
-                            if (optionsBar.visibility == View.VISIBLE) {
-                                btnSize.requestFocus()
-                                handler.removeCallbacks(hideBannerTask)
-                                handler.postDelayed(hideBannerTask, BANNER_DURATION_MS)
-                            } else {
-                                showBanner(item)
-                            }
+                            if (optionsBar.visibility != View.VISIBLE) showBanner(item)
+                            btnSize.requestFocus()
+                            handler.removeCallbacks(hideBannerTask)
+                            handler.postDelayed(hideBannerTask, BANNER_DURATION_MS)
                         }
                         return true
                     }
