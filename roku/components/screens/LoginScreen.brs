@@ -83,9 +83,9 @@ sub readKeyboard()
     value = toS(dlg.text)
     dlgLen = Len(value)
     boxLen = -1
-    box = dlg.textEditBox
-    if box <> invalid
-        boxText = box.text
+    editBox = dlg.textEditBox
+    if editBox <> invalid
+        boxText = editBox.text
         if boxText <> invalid
             value = boxText
             boxLen = Len(boxText)
