@@ -33,6 +33,7 @@ sub init()
     m.resumedFromCut = false
     m.retryExt = ""
     m.errorOpen = false
+    m.pausedSince = -1
     m.liveExt = "m3u8"
 
     m.video.observeField("state", "onState")
@@ -102,6 +103,8 @@ sub playCurrent(startPos as Integer, forceExt as String)
         if startPos > 0 then content.PlayStart = startPos
     end if
     content.title = displayTitle(it)
+    ' En vivo no se puede adelantar ni retroceder: si se intenta, la señal se pierde. En películas y series sí.
+    m.video.enableTrickPlay = (m.mode <> "live")
     m.video.control = "stop"
     m.video.content = content
     m.video.control = "play"
@@ -163,11 +166,23 @@ sub onState()
     else
         m.bufferSince = -1
     end if
+    pausedFor = -1
+    if state = "paused"
+        if m.pausedSince < 0 then m.pausedSince = now
+    else
+        if m.pausedSince >= 0 then pausedFor = now - m.pausedSince
+        m.pausedSince = -1
+    end if
     if state = "playing"
         if m.playingSince < 0 then m.playingSince = now
         m.everPlayed = true
         m.resumedFromCut = false
         setNotice("")
+        ' Un canal en vivo que estuvo en pausa un buen rato ya no tiene señal: se vuelve a pedir en directo.
+        if m.mode = "live" and pausedFor > 8000
+            playCurrent(0, m.liveExt)
+            return
+        end if
     else
         m.playingSince = -1
     end if
@@ -560,6 +575,9 @@ function onKeyEvent(key as String, press as Boolean) as Boolean
             return true
         else if key = "OK"
             showBanner(m.items[m.index], true)
+            return true
+        else if key = "left" or key = "right" or key = "fastforward" or key = "rewind" or key = "replay"
+            ' En vivo no hay nada que adelantar ni retroceder.
             return true
         end if
     end if
