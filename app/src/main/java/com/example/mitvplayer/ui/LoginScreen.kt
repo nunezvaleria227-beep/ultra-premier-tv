@@ -187,22 +187,6 @@ fun LoginScreen(vm: AppViewModel) {
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                FocusCard(
-                    onClick = { vm.rememberMe = !vm.rememberMe },
-                    modifier = Modifier.fillMaxWidth(),
-                    scaleOnFocus = 1.02f,
-                    background = Color.Transparent
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(checked = vm.rememberMe, onCheckedChange = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Mantener la sesión iniciada", color = TextPrimary, fontSize = 14.sp)
-                    }
-                }
-
                 val error = state.error
                 if (error != null) {
                     Text(

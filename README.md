@@ -16,7 +16,7 @@ Inicia sesión con **usuario y contraseña** contra un portal **Xtream Codes** y
 | **Favoritos e historial** | Mantén pulsado un canal/póster (o la tecla **Menú** del control) para marcarlo como favorito. |
 | **Continuar viendo** | La app recuerda el minuto de cada película y episodio. Botón en el inicio con todo lo que dejaste a medias; al abrir una película aparece "Continuar (mm:ss)" y "Desde el inicio". |
 | **Guía en cuadrícula** | En EPG → una categoría → "Ver en cuadrícula": canales a la izquierda y programas por horario (con "Ahora", ◀ 3 h / 3 h ▶). OK en un programa: ver el canal o **programar su grabación**. |
-| **Grabaciones programadas** | Se programan desde la guía, se ven (y cancelan) en Grabaciones y se graban solas a la hora, también con la app cerrada (si se activó "Mantener la sesión iniciada"). Máximo 2 h por grabación. |
+| **Grabaciones programadas** | Se programan desde la guía, se ven (y cancelan) en Grabaciones y se graban solas a la hora, también con la app cerrada (la sesión queda guardada hasta que pulses "Cerrar sesión"). Máximo 2 h por grabación. |
 | **Grabaciones a MP4** | En Grabaciones, el botón **A MP4** convierte una grabación (.ts) a MP4 para abrirla en cualquier celular o programa. |
 | **Control parental** | En Ajustes se pone un PIN de 4 números: las categorías para adultos (XXX, +18, adultos…) se esconden en listas, buscador, guía y "Continuar viendo" hasta escribir el PIN. |
 | **Detalle de película/serie** | Fondo grande, sinopsis, reparto, director, botón de **tráiler** (YouTube), minuto en que vas y episodios en curso. |
@@ -176,7 +176,7 @@ El identificador de la app (`applicationId`) es `com.ultrapremier.tv`; el paquet
 
 ## 9. Notas de seguridad y límites
 
-- **Credenciales:** si marcas "Recordar sesión", se guardan cifradas con el Android Keystore. Cerrar sesión las borra. Las copias de seguridad de Android están desactivadas.
+- **Credenciales:** se guardan cifradas con el Android Keystore al entrar. Cerrar sesión las borra. Las copias de seguridad de Android están desactivadas.
 - **HTTP sin cifrar:** muchos portales IPTV usan `http://`, por eso la app permite tráfico no cifrado (`usesCleartextTraffic`). Si tu portal tiene `https://`, úsalo. Para exigir HTTPS, quita ese atributo de `AndroidManifest.xml`.
 - **Conexiones simultáneas:** la mayoría de las cuentas permite una sola. La vista previa se corta antes de abrir pantalla completa. La **Pantalla múltiple** y las **grabaciones** necesitan más de una conexión: si tu cuenta solo permite una, solo abrirá un canal a la vez.
 - **Catch up y guía:** dependen de que tu proveedor las incluya; si no, la app lo indica.
