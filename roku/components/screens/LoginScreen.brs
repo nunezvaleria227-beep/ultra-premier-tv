@@ -8,6 +8,8 @@ sub init()
     m.busy = false
     ' "manual" = la persona pulsó Entrar (no fue la entrada automática con la sesión guardada).
     m.manual = false
+    m.dbgUser = "-"
+    m.dbgPass = "-"
     m.user = regRead("user")
     m.pass = regRead("pass")
     ' Si el intento anterior no funcionó, se deja a la vista el motivo (ayuda a corregir y a pedir soporte).
@@ -74,30 +76,51 @@ sub askText(titleText as String, current as String, secure as Boolean, which as 
     m.top.getScene().dialog = dlg
 end sub
 
-sub onKeyboardText()
+' Lee lo escrito en el teclado (de la caja de texto) y lo guarda. También anota cuántos caracteres veía cada fuente.
+sub readKeyboard()
     dlg = m.dialog
     if dlg = invalid then return
-    value = dlg.text
-    if dlg.textEditBox <> invalid and dlg.textEditBox.text <> invalid then value = dlg.textEditBox.text
-    if m.which = "user" then m.user = value.Trim()
-    if m.which = "pass" then m.pass = value
-    refreshList()
+    value = toS(dlg.text)
+    dlgLen = Len(value)
+    boxLen = -1
+    box = dlg.textEditBox
+    if box <> invalid
+        boxText = box.text
+        if boxText <> invalid
+            value = boxText
+            boxLen = Len(boxText)
+        end if
+    end if
+    note = boxLen.ToStr() + "/" + dlgLen.ToStr()
+    if m.which = "user"
+        m.user = value.Trim()
+        m.dbgUser = note
+    else
+        m.pass = value
+        m.dbgPass = note
+    end if
+end sub
+
+sub onKeyboardText()
+    readKeyboard()
 end sub
 
 sub onKeyboardDone()
     dlg = m.dialog
     if dlg = invalid then return
-    onKeyboardText()
+    readKeyboard()
     m.dialog = invalid
     dlg.close = true
+    refreshList()
     m.list.setFocus(true)
 end sub
 
 sub onKeyboardClosed()
     if m.dialog <> invalid
-        onKeyboardText()
+        readKeyboard()
         m.dialog = invalid
     end if
+    refreshList()
     m.list.setFocus(true)
 end sub
 
@@ -136,7 +159,7 @@ sub onLogin(event as Object)
         setError(resp.error)
         userLen = Len(m.user)
         passLen = Len(m.pass)
-        diag = "usuario " + userLen.ToStr() + " y contraseña " + passLen.ToStr() + " caracteres; " + toS(resp.diag)
+        diag = "usuario " + Chr(34) + m.user + Chr(34) + " (" + userLen.ToStr() + "), contraseña " + passLen.ToStr() + ". " + toS(resp.diag) + ". Teclado u " + m.dbgUser + ", c " + m.dbgPass
         regWrite("lastTry", diag)
         m.lastTry.text = "Último intento: " + diag
         m.list.setFocus(true)
