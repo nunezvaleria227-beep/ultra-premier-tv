@@ -888,7 +888,7 @@ def main_perf():
             got = None
             while time.time() - t0 < 40:
                 nodes = dump()
-                if find(nodes, "número 19"):
+                if find(nodes, "Película número"):
                     got = round(time.time() - t0, 1)
                     break
             log("PERF", f"Búsqueda maestra «mero 19»: resultados en (s): {got}")

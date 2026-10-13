@@ -469,7 +469,6 @@ fun RecordingsScreen(vm: AppViewModel) {
     var files by remember { mutableStateOf(RecordingService.listSaved(context)) }
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     var deleting by remember { mutableStateOf<SavedRecording?>(null) }
-    var picking by remember { mutableStateOf(false) }
     var converting by remember { mutableStateOf<SavedRecording?>(null) }
     val convert = RecordingConverter.current
 
@@ -506,8 +505,6 @@ fun RecordingsScreen(vm: AppViewModel) {
                 )
                 TvButton(text = "Detener y guardar", onClick = { RecordingManager.stop() }, modifier = Modifier.fillMaxWidth())
             }
-        } else {
-            TvButton(text = "● Grabar un canal…", onClick = { picking = true }, modifier = Modifier.fillMaxWidth())
         }
 
         if (convert != null) {
@@ -553,7 +550,7 @@ fun RecordingsScreen(vm: AppViewModel) {
 
         if (files.isEmpty()) {
             Text(
-                "Todavía no hay grabaciones. Abre En vivo, elige un canal y pulsa \"Grabar\".",
+                "Todavía no hay grabaciones.",
                 color = TextSecondary,
                 fontSize = 13.sp
             )
@@ -621,17 +618,6 @@ fun RecordingsScreen(vm: AppViewModel) {
                 Opt("Cancelar") { }
             ),
             onDismiss = { deleting = null }
-        )
-    }
-
-    if (picking) {
-        ChannelPickerDialog(
-            vm = vm,
-            onPick = { channel ->
-                picking = false
-                vm.startRecording(context, channel)
-            },
-            onDismiss = { picking = false }
         )
     }
 }

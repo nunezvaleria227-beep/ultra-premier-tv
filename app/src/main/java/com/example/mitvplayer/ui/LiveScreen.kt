@@ -256,22 +256,8 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
                         val index = channels.indexOfFirst { it.id == channel.id }.coerceAtLeast(0)
                         vm.playLive(context, channels, index)
                     },
-                    onRecord = { target ->
-                        if (RecordingManager.current != null) {
-                            RecordingManager.stop()
-                        } else {
-                            // Con una sola conexión en la cuenta, la vista previa se pausa para no tumbar la grabación.
-                            if ((vm.account?.maxConnections ?: 1) <= 1 && preview.player != null) {
-                                preview.pauseKeepingChannel()
-                                Toast.makeText(
-                                    context,
-                                    "Tu cuenta permite una sola conexión: la vista previa se pausa mientras grabas.",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                            vm.startRecording(context, target)
-                        }
-                    }
+                    // Ya no hay botón para empezar a grabar aquí; solo para detener una grabación en curso.
+                    onRecord = { _ -> RecordingManager.stop() }
                 )
             }
         }
@@ -489,12 +475,14 @@ private fun PreviewPane(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            TvButton(
-                text = if (recording != null) "■ Detener grabación" else "● Grabar (máx. 2 h)",
-                onClick = { onRecord(channel) },
-                compact = true,
-                selected = recording != null
-            )
+            if (recording != null) {
+                TvButton(
+                    text = "■ Detener grabación",
+                    onClick = { onRecord(channel) },
+                    compact = true,
+                    selected = true
+                )
+            }
         }
     }
 }

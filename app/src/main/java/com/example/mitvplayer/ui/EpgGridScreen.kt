@@ -175,7 +175,6 @@ fun EpgGridScreen(vm: AppViewModel, categoryId: String, title: String) {
         val options = ArrayList<Opt>()
         if (entry.placeholder) {
             options.add(Opt("Ver ahora") { vm.playLive(context, channels, channelIndex) })
-            options.add(Opt("Grabar (máximo 2 horas)") { vm.startRecording(context, channel) })
         } else if (airing) {
             options.add(Opt("Ver ahora") { vm.playLive(context, channels, channelIndex) })
             options.add(

@@ -12,7 +12,7 @@ Inicia sesión con **usuario y contraseña** contra un portal **Xtream Codes** y
 | **Catch up** | Canales con archivo en el servidor → día → programa ya emitido. |
 | **Pantalla múltiple** | Elige entre 6 diseños y pon un canal en cada recuadro; solo uno suena a la vez. |
 | **Búsqueda maestra** | Canales, películas y series a la vez (sin importar acentos ni mayúsculas). |
-| **Grabaciones** | Graba un canal en vivo con un solo toque, máximo **2 horas**. Al cumplirse (o al detenerla) se guarda sola en la memoria del dispositivo, en **Películas / Ultra Premier TV**, y se puede ver desde la propia app. |
+| **Grabaciones** | Desde la guía se puede grabar lo que queda de un programa o programar su grabación (máximo **2 horas**). Al cumplirse (o al detenerla) se guarda sola en la memoria del dispositivo, en **Películas / Ultra Premier TV**, y se puede ver desde la propia app. |
 | **Favoritos e historial** | Mantén pulsado un canal/póster (o la tecla **Menú** del control) para marcarlo como favorito. |
 | **Continuar viendo** | La app recuerda el minuto de cada película y episodio. Botón en el inicio con todo lo que dejaste a medias; al abrir una película aparece "Continuar (mm:ss)" y "Desde el inicio". |
 | **Guía en cuadrícula** | En EPG → una categoría → "Ver en cuadrícula": canales a la izquierda y programas por horario (con "Ahora", ◀ 3 h / 3 h ▶). OK en un programa: ver el canal o **programar su grabación**. |
@@ -147,7 +147,7 @@ app/src/main/java/com/example/mitvplayer/
 ├── MainActivity.kt      Navegación entre todas las pantallas
 ├── PlayerActivity.kt    Reproductor a pantalla completa (ExoPlayer): subtítulos y tamaño de imagen
 ├── PlayerPrefs.kt       Tamaño de imagen recordado por tipo
-├── RecordingService.kt  Grabación de canales en vivo (máx. 2 h, se guarda en Películas)
+├── RecordingService.kt  Grabaciones (desde la guía; máx. 2 h, se guardan en Películas)
 ├── data/
 │   ├── XtreamApi.kt     Cliente de player_api.php (login, listas, EPG, Catch up)
 │   ├── JsonStream.kt    Lectura de listas JSON enormes sin gastar memoria
