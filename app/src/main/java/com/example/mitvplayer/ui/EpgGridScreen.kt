@@ -97,9 +97,7 @@ fun EpgGridScreen(vm: AppViewModel, categoryId: String, title: String) {
 
             // Encabezado con las horas
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
