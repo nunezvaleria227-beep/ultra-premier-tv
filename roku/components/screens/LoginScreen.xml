@@ -16,6 +16,6 @@
     <Label id="error" translation="[430,540]" width="420" height="70" wrap="true" font="font:SmallSystemFont" color="0xFF6B6BFF" />
     <Label id="status" translation="[430,540]" width="420" height="40" font="font:SmallSystemFont" color="0xA3AECCFF" />
     <Label id="lastTry" translation="[430,606]" width="420" height="66" wrap="true" font="font:SmallestSystemFont" color="0x8E99BBFF" />
-    <Timer id="autoTimer" duration="0.6" repeat="false" />
+    <Timer id="autoTimer" duration="0.1" repeat="false" />
   </children>
 </component>

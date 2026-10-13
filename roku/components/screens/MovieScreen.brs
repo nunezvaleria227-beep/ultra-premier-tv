@@ -72,7 +72,10 @@ end sub
 sub maybeAutoplay()
     if m.autoplayDone then return
     it = m.top.item
-    if it = invalid or it.autoplay <> true then return
+    if it = invalid then return
+    ' Solo las películas abiertas desde un enlace directo traen esta marca; las demás no la tienen.
+    if not it.DoesExist("autoplay") then return
+    if it.autoplay <> true then return
     m.autoplayDone = true
     item = { id: toS(it.id), name: m.name.text, icon: toS(it.icon), ext: m.ext }
     saved = findContinue("movie", item.id)
