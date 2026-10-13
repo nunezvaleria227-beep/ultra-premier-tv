@@ -1,0 +1,4 @@
+- **PERF** Arranque en frío SIN sesión (ms): [2912, 3223, 2708, 1283, 1279, 1134]  → mediana 1283
+- **PERF** Arranque en frío CON sesión y listas guardadas (ms): [1245, 1191, 1198, 1137, 1250, 1205]  → mediana 1198
+- **PERF** Abrir «TV EN DIRECTO» hasta ver contenido (s, aprox.): 2.6
+- **PERF** Abrir «CINE» hasta ver contenido (s, aprox.): 2.3
