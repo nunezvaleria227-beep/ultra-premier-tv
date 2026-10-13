@@ -1,0 +1,11 @@
+
+=== preparar
+[INFO] tamaño de pantalla: Physical size: 2560x1800 Override size: 1280x720 densidad Physical density: 320 Override density: 160
+[PERF] Arranque en frío SIN sesión (ms): [3408, 2851, 2658, 2423, 1202, 1101]  → mediana 2423
+
+=== login
+[OK] Pantalla de inicio de sesión visible
+[OK] Inicio de sesión correcto y pantalla principal visible
+[PERF] Arranque en frío CON sesión y listas guardadas (ms): [1102, 1151, 1160, 1222, 1165, 1146]  → mediana 1160
+[PERF] Abrir «TV EN DIRECTO» hasta ver contenido (s, aprox.): 2.4
+[PERF] Abrir «CINE» hasta ver contenido (s, aprox.): 2.3
