@@ -10,6 +10,10 @@ on:
         description: "Versión del código a probar (rama, etiqueta o commit). Vacío = la más reciente"
         required: false
         default: ""
+      big:
+        description: "true = el servidor de mentira entrega listas enormes (6 mil canales, 20 mil películas)"
+        required: false
+        default: "false"
       mode:
         description: "full = recorrido completo; perf = mide la velocidad de arranque; keys = prueba corta del control remoto"
         required: false
@@ -76,7 +80,9 @@ jobs:
 
       - name: Servidor de prueba
         run: |
-          nohup python3 _h/tools/smoke/mock_xtream.py --media "$RUNNER_TEMP/media" > mock.log 2>&1 &
+          ARGS=""
+          if [ "${{ inputs.big }}" = "true" ]; then ARGS="--big"; fi
+          nohup python3 _h/tools/smoke/mock_xtream.py --media "$RUNNER_TEMP/media" $ARGS > mock.log 2>&1 &
           sleep 2
           curl -s "http://127.0.0.1:8880/player_api.php?username=demo&password=demo" | head -c 300
 

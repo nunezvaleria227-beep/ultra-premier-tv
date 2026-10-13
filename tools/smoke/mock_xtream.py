@@ -44,6 +44,31 @@ SERIES_CATS = [("1", "Drama"), ("2", "Aventura")]
 SERIES = [("701", "La Serie de Prueba", "1", "8.2"), ("702", "Aventuras Sin Fin", "2", "7.0")]
 
 
+BIG = False
+
+
+def build_big():
+    """Catálogos del tamaño de una lista real de IPTV (miles de canales, decenas de miles de películas)."""
+    global LIVE_CATS, LIVE, VOD_CATS, MOVIES, SERIES_CATS, SERIES
+    countries = ["MX", "US", "ES", "AR", "CO", "CL", "PE", "BR", "FR", "IT"]
+    LIVE_CATS = [(str(i + 1), f"{countries[i % 10]} | Categoría {i + 1}") for i in range(60)]
+    LIVE_CATS.append(("61", "XXX Adultos"))
+    LIVE = []
+    for n in range(6000):
+        cat = str(n % 60 + 1)
+        base = f"{countries[(n % 60) % 10]} | Canal {n // 3} "
+        quality = ("HD", "FHD", "4K")[n % 3]
+        LIVE.append((str(10000 + n), base + quality, cat, n % 4 != 0))
+    LIVE.append(("19999", "XXX Canal Adulto", "61", False))
+    VOD_CATS = [(str(i + 1), f"Género {i + 1}") for i in range(40)] + [("41", "+18 Adultos")]
+    MOVIES = []
+    for n in range(20000):
+        year = 1980 + n % 45
+        MOVIES.append((str(100000 + n), f"ES - Película número {n} ({year}) FHD", str(n % 40 + 1), f"{(n % 90) / 10:.1f}"))
+    SERIES_CATS = [(str(i + 1), f"Serie género {i + 1}") for i in range(30)]
+    SERIES = [(str(300000 + n), f"Serie número {n}", str(n % 30 + 1), f"{(n % 90) / 10:.1f}") for n in range(3000)]
+
+
 def b64(text):
     return base64.b64encode(text.encode("utf-8")).decode("ascii")
 
@@ -302,8 +327,11 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--media", default=".")
     ap.add_argument("--port", type=int, default=8880)
+    ap.add_argument("--big", action="store_true", help="catálogos grandes (6 mil canales, 20 mil películas, 3 mil series)")
     args = ap.parse_args()
     MEDIA = args.media
+    if args.big:
+        build_big()
     server = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
     print("mock listo en puerto", args.port, flush=True)
     server.serve_forever()

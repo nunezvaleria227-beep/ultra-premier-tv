@@ -214,6 +214,9 @@ def current_focus():
     return out.strip()
 
 
+LOGIN_T0 = [0.0]
+
+
 def dismiss_update(nodes):
     """El aviso de versión nueva tapa la pantalla (la prueba compila con un número de versión bajo)."""
     if nodes and find(nodes, "Hay una versión nueva") and find(nodes, "Más tarde"):
@@ -280,6 +283,7 @@ def login():
     sh("input text demo")
     time.sleep(0.5)
     shot("login_lleno")
+    LOGIN_T0[0] = time.time()
     key(66, 1.0)  # ENTER = Hecho
     nodes = wait_for("TV EN DIRECTO", 60)
     return expect(nodes is not None, "Inicio de sesión correcto y pantalla principal visible", "No se llegó a la pantalla principal")
@@ -809,38 +813,83 @@ def median(values):
     return v[len(v) // 2] if v else None
 
 
+def wait_counts(t0, timeout=150):
+    """Segundos desde t0 hasta que la pantalla principal muestra las tres cantidades (canales, películas, series)."""
+    while time.time() - t0 < timeout:
+        nodes = dump()
+        if dismiss_update(nodes):
+            continue
+        txt = " | ".join(texts(nodes))
+        if (re.search(r"\d[\d,\.]* canales", txt) and re.search(r"\d[\d,\.]* películas", txt)
+                and re.search(r"\d[\d,\.]* series", txt)):
+            return round(time.time() - t0, 1), txt
+    return None, ""
+
+
 def main_perf():
-    """Mide el arranque en frío (ms) con la sesión sin iniciar y con sesión y listas guardadas."""
+    """Mide el arranque en frío (ms) y varias esperas con listas pequeñas o grandes (--big en el servidor)."""
     prepare()
     cold = []
-    for _ in range(6):
+    for _ in range(4):
         sh("am force-stop com.ultrapremier.tv")
         time.sleep(3)
         cold.append(start_total_ms())
         time.sleep(4)
-    log("PERF", f"Arranque en frío SIN sesión (ms): {cold}  → mediana {median(cold[1:])}")
-    if login():
-        time.sleep(12)
-        warm = []
-        for _ in range(6):
-            sh("am force-stop com.ultrapremier.tv")
-            time.sleep(3)
-            warm.append(start_total_ms())
-            time.sleep(7)
-        log("PERF", f"Arranque en frío CON sesión y listas guardadas (ms): {warm}  → mediana {median(warm[1:])}")
-        # abrir TV en directo y Cine: cuánto tarda en aparecer algo (aproximado, ±2 s por la lectura de pantalla)
-        for label, expect_text in (("TV EN DIRECTO", "Canal Uno"), ("CINE", "Película")):
-            nodes = go_home()
+    log("PERF", f"Arranque en frío SIN sesión (ms): {cold}")
+    if not login():
+        return
+    t, txt = wait_counts(LOGIN_T0[0])
+    log("PERF", f"Primera carga: desde pulsar Entrar hasta ver las tres cantidades: {t} s  ({txt[:200]})")
+    shot("perf_principal_primera_carga", with_texts=False)
+    time.sleep(8)
+    warm = []
+    for _ in range(4):
+        sh("am force-stop com.ultrapremier.tv")
+        time.sleep(3)
+        warm.append(start_total_ms())
+        time.sleep(7)
+    log("PERF", f"Arranque en frío CON sesión (ms): {warm}")
+    seen = []
+    for _ in range(3):
+        sh("am force-stop com.ultrapremier.tv")
+        time.sleep(3)
+        t0 = time.time()
+        sh("am start -n com.ultrapremier.tv/com.example.mitvplayer.MainActivity")
+        t, _txt = wait_counts(t0)
+        seen.append(t)
+        time.sleep(3)
+    log("PERF", f"Con sesión y listas guardadas: desde abrir hasta ver las tres cantidades (s): {seen}")
+    for label, expect_text in (("TV EN DIRECTO", "Canal"), ("CINE", "Pel"), ("SERIES", "Serie")):
+        nodes = go_home()
+        t0 = time.time()
+        tap(label, nodes=nodes, exact=(label == "SERIES"), wait=0)
+        got = None
+        while time.time() - t0 < 60:
+            nodes = dump()
+            if find(nodes, expect_text) and not find(nodes, "Cargando") and not find(nodes, "Preparando"):
+                got = round(time.time() - t0, 1)
+                break
+        log("PERF", f"Abrir «{label}» hasta ver contenido (s): {got}")
+        shot("perf_" + label.lower().replace(" ", "_"), with_texts=False)
+        back(1.5)
+    # búsqueda maestra
+    nodes = go_home()
+    if tap("Búsqueda maestra", nodes=nodes, wait=2.5):
+        nodes = dump()
+        edits = [n for n in nodes if n["cls"].endswith("EditText")]
+        if edits:
+            tap_xy(*center(edits[0]))
+            time.sleep(0.5)
             t0 = time.time()
-            tap(label, nodes=nodes, wait=0)
-            seen = None
-            while time.time() - t0 < 30:
+            sh("input text mero%s19")
+            got = None
+            while time.time() - t0 < 40:
                 nodes = dump()
-                if find(nodes, expect_text):
-                    seen = time.time() - t0
+                if find(nodes, "número 19"):
+                    got = round(time.time() - t0, 1)
                     break
-            log("PERF", f"Abrir «{label}» hasta ver contenido (s, aprox.): {None if seen is None else round(seen, 1)}")
-            back(1.5)
+            log("PERF", f"Búsqueda maestra «mero 19»: resultados en (s): {got}")
+            shot("perf_busqueda", with_texts=False)
     with open(os.path.join(OUT, "perf.txt"), "w") as f:
         f.write("\n".join(l for l in REPORT if "PERF" in l))
 
