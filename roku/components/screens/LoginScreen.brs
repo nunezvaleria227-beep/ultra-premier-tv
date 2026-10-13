@@ -147,6 +147,10 @@ sub submit()
     end if
     m.busy = true
     setError("")
+    ' Se guarda enseguida: si la app se cierra mientras el servidor contesta, al abrirla de nuevo entra sola con
+    ' esta cuenta y la comprueba en segundo plano. Si el servidor la rechaza, se borra más abajo.
+    regWrite("user", m.user)
+    regWrite("pass", m.pass)
     m.status.text = "Entrando… un momento"
     t = CreateObject("roSGNode", "ApiTask")
     t.request = { action: "login", user: m.user, pass: m.pass }
@@ -167,6 +171,9 @@ sub onLogin(event as Object)
         m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: resp.account, liveExt: resp.liveExt, manual: manual, restored: false }
     else
         setError(resp.error)
+        ' No funcionó: no queda guardada una cuenta sin comprobar.
+        regDelete("user")
+        regDelete("pass")
         userLen = Len(m.user)
         passLen = Len(m.pass)
         diag = toS(resp.diag) + ". Usuario " + Chr(34) + m.user + Chr(34) + " (" + userLen.ToStr() + "), contraseña " + passLen.ToStr() + ". Teclado u " + m.dbgUser + ", c " + m.dbgPass

@@ -20,6 +20,7 @@ sub init()
     m.autoSubsDone = false
     m.lastStart = 0
     m.leaving = false
+    m.startedSent = false      ' aviso a la escena de que ya se vio la primera imagen (Roku lo pide tras un enlace directo)
     m.lastRecentId = ""
 
     ' Recuperación automática de la señal (cortes, señal atorada, reconexión del canal en vivo).
@@ -178,6 +179,10 @@ sub onState()
         m.everPlayed = true
         m.resumedFromCut = false
         setNotice("")
+        if not m.startedSent
+            m.startedSent = true
+            m.top.event = { type: "started" }
+        end if
         ' Un canal en vivo que estuvo en pausa un buen rato ya no tiene señal: se vuelve a pedir en directo.
         if m.mode = "live" and pausedFor > 8000
             playCurrent(0, m.liveExt)

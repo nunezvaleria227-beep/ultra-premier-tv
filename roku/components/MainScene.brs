@@ -10,6 +10,12 @@ sub init()
     ' si antes hay que escribir usuario y contraseña, "AppDialogInitiate" / "AppDialogComplete" alrededor de esa espera.
     m.launchDone = false
     m.dialogOpen = false
+    ' Con un enlace directo a una película o canal, "AppLaunchComplete" se manda cuando empieza la reproducción;
+    ' si no empieza a tiempo, este reloj lo manda igual para no dejar el arranque sin aviso.
+    m.launchTimer = CreateObject("roSGNode", "Timer")
+    m.launchTimer.duration = 10
+    m.launchTimer.repeat = false
+    m.launchTimer.observeField("fire", "onLaunchTimer")
     m.prefetch = []
     m.prefetchUser = ""
     ' Tienda de Roku: solo se usa para la pantalla oficial "Solicitud de información" al iniciar sesión.
@@ -26,15 +32,32 @@ sub beginDialog()
 end sub
 
 ' El inicio ya se muestra: se cierra la espera (si la hubo) y se avisa que la app está lista.
-sub finishLaunch()
-    if m.launchDone then return
+sub endDialog()
     if m.dialogOpen
         m.dialogOpen = false
         m.top.signalBeacon("AppDialogComplete")
     end if
+end sub
+
+sub finishLaunch()
+    if m.launchDone then return
+    endDialog()
     m.launchDone = true
     m.top.signalBeacon("AppLaunchComplete")
 end sub
+
+sub onLaunchTimer()
+    finishLaunch()
+end sub
+
+' ¿Este enlace directo hace que empiece a reproducirse algo (película o canal)?
+function linkPlays(link as Dynamic) as Boolean
+    if link = invalid then return false
+    if Type(link) <> "roAssociativeArray" then return false
+    if toS(link.contentId) = "" then return false
+    kind = LCase(toS(link.mediaType))
+    return (kind = "movie" or kind = "live")
+end function
 
 ' Roku avisa que la app usa mucha memoria: se sueltan las listas guardadas para volver a pedirlas cuando se necesiten.
 sub onMemoryWarning()
@@ -159,6 +182,10 @@ sub onEvent(event as Object)
         showLogin()
     else if t = "back"
         popScreen()
+    else if t = "started"
+        ' Ya se ve la primera imagen del video.
+        m.launchTimer.control = "stop"
+        finishLaunch()
     end if
 end sub
 
@@ -176,12 +203,20 @@ sub onLoggedIn(e as Object)
         parental: parental
         account: e.account
     }
+    holdBeacon = linkPlays(m.pendingLink)
     if m.pendingLink <> invalid
         applyDeepLink()
     else
         showHome()
     end if
-    finishLaunch()
+    if holdBeacon and not m.launchDone
+        ' La espera de usuario y contraseña (si la hubo) termina ahora; el aviso de "listo" sale cuando empieza
+        ' la reproducción (evento "started") o a los 10 segundos.
+        endDialog()
+        m.launchTimer.control = "start"
+    else
+        finishLaunch()
+    end if
     ' Roku exige que las apps con inicio de sesión muestren su pantalla de "Solicitud de información"
     ' (getUserData) al entrar. Solo cuando la persona inicia sesión a mano, no en la entrada automática.
     if e.manual = true then askRokuEmail()
