@@ -113,7 +113,7 @@ sub onEpisodeSelected(event as Object)
     end for
     secs = 0
     saved = findContinue("episode", items[flatIndex].id)
-    if saved <> invalid and toI(saved.pos) >= 10 then secs = toI(saved.pos)
+    if saved <> invalid and toI(saved.pos) >= 5 then secs = toI(saved.pos)
     m.top.event = { type: "play", mode: "episode", items: items, index: flatIndex, start: secs }
 end sub
 

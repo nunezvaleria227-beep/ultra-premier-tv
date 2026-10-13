@@ -130,8 +130,8 @@ function doItems(req as Object, res as Object) as Object
         return res
     end if
     favs = favoriteIds(kind)
-    root = CreateObject("roSGNode", "ContentNode")
-    count = 0
+    ' Se arma una lista simple y los nodos se crean de un solo golpe (mucho más rápido que uno por uno).
+    list = []
     for each s in json
         if Type(s) = "roAssociativeArray"
             id = ""
@@ -146,28 +146,27 @@ function doItems(req as Object, res as Object) as Object
                 icon = toS(s.stream_icon)
                 ext = toS(s.container_extension)
                 if ext = "" then ext = "mp4"
-                desc = toS(s.rating)
             else
                 id = toS(s.series_id)
                 icon = toS(s.cover)
-                desc = toS(s.plot)
-                if Len(desc) > 220 then desc = Left(desc, 220)
             end if
             if id <> ""
                 name = toS(s.name)
                 if name = "" then name = "Sin nombre"
                 title = name
                 if favs.DoesExist(id) then title = "* " + name
-                node = root.CreateChild("ContentNode")
-                node.setFields({ id: id, title: title, HDPosterUrl: icon, ShortDescriptionLine1: title, StreamFormat: ext, Description: desc })
-                count = count + 1
-                if count >= 3000 then exit for
+                small = icon
+                if kind <> "live" then small = thumbUrl(icon)
+                list.Push({ id: id, title: title, HDPosterUrl: small, FHDPosterUrl: icon, ShortDescriptionLine1: title, StreamFormat: ext })
+                if list.Count() >= 3000 then exit for
             end if
         end if
     end for
+    root = CreateObject("roSGNode", "ContentNode")
+    root.Update({ children: list }, true)
     res.ok = true
     res.content = root
-    res.count = count
+    res.count = list.Count()
     return res
 end function
 

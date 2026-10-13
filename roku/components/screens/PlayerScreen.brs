@@ -14,6 +14,7 @@ sub init()
     m.autoSubsDone = false
     m.lastStart = 0
     m.leaving = false
+    m.lastRecentId = ""
 
     m.video.observeField("state", "onState")
     m.video.observeField("availableSubtitleTracks", "onSubTracks")
@@ -71,11 +72,8 @@ sub playCurrent(startPos as Integer, forceExt as String)
     m.video.control = "stop"
     m.video.content = content
     m.video.control = "play"
-    if m.mode = "live"
-        m.saveTimer.control = "stop"
-    else
-        m.saveTimer.control = "start"
-    end if
+    m.saveTimer.control = "stop"
+    m.saveTimer.control = "start"
     showBanner(it)
 end sub
 
@@ -124,6 +122,8 @@ sub onState()
         handleError()
     else if state = "finished"
         handleFinished()
+    else if state = "paused"
+        saveProgress()
     end if
 end sub
 
@@ -185,12 +185,21 @@ end sub
 ' ----------------------------------------------------------------- continuar viendo
 
 sub saveProgress()
-    if m.mode = "live" or m.leaving then return
+    if m.leaving then return
     if m.items.Count() = 0 then return
+    it = m.items[m.index]
+    ' En vivo: se recuerda el canal en cuanto lleva unos segundos reproduciéndose.
+    if m.mode = "live"
+        id = toS(it.id)
+        if id <> m.lastRecentId and m.video.state = "playing"
+            m.lastRecentId = id
+            touchRecentLive(it)
+        end if
+        return
+    end if
     secs = Int(m.video.position)
     dur = Int(m.video.duration)
-    if secs < 10 then return
-    it = m.items[m.index]
+    if secs < 5 then return
     kind = "movie"
     if m.mode = "episode" then kind = "episode"
     updateContinue({ kind: kind, id: toS(it.id), name: displayTitle(it), icon: toS(it.icon), ext: toS(it.ext), pos: secs, dur: dur })

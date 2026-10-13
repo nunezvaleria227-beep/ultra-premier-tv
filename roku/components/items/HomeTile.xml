@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Recuadro del inicio: imagen de fondo y el nombre en una franja abajo. -->
+<component name="HomeTile" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/items/HomeTile.brs" />
+  <children>
+    <Rectangle id="card" width="360" height="200" color="0x0E1648FF" />
+    <Poster id="art" width="360" height="200" loadDisplayMode="scaleToFill" />
+    <Rectangle id="strip" translation="[0,150]" width="360" height="50" color="0x03061ECC" />
+    <Label id="title" translation="[16,150]" width="328" height="50" vertAlign="center" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+  </children>
+</component>

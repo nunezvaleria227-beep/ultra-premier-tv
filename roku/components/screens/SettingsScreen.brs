@@ -80,6 +80,7 @@ sub onSelected(event as Object)
         rebuild()
     else if id = "clear"
         regDelete("continue")
+        regDelete("recent_live")
         m.status.text = "Listo: se borró la lista de «Continuar viendo»."
     else if id = "logout"
         m.top.event = { type: "logout" }

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Una fila de "Continuar viendo": miniatura, nombre y por dónde se quedó. -->
+<component name="ContinueRow" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/items/ContinueRow.brs" />
+  <children>
+    <Rectangle id="card" width="1200" height="60" color="0x0E1648E6" />
+    <Rectangle id="thumbBox" translation="[6,6]" width="64" height="48" color="0x1A2766FF" />
+    <Poster id="thumb" translation="[6,6]" width="64" height="48" loadDisplayMode="scaleToZoom" loadWidth="128" loadHeight="96" />
+    <Label id="name" translation="[84,5]" width="1090" height="30" font="font:SmallBoldSystemFont" color="0xF2F5FFFF" />
+    <Label id="subtitle" translation="[84,32]" width="1090" height="24" font="font:SmallestSystemFont" color="0xA3AECCFF" />
+  </children>
+</component>

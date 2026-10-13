@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Un canal en la lista: recuadro con su logo y su nombre. -->
+<component name="ChannelRow" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/items/ChannelRow.brs" />
+  <children>
+    <Rectangle id="card" width="470" height="52" color="0x0E1648E6" />
+    <Rectangle id="logoBox" translation="[6,6]" width="40" height="40" color="0x1A2766FF" />
+    <Poster id="logo" translation="[6,6]" width="40" height="40" loadDisplayMode="scaleToFit" loadWidth="80" loadHeight="80" />
+    <Label id="name" translation="[58,0]" width="352" height="52" vertAlign="center" font="font:SmallBoldSystemFont" color="0xF2F5FFFF" />
+    <Rectangle id="favBox" translation="[418,13]" width="44" height="26" color="0xFFC83DFF" visible="false" />
+    <Label id="fav" translation="[418,13]" width="44" height="26" horizAlign="center" vertAlign="center" font="font:SmallestBoldSystemFont" color="0x1A1200FF" text="FAV" visible="false" />
+  </children>
+</component>

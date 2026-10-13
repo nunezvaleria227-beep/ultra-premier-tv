@@ -22,6 +22,7 @@ end sub
 sub addTile(root as Object, id as String, title as String, image as String)
     n = root.CreateChild("ContentNode")
     n.id = id
+    n.title = title
     n.ShortDescriptionLine1 = title
     n.HDPosterUrl = image
 end sub

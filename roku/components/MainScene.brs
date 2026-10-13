@@ -2,7 +2,8 @@
 
 sub init()
     m.top.backgroundColor = "0x0A0C22FF"
-    m.global.addFields({ session: { parental: true } })
+    ' "cache" guarda las últimas listas abiertas para que volver a entrar sea instantáneo.
+    m.global.addFields({ session: { parental: true }, cache: CreateObject("roSGNode", "Node") })
     m.stack = []
     m.pendingLink = invalid
     showLogin()

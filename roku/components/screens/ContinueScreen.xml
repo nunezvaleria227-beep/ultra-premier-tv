@@ -10,7 +10,7 @@
     <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
     <Rectangle id="shade" color="0x050824A0" width="1280" height="720" />
     <Label id="title" text="Continuar viendo" translation="[40,28]" width="700" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
-    <LabelList id="list" translation="[40,100]" itemSize="[1200,48]" numRows="10" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <MarkupList id="list" translation="[40,100]" itemComponentName="ContinueRow" itemSize="[1200,66]" itemSpacing="[0,0]" numRows="8" focusBitmapUri="pkg:/images/focus.9.png" />
     <Label id="status" translation="[40,280]" width="1200" height="100" horizAlign="center" wrap="true" font="font:MediumSystemFont" color="0xF2F5FFFF" />
     <Label id="hint" translation="[40,672]" width="1200" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" text="OK: seguir viendo      Asterisco (*): quitar de la lista" />
   </children>

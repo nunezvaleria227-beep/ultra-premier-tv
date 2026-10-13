@@ -132,6 +132,18 @@ function rawName(title as String) as String
     return title
 end function
 
+' Los carteles de TMDB suelen venir enormes. Para las listas se pide la versión chica (mucho más rápida de bajar y de dibujar).
+function thumbUrl(u as String) as String
+    if u = "" then return u
+    marker = "/t/p/"
+    i = Instr(1, u, marker)
+    if i = 0 or Instr(1, u, "tmdb.org") = 0 then return u
+    rest = Mid(u, i + Len(marker))
+    slash = Instr(1, rest, "/")
+    if slash = 0 then return u
+    return Left(u, i + Len(marker) - 1) + "w185" + Mid(rest, slash)
+end function
+
 function formatForExt(ext as String) as String
     e = LCase(ext)
     if e = "m3u8" then return "hls"
@@ -240,11 +252,83 @@ sub updateContinue(entry as Object)
     secs = toI(entry.pos)
     dur = toI(entry.dur)
     finished = (dur > 0 and (secs >= dur * 0.95 or dur - secs < 45))
-    if secs >= 10 and not finished then kept.Unshift(entry)
+    if secs >= 5 and not finished then kept.Unshift(entry)
     while kept.Count() > 20
         kept.Pop()
     end while
     saveList("continue", kept)
+end sub
+
+' ----------------------------------------------------------------- canales vistos recientemente
+
+function recentLive() as Object
+    return loadList("recent_live")
+end function
+
+sub touchRecentLive(item as Object)
+    id = toS(item.id)
+    if id = "" then return
+    kept = []
+    for each e in loadList("recent_live")
+        if toS(e.id) <> id then kept.Push(e)
+    end for
+    kept.Unshift({ kind: "live", id: id, name: toS(item.name), icon: toS(item.icon) })
+    while kept.Count() > 15
+        kept.Pop()
+    end while
+    saveList("recent_live", kept)
+end sub
+
+sub removeRecentLive(id as String)
+    kept = []
+    for each e in loadList("recent_live")
+        if toS(e.id) <> id then kept.Push(e)
+    end for
+    saveList("recent_live", kept)
+end sub
+
+' ----------------------------------------------------------------- memoria rápida de listas (para no volver a bajarlas)
+
+' Devuelve la lista guardada si todavía es reciente (maxAge en segundos); si no, invalid.
+function cacheGet(key as String, maxAge as Integer) as Dynamic
+    holder = m.global.cache
+    if holder = invalid then return invalid
+    n = holder.getChildCount()
+    for i = 0 to n - 1
+        c = holder.getChild(i)
+        if c.id = key
+            if nowSecs() - c.ts <= maxAge then return c
+            holder.removeChildIndex(i)
+            return invalid
+        end if
+    end for
+    return invalid
+end function
+
+sub cachePut(key as String, node as Object)
+    holder = m.global.cache
+    if holder = invalid then return
+    n = holder.getChildCount()
+    for i = 0 to n - 1
+        if holder.getChild(i).id = key
+            holder.removeChildIndex(i)
+            exit for
+        end if
+    end for
+    node.id = key
+    node.addFields({ ts: nowSecs() })
+    holder.appendChild(node)
+    while holder.getChildCount() > 5
+        holder.removeChildIndex(0)
+    end while
+end sub
+
+sub cacheClear()
+    holder = m.global.cache
+    if holder = invalid then return
+    while holder.getChildCount() > 0
+        holder.removeChildIndex(0)
+    end while
 end sub
 
 ' ----------------------------------------------------------------- direcciones de reproducción

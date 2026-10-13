@@ -21,6 +21,7 @@ sub init()
     m.catTitle = ""
     m.pane = "cats"
     m.epgId = ""
+    m.pendingLogo = ""
 
     m.cats.observeField("itemSelected", "onCatSelected")
     m.chans.observeField("itemSelected", "onChanSelected")
@@ -113,8 +114,14 @@ sub onCatSelected(event as Object)
     if m.catId = "__fav__"
         buildFavorites()
     else
-        showStatus("Cargando " + node.title + "…")
-        runApi({ action: "items", type: m.top.kind, categoryId: m.catId, tag: m.catId }, "onItems")
+        cached = cacheGet(m.top.kind + "_" + m.catId, 600)
+        if cached <> invalid and cached.getChildCount() > 0
+            m.allItems = cached
+            showItems(cached)
+        else
+            showStatus("Cargando " + node.title + "…")
+            runApi({ action: "items", type: m.top.kind, categoryId: m.catId, tag: m.catId }, "onItems")
+        end if
     end if
 end sub
 
@@ -124,7 +131,9 @@ sub buildFavorites()
     for each f in loadList(favKey(kind))
         node = root.CreateChild("ContentNode")
         title = "* " + toS(f.name)
-        node.setFields({ id: toS(f.id), title: title, HDPosterUrl: toS(f.icon), ShortDescriptionLine1: title, StreamFormat: toS(f.ext) })
+        small = toS(f.icon)
+        if kind <> "live" then small = thumbUrl(small)
+        node.setFields({ id: toS(f.id), title: title, HDPosterUrl: small, FHDPosterUrl: toS(f.icon), ShortDescriptionLine1: title, StreamFormat: toS(f.ext) })
     end for
     if root.getChildCount() = 0
         m.allItems = invalid
@@ -150,6 +159,7 @@ sub onItems(event as Object)
         return
     end if
     m.allItems = resp.content
+    cachePut(m.top.kind + "_" + m.catId, resp.content)
     showItems(resp.content)
 end sub
 
@@ -179,13 +189,21 @@ end sub
 sub onChanSelected(event as Object)
     index = event.getData()
     if m.shown = invalid then return
+    total = m.shown.getChildCount()
+    first = index - 150
+    if first < 0 then first = 0
+    last = first + 299
+    if last > total - 1
+        last = total - 1
+        first = last - 299
+        if first < 0 then first = 0
+    end if
     items = []
-    n = m.shown.getChildCount()
-    for i = 0 to n - 1
+    for i = first to last
         c = m.shown.getChild(i)
         items.Push({ id: c.id, name: rawName(c.title), icon: c.HDPosterUrl, ext: "" })
     end for
-    m.top.event = { type: "playLive", items: items, index: index }
+    m.top.event = { type: "playLive", items: items, index: index - first }
 end sub
 
 sub onGridSelected(event as Object)
@@ -193,7 +211,9 @@ sub onGridSelected(event as Object)
     if m.shown = invalid then return
     c = m.shown.getChild(index)
     if c = invalid then return
-    item = { id: c.id, name: rawName(c.title), icon: c.HDPosterUrl, ext: c.StreamFormat }
+    big = c.FHDPosterUrl
+    if big = "" then big = c.HDPosterUrl
+    item = { id: c.id, name: rawName(c.title), icon: big, ext: c.StreamFormat }
     if m.top.kind = "movie"
         m.top.event = { type: "openMovie", item: item }
     else
@@ -209,7 +229,8 @@ sub onChanFocused(event as Object)
     c = m.shown.getChild(index)
     if c = invalid then return
     m.chanName.text = rawName(c.title)
-    m.chanLogo.uri = c.HDPosterUrl
+    m.chanLogo.uri = ""
+    m.pendingLogo = c.HDPosterUrl
     m.nowLabel.text = ""
     m.nextLabel.text = ""
     m.epgId = c.id
@@ -219,6 +240,7 @@ end sub
 
 sub onEpgTimer()
     if m.epgId = "" then return
+    if m.pendingLogo <> invalid then m.chanLogo.uri = m.pendingLogo
     m.nowLabel.text = "Cargando la guía…"
     runApi({ action: "epg", id: m.epgId, tag: m.epgId }, "onEpg")
 end sub
@@ -273,7 +295,10 @@ sub toggleFav()
             end if
         end for
     end if
-    if m.catId = "__fav__" and not isFav then buildFavorites()
+    if m.catId = "__fav__" and not isFav
+        cacheClear()
+        buildFavorites()
+    end if
 end sub
 
 ' ----------------------------------------------------------------- filtro por texto
@@ -318,7 +343,7 @@ sub applyFilter(text as String)
         c = m.allItems.getChild(i)
         if matchesWords(rawName(c.title), words)
             node = root.CreateChild("ContentNode")
-            node.setFields({ id: c.id, title: c.title, HDPosterUrl: c.HDPosterUrl, ShortDescriptionLine1: c.ShortDescriptionLine1, StreamFormat: c.StreamFormat, Description: c.Description })
+            node.setFields({ id: c.id, title: c.title, HDPosterUrl: c.HDPosterUrl, FHDPosterUrl: c.FHDPosterUrl, ShortDescriptionLine1: c.ShortDescriptionLine1, StreamFormat: c.StreamFormat })
             if root.getChildCount() >= 600 then exit for
         end if
     end for

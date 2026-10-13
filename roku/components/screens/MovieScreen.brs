@@ -77,7 +77,7 @@ sub buildActions()
     root = CreateObject("roSGNode", "ContentNode")
     m.actionIds = []
     saved = findContinue("movie", toS(it.id))
-    if saved <> invalid and toI(saved.pos) >= 10
+    if saved <> invalid and toI(saved.pos) >= 5
         addAction(root, "resume", "Continuar (" + fmtClock(toI(saved.pos)) + ")")
         addAction(root, "start", "Desde el inicio")
     else

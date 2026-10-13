@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Película o serie: cartel dentro de un recuadro, con el nombre abajo. -->
+<component name="PosterCard" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/items/PosterCard.brs" />
+  <children>
+    <Rectangle id="card" width="150" height="256" color="0x0E1648FF" />
+    <Poster id="art" width="150" height="206" loadDisplayMode="scaleToZoom" loadWidth="300" loadHeight="412" />
+    <Label id="title" translation="[6,208]" width="138" height="46" wrap="true" vertAlign="center" horizAlign="center" font="font:SmallestSystemFont" color="0xF2F5FFFF" />
+    <Rectangle id="favBox" translation="[0,0]" width="40" height="22" color="0xFFC83DFF" visible="false" />
+    <Label id="fav" translation="[0,0]" width="40" height="22" horizAlign="center" vertAlign="center" font="font:SmallestBoldSystemFont" color="0x1A1200FF" text="FAV" visible="false" />
+  </children>
+</component>

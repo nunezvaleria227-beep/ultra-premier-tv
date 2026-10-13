@@ -14,7 +14,7 @@
     <Label id="title" translation="[40,28]" width="500" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
     <Label id="filterLabel" translation="[360,40]" width="880" height="30" horizAlign="right" font="font:SmallSystemFont" color="0xA3AECCFF" />
     <LabelList id="cats" translation="[40,100]" itemSize="[300,44]" numRows="11" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <LabelList id="chans" translation="[360,100]" itemSize="[470,44]" numRows="11" visible="false" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
+    <MarkupList id="chans" translation="[360,100]" itemComponentName="ChannelRow" itemSize="[470,58]" itemSpacing="[0,0]" numRows="9" visible="false" focusBitmapUri="pkg:/images/focus.9.png" />
     <Group id="infoPanel" translation="[850,100]" visible="false">
       <Rectangle width="390" height="330" color="0x0A0C22D0" />
       <Poster id="chanLogo" translation="[18,18]" width="110" height="110" loadDisplayMode="scaleToFit" />
@@ -22,7 +22,7 @@
       <Label id="nowLabel" translation="[18,145]" width="354" height="100" wrap="true" font="font:SmallSystemFont" color="0xF2F5FFFF" />
       <Label id="nextLabel" translation="[18,245]" width="354" height="75" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
     </Group>
-    <PosterGrid id="grid" translation="[360,100]" visible="false" basePosterSize="[150,225]" itemSpacing="[20,50]" numColumns="5" numRows="2" caption1NumLines="2" caption1Color="0xF2F5FFFF" posterDisplayMode="scaleToFit" />
+    <MarkupGrid id="grid" translation="[360,100]" visible="false" itemComponentName="PosterCard" itemSize="[150,256]" itemSpacing="[20,18]" numColumns="5" numRows="2" focusBitmapUri="pkg:/images/focus.9.png" />
     <Label id="status" translation="[360,280]" width="880" height="120" horizAlign="center" wrap="true" font="font:MediumSystemFont" color="0xF2F5FFFF" />
     <Label id="hint" translation="[40,672]" width="1200" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" />
     <Timer id="epgTimer" duration="0.5" repeat="false" />

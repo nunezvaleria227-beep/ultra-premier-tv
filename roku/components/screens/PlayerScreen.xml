@@ -17,6 +17,6 @@
       <Label id="bannerNext" translation="[40,84]" width="1200" height="28" font="font:SmallSystemFont" color="0xA3AECCFF" />
     </Group>
     <Timer id="bannerTimer" duration="6" repeat="false" />
-    <Timer id="saveTimer" duration="10" repeat="true" />
+    <Timer id="saveTimer" duration="5" repeat="true" />
   </children>
 </component>
