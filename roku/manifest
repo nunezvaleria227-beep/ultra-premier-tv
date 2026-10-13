@@ -12,3 +12,4 @@ splash_color=#0057FD
 splash_min_time=1200
 ui_resolutions=hd
 supports_input_launch=1
+rsg_version=1.3

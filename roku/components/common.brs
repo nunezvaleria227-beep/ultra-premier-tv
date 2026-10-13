@@ -351,8 +351,8 @@ function httpGet(url as String, timeoutMs = 25000 as Integer) as Dynamic
     http.RetainBodyOnError(true)
     http.AddHeader("User-Agent", "Mozilla/5.0 (UltraPremierTV Roku)")
     if Left(url, 5) = "https"
+        ' InitClientCertificates() está obsoleto y Roku lo marca en el análisis; para validar al servidor basta el archivo de certificados.
         http.SetCertificatesFile("common:/certs/ca-bundle.crt")
-        http.InitClientCertificates()
     end if
     if http.AsyncGetToString()
         msg = Wait(timeoutMs, port)

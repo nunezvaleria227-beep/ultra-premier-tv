@@ -6,6 +6,9 @@ sub init()
     m.global.addFields({ session: { parental: true }, cache: CreateObject("roSGNode", "Node") })
     m.stack = []
     m.pendingLink = invalid
+    ' Tienda de Roku: solo se usa para la pantalla oficial "Solicitud de información" al iniciar sesión.
+    m.store = CreateObject("roSGNode", "ChannelStore")
+    m.store.observeField("userData", "onRokuUserData")
     showLogin()
     ' Aviso a Roku de que la app ya está lista (lo exige la certificación).
     m.top.signalBeacon("AppLaunchComplete")
@@ -140,6 +143,23 @@ sub onLoggedIn(e as Object)
     else
         showHome()
     end if
+    ' Roku exige que las apps con inicio de sesión muestren su pantalla de "Solicitud de información"
+    ' (getUserData) al entrar. Solo cuando la persona inicia sesión a mano, no en la entrada automática.
+    if e.manual = true then askRokuEmail()
+end sub
+
+' Muestra la pantalla de Roku que pide compartir el correo de la cuenta Roku. Es opcional para la persona:
+' si la rechaza o no hay respuesta, la app sigue igual. La app no guarda ni envía ese correo a ningún lado.
+sub askRokuEmail()
+    info = CreateObject("roSGNode", "ContentNode")
+    info.addFields({ context: "signin" })
+    m.store.requestedUserDataInfo = info
+    m.store.requestedUserData = "email"
+    m.store.command = "getUserData"
+end sub
+
+sub onRokuUserData()
+    ' Nada que hacer: la app no usa el correo de la cuenta Roku.
 end sub
 
 ' ----------------------------------------------------------------- enlaces directos (deep linking)

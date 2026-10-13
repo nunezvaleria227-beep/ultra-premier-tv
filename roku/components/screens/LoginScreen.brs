@@ -5,6 +5,8 @@ sub init()
     m.autoTimer = m.top.findNode("autoTimer")
     m.tasks = []
     m.busy = false
+    ' "manual" = la persona pulsó Entrar (no fue la entrada automática con la sesión guardada).
+    m.manual = false
     m.user = regRead("user")
     m.pass = regRead("pass")
 
@@ -46,6 +48,7 @@ sub onSelected(event as Object)
     else if index = 1
         askText("Contraseña", m.pass, true, "pass")
     else
+        m.manual = true
         submit()
     end if
 end sub
@@ -101,8 +104,10 @@ sub onLogin(event as Object)
     resp = event.getData()
     m.busy = false
     m.status.text = ""
+    manual = m.manual
+    m.manual = false
     if resp.ok = true
-        m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: resp.account, liveExt: resp.liveExt }
+        m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: resp.account, liveExt: resp.liveExt, manual: manual }
     else
         setError(resp.error)
         m.list.setFocus(true)

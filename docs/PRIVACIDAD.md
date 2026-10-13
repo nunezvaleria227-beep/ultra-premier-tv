@@ -17,6 +17,10 @@ Al pulsar **Cerrar sesión** se borran el usuario y la contraseña. Al quitar la
 La app se conecta **únicamente al servidor de tu proveedor** para iniciar sesión, cargar las listas, la guía de programación y reproducir el video.
 Los carteles y logos se descargan de las direcciones que indica ese servidor. Tu proveedor tiene su propia política de privacidad.
 
+## Correo de tu cuenta Roku (opcional)
+Al iniciar sesión, Roku puede mostrarte su pantalla de **solicitud de información** para compartir el correo de tu cuenta Roku con la app. Es tu decisión
+y puedes rechazarla. La app **no guarda ni envía ese correo** a ningún lado y funciona igual si no lo compartes.
+
 ## Lo que NO hacemos
 No recopilamos, vendemos ni compartimos datos personales. La app no tiene publicidad ni herramientas de análisis, y quien la desarrolla no recibe tu
 usuario, tu contraseña ni lo que ves. Roku, como plataforma, puede recopilar datos según [sus propias políticas](https://docs.roku.com/published/userprivacypolicy/en/us).
@@ -42,6 +46,9 @@ username and password given to you by your internet-TV provider (Xtream Codes–
 
 **Sent over the network:** the app connects **only to your provider's server** to sign in, load lists and the program guide, and play video. Posters and logos are downloaded from
 the addresses that server provides. Your provider has its own privacy policy.
+
+**Roku account email (optional):** when you sign in, Roku may show its own request-for-information screen to share your Roku account email with the app. It is your choice and you can decline.
+The app **does not store or send that email anywhere** and works the same if you do not share it.
 
 **What we do not do:** we do not collect, sell or share personal data. There are no ads or analytics tools, and the developer does not receive your username, password or what you watch.
 Roku, as a platform, may collect data under [its own policies](https://docs.roku.com/published/userprivacypolicy/en/us).
