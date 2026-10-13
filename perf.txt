@@ -1,0 +1,8 @@
+- **PERF** Arranque en frío SIN sesión (ms): [2824, 2995, 2617, 2622]
+- **PERF** Primera carga: desde pulsar Entrar hasta ver las tres cantidades: 5.3 s  (Ultra Premier TV | 03:01 AM | octubre 13, 2026 | Búsqueda maestra | Avisos | Mi cuenta | Ajustes | TV EN DIRECTO | 6,001 canales | Última actualización: hace 1 seg | CINE | 20,000 películas | SERIES |)
+- **PERF** Arranque en frío CON sesión (ms): [1248, 1200, 1171, 1278]
+- **PERF** Con sesión y listas guardadas: desde abrir hasta ver las tres cantidades (s): [4.9, 5.0, 4.7]
+- **PERF** Abrir «TV EN DIRECTO» hasta ver contenido (s): 2.7
+- **PERF** Abrir «CINE» hasta ver contenido (s): 2.5
+- **PERF** Abrir «SERIES» hasta ver contenido (s): 2.2
+- **PERF** Búsqueda maestra «mero 19»: resultados en (s): None
