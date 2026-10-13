@@ -12,7 +12,8 @@ sub focusScreen()
 end sub
 
 sub addRow(root as Object, id as String, title as String)
-    root.CreateChild("ContentNode").title = title
+    node = root.CreateChild("ContentNode")
+    node.title = title
     m.ids.Push(id)
 end sub
 

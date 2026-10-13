@@ -22,7 +22,8 @@ sub rebuild()
         if toS(e.kind) = "episode" then kind = "Episodio"
         label = kind + "  ·  " + toS(e.name) + "   —   " + fmtClock(toI(e.pos))
         if toI(e.dur) > 0 then label = label + " de " + fmtClock(toI(e.dur))
-        root.CreateChild("ContentNode").title = label
+        node = root.CreateChild("ContentNode")
+        node.title = label
     end for
     previous = m.list.itemFocused
     m.list.content = root

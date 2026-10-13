@@ -174,6 +174,23 @@ app/src/main/java/com/example/mitvplayer/
 
 El identificador de la app (`applicationId`) es `com.ultrapremier.tv`; el paquete interno del código sigue siendo `com.example.mitvplayer` y no afecta a los usuarios.
 
+## Versión para Roku
+
+La carpeta `roku/` contiene la app para **Roku** (BrightScript + SceneGraph). Es una app aparte, con el mismo portal y el mismo usuario y contraseña.
+Qué trae: inicio de sesión (la sesión queda guardada), TV en directo con guía de "ahora / después" y zapping con ▲▼, películas y series con
+ficha, temporadas y episodios, favoritos, búsqueda (en toda una sección o dentro de una lista), "Continuar viendo", subtítulos incluidos en el video
+(se pone español o inglés solo; tecla `*` para cambiar subtítulos o audio), control parental con PIN y ajustes.
+No trae: grabaciones, pantalla múltiple, Catch up ni subtítulos de internet (Roku no permite grabar; lo demás queda para otra versión).
+
+**Instalarla en tu Roku (modo desarrollador, sin tienda):**
+1. En el control del Roku: **Inicio ×3, Arriba ×2, Derecha, Izquierda, Derecha, Izquierda, Derecha**. Activa *Enable installer and restart* y crea una contraseña.
+2. Anota la dirección IP que muestra el Roku (Ajustes → Red → Acerca de).
+3. Descarga el archivo `UltraPremierTV-Roku.zip` desde la versión **roku-latest** de este repositorio (Releases).
+4. Desde un navegador en la misma red entra a `http://IP-DEL-ROKU`, usuario `rokudev` y tu contraseña; elige el .zip y pulsa **Install**.
+5. Se abre sola. Queda instalada en el Roku mientras no se quite el modo desarrollador.
+
+Cada cambio en `roku/` revisa el código con el compilador de BrightScript (`brighterscript`) y vuelve a publicar el .zip (`.github/workflows/roku.yml`).
+
 ## 9. Notas de seguridad y límites
 
 - **Credenciales:** se guardan cifradas con el Android Keystore al entrar. Cerrar sesión las borra. Las copias de seguridad de Android están desactivadas.

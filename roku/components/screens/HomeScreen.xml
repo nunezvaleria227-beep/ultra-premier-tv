@@ -11,7 +11,7 @@
     <Poster id="logo" uri="pkg:/images/logo.png" translation="[40,24]" width="210" height="119" />
     <Label id="clock" translation="[880,40]" width="360" height="40" horizAlign="right" font="font:MediumSystemFont" color="0xF2F5FFFF" />
     <Label id="account" translation="[880,84]" width="360" height="60" horizAlign="right" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <PosterGrid id="grid" translation="[130,230]" basePosterSize="[320,180]" itemSpacing="[30,56]" numColumns="3" numRows="2" caption1NumLines="1" caption1Color="0xF2F5FFFF" />
+    <PosterGrid id="grid" translation="[130,190]" basePosterSize="[320,180]" itemSpacing="[30,48]" numColumns="3" numRows="2" caption1NumLines="1" caption1Color="0xF2F5FFFF" />
     <Label id="hint" translation="[40,672]" width="1200" height="30" horizAlign="center" font="font:SmallSystemFont" color="0xA3AECCFF" text="Usa las flechas y OK para elegir" />
     <Timer id="tick" duration="20" repeat="true" />
   </children>
