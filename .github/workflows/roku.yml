@@ -30,12 +30,16 @@ jobs:
 
       - name: Revisar el código (BrightScript y SceneGraph)
         run: |
-          set -o pipefail
-          npx bsc --rootDir roku --stagingDir "$RUNNER_TEMP/bsc-out" --createPackage false 2>&1 | tee bsc.log
+          status=0
+          npx bsc --rootDir roku --stagingDir "$RUNNER_TEMP/bsc-out" --createPackage false > bsc.raw 2>&1 || status=$?
+          sed 's/\x1b\[[0-9;]*m//g' bsc.raw > bsc.log
+          cat bsc.log
           # Resumen como anotaciones para poder leerlo sin abrir el log.
-          grep -E "error|warning" bsc.log | head -60 | while IFS= read -r line; do
+          grep -E " - (error|warning) " bsc.log | head -80 | while IFS= read -r line; do
             echo "::warning::${line}"
-          done || true
+          done
+          echo "::notice::bsc terminó con código $status"
+          exit $status
 
       - name: Armar el .zip
         run: |
