@@ -41,29 +41,44 @@ end function
 function doLogin(req as Object, res as Object) as Object
     url = portalBase() + "/player_api.php?username=" + urlEscape(toS(req.user)) + "&password=" + urlEscape(toS(req.pass))
     ' Para entrar se espera menos que en las demás consultas: si el servidor no contesta, la persona lo sabe pronto.
-    txt = httpGetRetry(url, 12000, 18000)
+    info = httpGetInfo(url, 12000)
+    if info.body = invalid
+        Sleep(500)
+        info = httpGetInfo(url, 18000)
+    end if
     json = invalid
-    if txt <> invalid then json = ParseJson(txt)
+    if info.body <> invalid then json = ParseJson(info.body)
     if json = invalid
         res.error = "No se pudo conectar con el servidor. Revisa tu internet e inténtalo otra vez."
+        codeNum = info.code
+        codeText = codeNum.ToStr()
+        if info.body = invalid
+            res.diag = "sin conexión con el servidor (código " + codeText + ", " + toS(info.why) + ")"
+        else
+            res.diag = "el servidor respondió algo que no se entiende"
+        end if
         return res
     end if
     if Type(json) <> "roAssociativeArray"
         res.error = "Usuario o contraseña incorrectos."
+        res.diag = "el servidor no aceptó el usuario o la contraseña"
         return res
     end if
     ui = json.user_info
     if ui = invalid or Type(ui) <> "roAssociativeArray"
         res.error = "Usuario o contraseña incorrectos."
+        res.diag = "el servidor no aceptó el usuario o la contraseña"
         return res
     end if
     if toS(ui.auth) <> "1"
         res.error = "Usuario o contraseña incorrectos."
+        res.diag = "el servidor no aceptó el usuario o la contraseña"
         return res
     end if
     status = toS(ui.status)
     if status <> "" and LCase(status) <> "active"
         res.error = "Tu cuenta no está activa (" + status + ")."
+        res.diag = "cuenta no activa (" + status + ")"
         return res
     end if
     liveExt = "m3u8"

@@ -5,7 +5,7 @@ params:
         Ultra Premier TV: dev
 steps:
     - launch: Ultra Premier TV
-    - pause: 4
+    - pause: 6
     - press: ok
     - pause: 2
     - text: script-login

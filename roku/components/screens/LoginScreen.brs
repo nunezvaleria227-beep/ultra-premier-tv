@@ -2,6 +2,7 @@ sub init()
     m.list = m.top.findNode("fields")
     m.errorLabel = m.top.findNode("error")
     m.status = m.top.findNode("status")
+    m.lastTry = m.top.findNode("lastTry")
     m.autoTimer = m.top.findNode("autoTimer")
     m.tasks = []
     m.busy = false
@@ -9,6 +10,9 @@ sub init()
     m.manual = false
     m.user = regRead("user")
     m.pass = regRead("pass")
+    ' Si el intento anterior no funcionó, se deja a la vista el motivo (ayuda a corregir y a pedir soporte).
+    lastTry = regRead("lastTry")
+    if lastTry <> "" then m.lastTry.text = "Último intento: " + lastTry
 
     root = CreateObject("roSGNode", "ContentNode")
     root.CreateChild("ContentNode")
@@ -64,6 +68,7 @@ sub askText(titleText as String, current as String, secure as Boolean, which as 
     m.which = which
     ' El texto se va guardando mientras se escribe.
     dlg.observeFieldScoped("text", "onKeyboardText")
+    if dlg.textEditBox <> invalid then dlg.textEditBox.observeFieldScoped("text", "onKeyboardText")
     dlg.observeFieldScoped("buttonSelected", "onKeyboardDone")
     dlg.observeFieldScoped("wasClosed", "onKeyboardClosed")
     m.top.getScene().dialog = dlg
@@ -73,6 +78,7 @@ sub onKeyboardText()
     dlg = m.dialog
     if dlg = invalid then return
     value = dlg.text
+    if dlg.textEditBox <> invalid and dlg.textEditBox.text <> invalid then value = dlg.textEditBox.text
     if m.which = "user" then m.user = value.Trim()
     if m.which = "pass" then m.pass = value
     refreshList()
@@ -123,9 +129,16 @@ sub onLogin(event as Object)
     manual = m.manual
     m.manual = false
     if resp.ok = true
+        if regRead("lastTry") <> "" then regDelete("lastTry")
+        m.lastTry.text = ""
         m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: resp.account, liveExt: resp.liveExt, manual: manual }
     else
         setError(resp.error)
+        userLen = Len(m.user)
+        passLen = Len(m.pass)
+        diag = "usuario " + userLen.ToStr() + " y contraseña " + passLen.ToStr() + " caracteres; " + toS(resp.diag)
+        regWrite("lastTry", diag)
+        m.lastTry.text = "Último intento: " + diag
         m.list.setFocus(true)
         m.top.event = { type: "loginFailed" }
     end if

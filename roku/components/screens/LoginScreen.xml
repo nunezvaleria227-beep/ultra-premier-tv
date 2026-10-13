@@ -15,6 +15,7 @@
     <LabelList id="fields" translation="[430,385]" itemSize="[420,46]" numRows="3" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
     <Label id="error" translation="[430,540]" width="420" height="70" wrap="true" font="font:SmallSystemFont" color="0xFF6B6BFF" />
     <Label id="status" translation="[430,540]" width="420" height="40" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <Label id="lastTry" translation="[430,584]" width="420" height="40" wrap="true" font="font:SmallSystemFont" color="0x7C87A8FF" />
     <Timer id="autoTimer" duration="0.6" repeat="false" />
   </children>
 </component>

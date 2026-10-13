@@ -367,6 +367,36 @@ function httpGet(url as String, timeoutMs = 25000 as Integer) as Dynamic
     return invalid
 end function
 
+' Igual que httpGet, pero además devuelve el código y el motivo cuando falla (sirve para explicar el problema en pantalla).
+function httpGetInfo(url as String, timeoutMs = 25000 as Integer) as Object
+    out = { body: invalid, code: 0, why: "" }
+    http = CreateObject("roUrlTransfer")
+    port = CreateObject("roMessagePort")
+    http.SetPort(port)
+    http.SetUrl(url)
+    http.EnableEncodings(true)
+    http.RetainBodyOnError(true)
+    http.AddHeader("User-Agent", "Mozilla/5.0 (UltraPremierTV Roku)")
+    if Left(url, 5) = "https" then http.SetCertificatesFile("common:/certs/ca-bundle.crt")
+    if not http.AsyncGetToString()
+        out.why = "no se pudo iniciar la conexión"
+        return out
+    end if
+    msg = Wait(timeoutMs, port)
+    if Type(msg) = "roUrlEvent"
+        out.code = msg.GetResponseCode()
+        if out.code >= 200 and out.code < 300
+            out.body = msg.GetString()
+        else
+            out.why = msg.GetFailureReason()
+        end if
+    else
+        http.AsyncCancel()
+        out.why = "sin respuesta a tiempo"
+    end if
+    return out
+end function
+
 ' Igual que httpGet, pero si falla (sin respuesta o error del servidor) lo intenta una segunda vez tras una pausa corta.
 ' Así un tropiezo momentáneo de la red no se ve como un error en pantalla.
 function httpGetRetry(url as String, firstMs = 20000 as Integer, secondMs = 25000 as Integer) as Dynamic
