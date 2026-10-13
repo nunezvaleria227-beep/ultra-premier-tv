@@ -1,0 +1,35 @@
+--------- beginning of main
+--------- beginning of system
+--------- beginning of kernel
+10-13 03:12:27.157  5774  5986 D UPTV    : lista series: categorías 16 ms (red), elementos 1558 ms (red), 3000 elementos
+10-13 03:12:27.400  5774  5978 D UPTV    : lista live: categorías 26 ms (red), elementos 1793 ms (red), 6001 elementos
+10-13 03:12:28.129  5774  5980 D UPTV    : lista movies: categorías 33 ms (red), elementos 2514 ms (red), 20000 elementos
+10-13 03:12:28.130  5774  5774 D UPTV    : las tres listas listas en 2553 ms
+10-13 03:12:43.988  6135  6166 D UPTV    : lista series: categorías 0 ms (disco), elementos 772 ms (caché), 3000 elementos
+10-13 03:12:44.180  6135  6164 D UPTV    : lista live: categorías 17 ms (disco), elementos 911 ms (caché), 6001 elementos
+10-13 03:12:44.998  6135  6165 D UPTV    : lista movies: categorías 55 ms (disco), elementos 1737 ms (caché), 20000 elementos
+10-13 03:12:44.999  6135  6135 D UPTV    : las tres listas listas en 1806 ms
+10-13 03:12:56.644  6284  6319 D UPTV    : lista series: categorías 93 ms (disco), elementos 1633 ms (caché), 3000 elementos
+10-13 03:12:56.682  6284  6318 D UPTV    : lista live: categorías 78 ms (disco), elementos 1691 ms (caché), 6001 elementos
+10-13 03:12:57.143  6284  6320 D UPTV    : lista movies: categorías 92 ms (disco), elementos 2135 ms (caché), 20000 elementos
+10-13 03:12:57.145  6284  6284 D UPTV    : las tres listas listas en 2254 ms
+10-13 03:13:08.041  6363  6393 D UPTV    : lista series: categorías 56 ms (disco), elementos 1792 ms (caché), 3000 elementos
+10-13 03:13:08.198  6363  6392 D UPTV    : lista live: categorías 74 ms (disco), elementos 1944 ms (caché), 6001 elementos
+10-13 03:13:08.514  6363  6394 D UPTV    : lista movies: categorías 36 ms (disco), elementos 2272 ms (caché), 20000 elementos
+10-13 03:13:08.515  6363  6363 D UPTV    : las tres listas listas en 2364 ms
+10-13 03:13:19.359  6433  6464 D UPTV    : lista series: categorías 0 ms (disco), elementos 1779 ms (caché), 3000 elementos
+10-13 03:13:19.603  6433  6463 D UPTV    : lista live: categorías 15 ms (disco), elementos 2014 ms (caché), 6001 elementos
+10-13 03:13:19.920  6433  6465 D UPTV    : lista movies: categorías 1 ms (disco), elementos 2342 ms (caché), 20000 elementos
+10-13 03:13:19.921  6433  6433 D UPTV    : las tres listas listas en 2349 ms
+10-13 03:13:30.501  6503  6553 D UPTV    : lista series: categorías 207 ms (disco), elementos 1182 ms (caché), 3000 elementos
+10-13 03:13:30.776  6503  6552 D UPTV    : lista live: categorías 280 ms (disco), elementos 1392 ms (caché), 6001 elementos
+10-13 03:13:31.742  6503  6554 D UPTV    : lista movies: categorías 22 ms (disco), elementos 2611 ms (caché), 20000 elementos
+10-13 03:13:31.744  6503  6503 D UPTV    : las tres listas listas en 2647 ms
+10-13 03:13:41.673  6658  6693 D UPTV    : lista series: categorías 6 ms (disco), elementos 919 ms (caché), 3000 elementos
+10-13 03:13:41.860  6658  6694 D UPTV    : lista live: categorías 1 ms (disco), elementos 1094 ms (caché), 6001 elementos
+10-13 03:13:42.924  6658  6692 D UPTV    : lista movies: categorías 19 ms (disco), elementos 2166 ms (caché), 20000 elementos
+10-13 03:13:42.925  6658  6658 D UPTV    : las tres listas listas en 2217 ms
+10-13 03:13:53.657  6773  6820 D UPTV    : lista series: categorías 12 ms (disco), elementos 1470 ms (caché), 3000 elementos
+10-13 03:13:53.898  6773  6819 D UPTV    : lista live: categorías 20 ms (disco), elementos 1712 ms (caché), 6001 elementos
+10-13 03:13:54.490  6773  6821 D UPTV    : lista movies: categorías 15 ms (disco), elementos 2303 ms (caché), 20000 elementos
+10-13 03:13:54.491  6773  6773 D UPTV    : las tres listas listas en 2333 ms
