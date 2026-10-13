@@ -2,6 +2,7 @@ sub init()
     m.video = m.top.findNode("video")
     m.banner = m.top.findNode("banner")
     m.bannerTitle = m.top.findNode("bannerTitle")
+    m.bannerId = m.top.findNode("bannerId")
     m.bannerNow = m.top.findNode("bannerNow")
     m.bannerNext = m.top.findNode("bannerNext")
     m.bannerTimer = m.top.findNode("bannerTimer")
@@ -83,10 +84,13 @@ sub showBanner(it as Object)
     m.bannerTitle.text = displayTitle(it)
     m.bannerNow.text = ""
     m.bannerNext.text = ""
+    m.bannerId.text = ""
     m.banner.visible = true
     m.bannerTimer.control = "stop"
     m.bannerTimer.control = "start"
     if m.mode = "live"
+        ' Número de identificación del canal en el portal (sirve para registrar enlaces directos y para soporte).
+        m.bannerId.text = "ID del canal: " + toS(it.id)
         m.epgId = toS(it.id)
         t = CreateObject("roSGNode", "ApiTask")
         t.request = { action: "epg", id: m.epgId, tag: m.epgId }

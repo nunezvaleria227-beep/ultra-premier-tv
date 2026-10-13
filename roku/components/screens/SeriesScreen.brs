@@ -6,6 +6,7 @@ sub init()
     m.seasonList = m.top.findNode("seasonList")
     m.episodeList = m.top.findNode("episodeList")
     m.status = m.top.findNode("status")
+    m.idTag = m.top.findNode("idTag")
     m.tasks = []
     m.seasons = []
     m.flat = []
@@ -29,6 +30,8 @@ sub onItem()
     it = m.top.item
     m.name.text = toS(it.name)
     m.cover.uri = toS(it.icon)
+    ' Número de identificación de la serie en el portal (sirve para registrar enlaces directos y para soporte).
+    m.idTag.text = "ID de la serie: " + toS(it.id)
     m.status.text = "Cargando temporadas y episodios…"
     t = CreateObject("roSGNode", "ApiTask")
     t.request = { action: "seriesinfo", id: toS(it.id), tag: toS(it.id) }

@@ -17,5 +17,6 @@
     <Label id="extra" translation="[400,400]" width="820" height="60" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
     <LabelList id="actions" translation="[400,470]" itemSize="[380,46]" numRows="4" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
     <Label id="status" translation="[400,420]" width="820" height="40" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <Label id="idTag" translation="[400,676]" width="820" height="26" font="font:SmallSystemFont" color="0x8A94B8FF" />
   </children>
 </component>

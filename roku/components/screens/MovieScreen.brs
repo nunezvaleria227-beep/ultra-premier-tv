@@ -6,6 +6,7 @@ sub init()
     m.extra = m.top.findNode("extra")
     m.actions = m.top.findNode("actions")
     m.status = m.top.findNode("status")
+    m.idTag = m.top.findNode("idTag")
     m.tasks = []
     m.ext = "mp4"
     m.actionIds = []
@@ -21,6 +22,8 @@ sub onItem()
     it = m.top.item
     m.name.text = toS(it.name)
     m.cover.uri = toS(it.icon)
+    ' Número de identificación de la película en el portal (sirve para registrar enlaces directos y para soporte).
+    m.idTag.text = "ID de la película: " + toS(it.id)
     m.ext = toS(it.ext)
     if m.ext = "" then m.ext = "mp4"
     m.meta.text = ""

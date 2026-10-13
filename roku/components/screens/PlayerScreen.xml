@@ -12,7 +12,8 @@
     <Video id="video" translation="[0,0]" width="1280" height="720" />
     <Group id="banner" translation="[0,0]" visible="false">
       <Rectangle width="1280" height="118" color="0x000000B8" />
-      <Label id="bannerTitle" translation="[40,12]" width="1200" height="40" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="bannerTitle" translation="[40,12]" width="880" height="40" font="font:MediumBoldSystemFont" color="0xFFFFFFFF" />
+      <Label id="bannerId" translation="[930,22]" width="310" height="26" horizAlign="right" font="font:SmallSystemFont" color="0x8A94B8FF" />
       <Label id="bannerNow" translation="[40,56]" width="1200" height="28" font="font:SmallSystemFont" color="0xE0E6F5FF" />
       <Label id="bannerNext" translation="[40,84]" width="1200" height="28" font="font:SmallSystemFont" color="0xA3AECCFF" />
     </Group>

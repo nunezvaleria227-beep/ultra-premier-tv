@@ -17,6 +17,7 @@
     <LabelList id="seasonList" translation="[300,100]" itemSize="[230,44]" numRows="10" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
     <LabelList id="episodeList" translation="[550,100]" itemSize="[690,44]" numRows="10" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
     <Label id="status" translation="[300,280]" width="940" height="120" horizAlign="center" wrap="true" font="font:MediumSystemFont" color="0xF2F5FFFF" />
+    <Label id="idTag" translation="[300,556]" width="940" height="26" font="font:SmallSystemFont" color="0x8A94B8FF" />
     <Label id="hint" translation="[40,672]" width="1200" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" text="OK: ver episodio      Play/Pausa: agregar o quitar de favoritos" />
   </children>
 </component>
