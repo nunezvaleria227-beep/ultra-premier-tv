@@ -86,7 +86,7 @@ sub showSeason(seasonIndex as Integer)
     k = 0
     for each e in season.episodes
         node = root.CreateChild("ContentNode")
-        node.id = (offset + k).ToStr()
+        node.id = Str(offset + k).Trim()
         label = "Episodio " + e.num.ToStr()
         if e.title <> "" then label = "E" + e.num.ToStr() + "  ·  " + e.title
         node.title = label

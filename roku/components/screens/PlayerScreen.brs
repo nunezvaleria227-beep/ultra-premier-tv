@@ -282,7 +282,7 @@ sub showSubtitleMenu()
             if Type(t) = "roAssociativeArray" and n < 6
                 label = toS(t.Description)
                 if label = "" then label = toS(t.Language)
-                if label = "" then label = "Subtítulos " + (n + 1).ToStr()
+                if label = "" then label = "Subtítulos " + Str(n + 1).Trim()
                 labels.Push(label)
                 m.subChoices.Push(t)
                 n = n + 1
@@ -305,7 +305,7 @@ sub showAudioMenu()
             if Type(a) = "roAssociativeArray" and n < 6
                 label = toS(a.Name)
                 if label = "" then label = toS(a.Language)
-                if label = "" then label = "Audio " + (n + 1).ToStr()
+                if label = "" then label = "Audio " + Str(n + 1).Trim()
                 labels.Push(label)
                 m.audioChoices.Push(a)
                 n = n + 1
