@@ -138,11 +138,23 @@ private fun CategoryTile(name: String, count: Int?, onClick: () -> Unit, modifie
 fun EpgChannelsScreen(vm: AppViewModel, categoryId: String, title: String) {
     val context = LocalContext.current
     val state = vm.live
-    val channels = remember(categoryId, state.catalog) { state.itemsFor(categoryId) }
+    val channels = remember(categoryId, state.visibleItems) { state.itemsFor(categoryId) }
 
     AppBackground {
         Column(Modifier.fillMaxSize()) {
-            TopBar(title = title, centerTitle = true, onBack = { vm.back() })
+            TopBar(
+                title = title,
+                centerTitle = true,
+                onBack = { vm.back() },
+                trailing = {
+                    TvButton(
+                        text = "Ver en cuadrícula",
+                        onClick = { vm.open(Screen.EpgGrid(categoryId, title)) },
+                        compact = true
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+            )
             Box(
                 Modifier
                     .weight(1f)
@@ -221,18 +233,18 @@ private fun EpgRow(vm: AppViewModel, channel: LiveChannel, onClick: () -> Unit) 
 
 /** Canales de En vivo que el servidor guarda (archivo). */
 private fun archiveChannels(vm: AppViewModel): List<LiveChannel> =
-    vm.live.catalog?.items?.filter { it.archiveDays > 0 }.orEmpty()
+    vm.live.visibleItems.filter { it.archiveDays > 0 }
 
 @Composable
 fun CatchUpScreen(vm: AppViewModel) {
     val state = vm.live
     val catalog = state.catalog
-    val archive = remember(catalog) { archiveChannels(vm) }
+    val archive = remember(state.visibleItems) { archiveChannels(vm) }
     val rows = remember(catalog, archive) {
         val out = ArrayList<CategoryRow>()
         out += CategoryRow(ROW_ALL, "TODO", archive.size)
         val counts = archive.groupingBy { it.categoryId }.eachCount()
-        catalog?.categories?.forEach { category ->
+        state.visibleCategories.forEach { category ->
             val count = counts[category.id]
             if (count != null) out += CategoryRow(category.id, category.name.trim(), count)
         }
@@ -292,8 +304,8 @@ fun CatchUpScreen(vm: AppViewModel) {
 
 @Composable
 fun CatchUpChannelsScreen(vm: AppViewModel, categoryId: String, title: String) {
-    val catalog = vm.live.catalog
-    val channels = remember(catalog, categoryId) {
+    val visible = vm.live.visibleItems
+    val channels = remember(visible, categoryId) {
         archiveChannels(vm).filter { categoryId == ROW_ALL || it.categoryId == categoryId }
     }
 

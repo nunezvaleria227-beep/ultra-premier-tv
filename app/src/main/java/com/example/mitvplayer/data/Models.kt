@@ -90,7 +90,11 @@ data class MovieInfo(
     val releaseDate: String?,
     val duration: String?,
     val cast: String?,
-    val director: String?
+    val director: String?,
+    /** Imagen grande de fondo. */
+    val backdrop: String? = null,
+    /** Dirección del tráiler (YouTube). */
+    val trailer: String? = null
 )
 
 data class SeriesItem(
@@ -123,7 +127,12 @@ data class SeriesDetail(
     val cover: String?,
     val genre: String?,
     /** Temporadas ordenadas; cada lista de episodios también va ordenada. */
-    val seasons: Map<Int, List<Episode>>
+    val seasons: Map<Int, List<Episode>>,
+    val backdrop: String? = null,
+    val trailer: String? = null,
+    val cast: String? = null,
+    val director: String? = null,
+    val releaseDate: String? = null
 )
 
 data class EpgEntry(

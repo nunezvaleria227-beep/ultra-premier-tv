@@ -14,6 +14,13 @@ Inicia sesión con **usuario y contraseña** contra un portal **Xtream Codes** y
 | **Búsqueda maestra** | Canales, películas y series a la vez (sin importar acentos ni mayúsculas). |
 | **Grabaciones** | Graba un canal en vivo con un solo toque, máximo **2 horas**. Al cumplirse (o al detenerla) se guarda sola en la memoria del dispositivo, en **Películas / Ultra Premier TV**, y se puede ver desde la propia app. |
 | **Favoritos e historial** | Mantén pulsado un canal/póster (o la tecla **Menú** del control) para marcarlo como favorito. |
+| **Continuar viendo** | La app recuerda el minuto de cada película y episodio. Botón en el inicio con todo lo que dejaste a medias; al abrir una película aparece "Continuar (mm:ss)" y "Desde el inicio". |
+| **Guía en cuadrícula** | En EPG → una categoría → "Ver en cuadrícula": canales a la izquierda y programas por horario (con "Ahora", ◀ 3 h / 3 h ▶). OK en un programa: ver el canal o **programar su grabación**. |
+| **Grabaciones programadas** | Se programan desde la guía, se ven (y cancelan) en Grabaciones y se graban solas a la hora, también con la app cerrada (si se activó "Mantener la sesión iniciada"). Máximo 2 h por grabación. |
+| **Grabaciones a MP4** | En Grabaciones, el botón **A MP4** convierte una grabación (.ts) a MP4 para abrirla en cualquier celular o programa. |
+| **Control parental** | En Ajustes se pone un PIN de 4 números: las categorías para adultos (XXX, +18, adultos…) se esconden en listas, buscador, guía y "Continuar viendo" hasta escribir el PIN. |
+| **Detalle de película/serie** | Fondo grande, sinopsis, reparto, director, botón de **tráiler** (YouTube), minuto en que vas y episodios en curso. |
+| **Actualizaciones** | Al abrir la app avisa si hay una versión nueva (de GitHub Releases); se descarga e instala desde la propia app. También en Ajustes → "Buscar actualización de la app". |
 
 Funciona con Fire OS 6 en adelante (Android 7.1+). Se maneja con el control remoto (D-pad) y también con el dedo.
 

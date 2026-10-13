@@ -12,9 +12,11 @@ import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.annotation.OptIn
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -28,9 +30,20 @@ import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import com.example.mitvplayer.data.ResumeEntry
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/** Datos para recordar dónde se quedó una película o episodio. */
+data class ResumeTag(
+    /** "movie" o "episode". */
+    val type: String,
+    val id: String,
+    val ext: String,
+    val image: String?,
+    val category: String = ""
+)
 
 /** Un elemento reproducible: canal en vivo, película o episodio. */
 data class PlayItem(
@@ -39,7 +52,11 @@ data class PlayItem(
     val url: String,
     val isLive: Boolean,
     /** ID del canal, para consultar la guía (EPG). Solo en vivo. */
-    val streamId: String? = null
+    val streamId: String? = null,
+    /** Si no es null, la app recuerda el minuto en que se dejó de ver. */
+    val resume: ResumeTag? = null,
+    /** true = empezar desde el principio aunque haya un minuto guardado. */
+    val fromStart: Boolean = false
 )
 
 /** Lista que se le entrega al reproductor justo antes de abrirlo. */
@@ -99,6 +116,12 @@ class PlayerActivity : ComponentActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private val hideBannerTask = Runnable { banner.visibility = View.GONE }
     private val retryTask = Runnable { retryPlayback() }
+    private val saveTask = object : Runnable {
+        override fun run() {
+            saveProgress()
+            handler.postDelayed(this, SAVE_EVERY_MS)
+        }
+    }
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     private val listener = object : Player.Listener {
@@ -165,6 +188,7 @@ class PlayerActivity : ComponentActivity() {
         handler.removeCallbacksAndMessages(null)
         epgJob?.cancel()
 
+        saveProgress()
         val exo = player
         if (exo != null) {
             if (!items[index].isLive) resumePositionMs = exo.currentPosition
@@ -197,13 +221,27 @@ class PlayerActivity : ComponentActivity() {
         errorText.visibility = View.GONE
         playerView.useController = !item.isLive
 
-        if (item.isLive || startPositionMs <= 0L) {
+        var start = startPositionMs
+        val tag = item.resume
+        if (!item.isLive && start <= 0L && !item.fromStart && tag != null) {
+            // Si ya se había visto un rato, se continúa unos segundos antes de donde se quedó.
+            val saved = (application as MiTvApp).repository.library?.progress?.find(tag.type, tag.id)
+            if (saved != null && saved.positionMs > 10_000L) {
+                start = (saved.positionMs - 3_000L).coerceAtLeast(0L)
+                Toast.makeText(this, "Continuando donde te quedaste (${formatPosition(start)})", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        if (item.isLive || start <= 0L) {
             exo.setMediaItem(MediaItem.fromUri(item.url))
         } else {
-            exo.setMediaItem(MediaItem.fromUri(item.url), startPositionMs)
+            exo.setMediaItem(MediaItem.fromUri(item.url), start)
         }
         exo.prepare()
         exo.playWhenReady = true
+
+        handler.removeCallbacks(saveTask)
+        if (!item.isLive && item.resume != null) handler.postDelayed(saveTask, SAVE_EVERY_MS)
 
         showBanner(item)
     }
@@ -211,6 +249,7 @@ class PlayerActivity : ComponentActivity() {
     private fun onEnded() {
         val item = items[index]
         if (item.isLive) return
+        saveProgress(finished = true)
         if (index < items.lastIndex) {
             index++
             playCurrent()
@@ -254,6 +293,43 @@ class PlayerActivity : ComponentActivity() {
         if (items[index].isLive) exo.seekToDefaultPosition()
         exo.prepare()
         exo.playWhenReady = true
+    }
+
+    /** Guarda el minuto actual (o borra la entrada si ya se terminó de ver). */
+    private fun saveProgress(finished: Boolean = false) {
+        val exo = player ?: return
+        val item = items.getOrNull(index) ?: return
+        val tag = item.resume ?: return
+        if (item.isLive) return
+        val store = (application as MiTvApp).repository.library?.progress ?: return
+
+        val duration = exo.duration.takeIf { it != C.TIME_UNSET && it > 0 } ?: 0L
+        val position = exo.currentPosition
+        when {
+            finished || (duration > 0 && position > duration * 0.95) -> store.remove(tag.type, tag.id)
+            position > 30_000L -> store.save(
+                ResumeEntry(
+                    type = tag.type,
+                    id = tag.id,
+                    ext = tag.ext,
+                    title = item.title,
+                    subtitle = item.subtitle,
+                    image = tag.image,
+                    positionMs = position,
+                    durationMs = duration,
+                    updatedAt = System.currentTimeMillis(),
+                    category = tag.category
+                )
+            )
+        }
+    }
+
+    private fun formatPosition(ms: Long): String {
+        val total = ms / 1000
+        val h = total / 3600
+        val m = (total % 3600) / 60
+        val s = total % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
     }
 
     // ------------------------------------------------------------ control remoto
@@ -377,6 +453,7 @@ class PlayerActivity : ComponentActivity() {
         private const val KEY_POSITION = "position"
         private const val MAX_AUTO_RETRIES = 3
         private const val BANNER_DURATION_MS = 5_000L
+        private const val SAVE_EVERY_MS = 15_000L
 
         fun start(context: Context, items: List<PlayItem>, startIndex: Int) {
             PlaybackQueue.items = items

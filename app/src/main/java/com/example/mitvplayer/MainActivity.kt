@@ -12,11 +12,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.example.mitvplayer.ui.AccountScreen
 import com.example.mitvplayer.ui.AppViewModel
+import com.example.mitvplayer.ui.ContinueScreen
 import com.example.mitvplayer.ui.CatchUpChannelsScreen
 import com.example.mitvplayer.ui.CatchUpProgramsScreen
 import com.example.mitvplayer.ui.CatchUpScreen
 import com.example.mitvplayer.ui.EpgCategoriesScreen
 import com.example.mitvplayer.ui.EpgChannelsScreen
+import com.example.mitvplayer.ui.EpgGridScreen
 import com.example.mitvplayer.ui.HomeScreen
 import com.example.mitvplayer.ui.LiveScreen
 import com.example.mitvplayer.ui.LoginScreen
@@ -86,6 +88,7 @@ private fun AppRoot(vm: AppViewModel) {
         is Screen.SeriesDetails -> SeriesDetailScreen(vm, top.series)
         Screen.Epg -> EpgCategoriesScreen(vm)
         is Screen.EpgChannels -> EpgChannelsScreen(vm, top.categoryId, top.title)
+        is Screen.EpgGrid -> EpgGridScreen(vm, top.categoryId, top.title)
         Screen.CatchUp -> CatchUpScreen(vm)
         is Screen.CatchUpChannels -> CatchUpChannelsScreen(vm, top.categoryId, top.title)
         is Screen.CatchUpPrograms -> CatchUpProgramsScreen(vm, top.channel)
@@ -95,5 +98,6 @@ private fun AppRoot(vm: AppViewModel) {
         Screen.Notifications -> NotificationsScreen(vm)
         Screen.Settings -> SettingsScreen(vm)
         Screen.Recordings -> RecordingsScreen(vm)
+        Screen.Continue -> ContinueScreen(vm)
     }
 }

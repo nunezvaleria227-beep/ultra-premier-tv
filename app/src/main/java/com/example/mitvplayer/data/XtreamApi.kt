@@ -224,7 +224,9 @@ class XtreamApi(private val client: OkHttpClient) {
             releaseDate = info.str("releasedate") ?: info.str("release_date"),
             duration = info.str("duration"),
             cast = info.str("cast") ?: info.str("actors"),
-            director = info.str("director")
+            director = info.str("director"),
+            backdrop = info.backdrop(),
+            trailer = trailerUrl(info.str("youtube_trailer") ?: info.str("trailer"))
         )
     }
 
@@ -277,7 +279,12 @@ class XtreamApi(private val client: OkHttpClient) {
             plot = info?.str("plot"),
             cover = info?.str("cover"),
             genre = info?.str("genre"),
-            seasons = seasons
+            seasons = seasons,
+            backdrop = info?.backdrop(),
+            trailer = trailerUrl(info?.str("youtube_trailer") ?: info?.str("trailer")),
+            cast = info?.str("cast"),
+            director = info?.str("director"),
+            releaseDate = info?.str("releaseDate") ?: info?.str("release_date") ?: info?.str("releasedate")
         )
     }
 
@@ -354,6 +361,29 @@ class XtreamApi(private val client: OkHttpClient) {
         if (!has(key) || isNull(key)) return null
         val text = opt(key)?.toString()?.trim()
         return if (text.isNullOrEmpty() || text == "null") null else text
+    }
+
+    /** Imagen de fondo: el servidor la manda como arreglo de direcciones o como una sola. */
+    private fun JSONObject.backdrop(): String? {
+        when (val raw = opt("backdrop_path")) {
+            is JSONArray -> for (i in 0 until raw.length()) {
+                val url = raw.optString(i).trim()
+                if (url.startsWith("http", ignoreCase = true)) return url
+            }
+            is String -> if (raw.trim().startsWith("http", ignoreCase = true)) return raw.trim()
+        }
+        return null
+    }
+
+    /** El tráiler llega como código de YouTube o como dirección completa. */
+    private fun trailerUrl(raw: String?): String? {
+        val text = raw?.trim().orEmpty()
+        return when {
+            text.isEmpty() -> null
+            text.startsWith("http", ignoreCase = true) -> text
+            Regex("[A-Za-z0-9_-]{6,20}").matches(text) -> "https://www.youtube.com/watch?v=$text"
+            else -> null
+        }
     }
 
     private inline fun <T : Any> JSONArray.mapObjects(transform: (JSONObject) -> T?): List<T> {

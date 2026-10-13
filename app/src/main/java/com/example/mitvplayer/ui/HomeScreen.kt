@@ -55,7 +55,7 @@ tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
-private const val FOCUS_COUNT = 16
+private const val FOCUS_COUNT = 17
 
 @Composable
 fun HomeScreen(vm: AppViewModel) {
@@ -196,11 +196,18 @@ fun HomeScreen(vm: AppViewModel) {
             // ------------------------------------------------ barras de abajo
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 BottomBarButton("EPG", Glyph.EPG, { vm.open(Screen.Epg) }, Modifier.weight(1f).slot(6))
                 BottomBarButton("PANTALLA MÚLTIPLE", Glyph.GRID, { vm.open(Screen.Multi) }, Modifier.weight(1f).slot(7))
                 BottomBarButton("CATCH UP", Glyph.CHECK, { vm.open(Screen.CatchUp) }, Modifier.weight(1f).slot(8))
+                BottomBarButton(
+                    label = "CONTINUAR VIENDO",
+                    glyph = Glyph.CLAPPER,
+                    onClick = { vm.open(Screen.Continue) },
+                    modifier = Modifier.weight(1f).slot(16),
+                    badge = vm.resumeEntries.size
+                )
             }
 
             Text(
@@ -215,6 +222,8 @@ fun HomeScreen(vm: AppViewModel) {
             )
         }
     }
+
+    UpdateDialogs(vm)
 
     if (confirmExit) {
         OptionsDialog(
@@ -238,7 +247,8 @@ private fun statusText(state: BrowseState<*>, now: Long): String = when {
 }
 
 private fun countText(state: BrowseState<*>, noun: String): String? {
-    val total = state.catalog?.items?.size ?: return null
+    if (state.catalog == null) return null
+    val total = state.visibleItems.size
     return "%,d %s".format(total, noun)
 }
 
@@ -340,7 +350,8 @@ private fun BottomBarButton(
     label: String,
     glyph: Glyph,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    badge: Int = 0
 ) {
     FocusCard(
         onClick = onClick,
@@ -353,12 +364,30 @@ private fun BottomBarButton(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 18.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            GlyphIcon(glyph, Modifier.size(32.dp))
-            Spacer(Modifier.width(14.dp))
-            Text(label, color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            GlyphIcon(glyph, Modifier.size(28.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(
+                label,
+                color = TextPrimary,
+                fontSize = 12.sp,
+                lineHeight = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                modifier = Modifier.weight(1f)
+            )
+            if (badge > 0) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(AccentColor)
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                ) {
+                    Text(badge.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
         }
     }
 }

@@ -18,8 +18,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -30,13 +32,16 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mitvplayer.RecordingManager
 import com.example.mitvplayer.RecordingService
+import com.example.mitvplayer.RecordingConverter
 import com.example.mitvplayer.SavedRecording
+import com.example.mitvplayer.UpdateManager
 import com.example.mitvplayer.data.LiveChannel
 import kotlinx.coroutines.delay
 import java.io.File
@@ -85,9 +90,9 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun Card(content: @Composable ColumnScope.() -> Unit) {
+private fun Card(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(PanelColor, RoundedCornerShape(12.dp))
             .padding(14.dp),
@@ -183,6 +188,8 @@ fun NotificationsScreen(vm: AppViewModel) {
 @Composable
 fun SettingsScreen(vm: AppViewModel) {
     var confirm by remember { mutableStateOf<String?>(null) }
+    var pinFlow by remember { mutableStateOf<PinFlow?>(null) }
+    val context = LocalContext.current
     val first = remember { FocusRequester() }
     LaunchedEffect(Unit) {
         withFrameNanos { }
@@ -216,6 +223,26 @@ fun SettingsScreen(vm: AppViewModel) {
         )
         Spacer(Modifier.height(4.dp))
         TvButton(
+            text = "Buscar actualización de la app",
+            onClick = {
+                val state = vm.update
+                if (state is UpdateState.Available) {
+                    vm.updateDismissed = false
+                } else {
+                    vm.checkForUpdate(manual = true)
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "Versión instalada: ${UpdateManager.currentName(LocalContext.current)}. Cuando hay una nueva, la app te avisa sola al abrirla.",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+        Spacer(Modifier.height(4.dp))
+        ParentalSettings(vm, onFlow = { pinFlow = it })
+        Spacer(Modifier.height(4.dp))
+        TvButton(
             text = "Borrar favoritos",
             onClick = { confirm = "favoritos" },
             modifier = Modifier.fillMaxWidth()
@@ -226,6 +253,8 @@ fun SettingsScreen(vm: AppViewModel) {
             modifier = Modifier.fillMaxWidth()
         )
     }
+
+    PinFlowDialogs(vm, pinFlow, onFlow = { pinFlow = it }, toast = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
 
     val what = confirm
     if (what != null) {
@@ -241,6 +270,158 @@ fun SettingsScreen(vm: AppViewModel) {
     }
 }
 
+// ------------------------------------------------------------- control parental
+
+/** Pasos de las ventanas del PIN. */
+sealed interface PinFlow {
+    /** Elegir un PIN nuevo. */
+    data object Create : PinFlow
+
+    /** Repetir el PIN elegido. */
+    data class Confirm(val first: String) : PinFlow
+
+    /** Escribir el PIN para ver el contenido para adultos. */
+    data object Unlock : PinFlow
+
+    /** Comprobar el PIN antes de cambiarlo. */
+    data object VerifyChange : PinFlow
+
+    /** Comprobar el PIN antes de quitarlo. */
+    data object VerifyRemove : PinFlow
+}
+
+@Composable
+private fun ParentalSettings(vm: AppViewModel, onFlow: (PinFlow) -> Unit) {
+    val parental = vm.parental
+    if (!parental.hasPin) {
+        TvButton(
+            text = "Control parental: poner un PIN",
+            onClick = { onFlow(PinFlow.Create) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "Esconde las categorías para adultos (XXX, +18, adultos…) en listas, buscador y guía. Para verlas hace falta el PIN.",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+        return
+    }
+    if (parental.locked) {
+        TvButton(
+            text = "Control parental activado · Ver contenido para adultos (PIN)",
+            onClick = { onFlow(PinFlow.Unlock) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text("Ahora mismo el contenido para adultos está escondido.", color = TextSecondary, fontSize = 12.sp)
+    } else {
+        TvButton(
+            text = "Contenido para adultos visible · Bloquear ahora",
+            onClick = { vm.lockParental() },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            "Se vuelve a esconder solo al cerrar sesión o al cerrar la app.",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        TvButton(text = "Cambiar PIN", onClick = { onFlow(PinFlow.VerifyChange) }, modifier = Modifier.weight(1f))
+        TvButton(text = "Quitar PIN", onClick = { onFlow(PinFlow.VerifyRemove) }, modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun PinFlowDialogs(vm: AppViewModel, flow: PinFlow?, onFlow: (PinFlow?) -> Unit, toast: (String) -> Unit) {
+    val parental = vm.parental
+
+    fun wrong(): String {
+        val wait = parental.waitSeconds()
+        return if (wait > 0) "Demasiados intentos. Espera $wait s." else "PIN incorrecto"
+    }
+
+    when (flow) {
+        null -> Unit
+        PinFlow.Create -> key(flow) {
+            PinDialog(
+                title = "Elige un PIN",
+                message = "Escribe 4 números. Lo pedirá para ver el contenido para adultos.",
+                onSubmit = { pin ->
+                    onFlow(PinFlow.Confirm(pin))
+                    null
+                },
+                onDismiss = { onFlow(null) }
+            )
+        }
+        is PinFlow.Confirm -> key(flow) {
+            PinDialog(
+                title = "Repite el PIN",
+                message = "Escríbelo otra vez para confirmarlo.",
+                onSubmit = { pin ->
+                    if (pin == flow.first) {
+                        parental.setPin(pin)
+                        if (parental.locked) vm.lockParental()
+                        onFlow(null)
+                        toast("Control parental activado. Anota tu PIN.")
+                    } else {
+                        toast("Los PIN no coinciden. Inténtalo de nuevo.")
+                        onFlow(PinFlow.Create)
+                    }
+                    null
+                },
+                onDismiss = { onFlow(null) }
+            )
+        }
+        PinFlow.Unlock -> key(flow) {
+            PinDialog(
+                title = "Escribe tu PIN",
+                message = "Para ver el contenido para adultos.",
+                onSubmit = { pin ->
+                    if (parental.unlock(pin)) {
+                        onFlow(null)
+                        null
+                    } else {
+                        wrong()
+                    }
+                },
+                onDismiss = { onFlow(null) }
+            )
+        }
+        PinFlow.VerifyChange -> key(flow) {
+            PinDialog(
+                title = "Escribe tu PIN actual",
+                message = "Después podrás elegir uno nuevo.",
+                onSubmit = { pin ->
+                    if (parental.verify(pin)) {
+                        onFlow(PinFlow.Create)
+                        null
+                    } else {
+                        wrong()
+                    }
+                },
+                onDismiss = { onFlow(null) }
+            )
+        }
+        PinFlow.VerifyRemove -> key(flow) {
+            PinDialog(
+                title = "Escribe tu PIN",
+                message = "Para quitar el control parental.",
+                onSubmit = { pin ->
+                    if (parental.verify(pin)) {
+                        parental.removePin()
+                        onFlow(null)
+                        toast("Control parental desactivado.")
+                        null
+                    } else {
+                        wrong()
+                    }
+                },
+                onDismiss = { onFlow(null) }
+            )
+        }
+    }
+}
+
 // ------------------------------------------------------------------ grabaciones
 
 @Composable
@@ -251,9 +432,18 @@ fun RecordingsScreen(vm: AppViewModel) {
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
     var deleting by remember { mutableStateOf<SavedRecording?>(null) }
     var picking by remember { mutableStateOf(false) }
+    var converting by remember { mutableStateOf<SavedRecording?>(null) }
+    val convert = RecordingConverter.current
 
-    // Cuando termina una grabación se actualiza la lista; mientras graba se actualiza el tiempo.
-    LaunchedEffect(active == null) { files = RecordingService.listSaved(context) }
+    // Cuando termina una grabación o una conversión se actualiza la lista; mientras graba se actualiza el tiempo.
+    LaunchedEffect(active == null, convert == null) { files = RecordingService.listSaved(context) }
+
+    // Convertir tarda: que la pantalla no se apague mientras tanto.
+    val view = LocalView.current
+    DisposableEffect(convert != null) {
+        view.keepScreenOn = convert != null
+        onDispose { view.keepScreenOn = false }
+    }
     LaunchedEffect(active != null) {
         while (active != null) {
             now = System.currentTimeMillis()
@@ -280,6 +470,47 @@ fun RecordingsScreen(vm: AppViewModel) {
             }
         } else {
             TvButton(text = "● Grabar un canal…", onClick = { picking = true }, modifier = Modifier.fillMaxWidth())
+        }
+
+        if (convert != null) {
+            Card {
+                Text("⟳ ${convert.phase}: ${convert.title.replace('_', ' ')}", color = TextPrimary, fontWeight = FontWeight.Bold)
+                Text(
+                    "${convert.percent}% · ${formatSize(convert.outBytes)} · no cierres la app hasta que termine",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+                TvButton(text = "Cancelar conversión", onClick = { RecordingConverter.cancel() }, modifier = Modifier.fillMaxWidth())
+            }
+        }
+
+        val scheduled = vm.scheduledRecordings
+        if (scheduled.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Text("Programadas", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            scheduled.forEach { item ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Card(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "⏰ ${item.title}",
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "${item.channelName} · ${formatDateLong(item.startSec * 1000)} ${formatClock(item.startSec * 1000)} – ${formatClock(item.endSec * 1000)}",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                    TvButton(text = "Cancelar", onClick = { vm.cancelScheduled(context, item.id) }, compact = true)
+                }
+            }
+            Spacer(Modifier.height(4.dp))
         }
 
         if (files.isEmpty()) {
@@ -309,15 +540,32 @@ fun RecordingsScreen(vm: AppViewModel) {
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            "${formatSize(recording.size)} · ${formatDateLong(recording.dateMs)} ${formatClock(recording.dateMs)}",
+                            "${recording.ext.uppercase()} · ${formatSize(recording.size)} · ${formatDateLong(recording.dateMs)} ${formatClock(recording.dateMs)}",
                             color = TextSecondary,
                             fontSize = 11.sp
                         )
                     }
                 }
+                if (recording.ext != "mp4" && convert == null) {
+                    TvButton(text = "A MP4", onClick = { converting = recording }, compact = true)
+                }
                 TvButton(text = "Borrar", onClick = { deleting = recording }, compact = true)
             }
         }
+    }
+
+    val toConvert = converting
+    if (toConvert != null) {
+        OptionsDialog(
+            title = "Convertir a MP4",
+            message = "Crea una copia en MP4 que se abre en cualquier celular o programa. Puede tardar unos minutos y necesita espacio libre de unas 2 veces el tamaño de la grabación (${formatSize(toConvert.size)}).",
+            options = listOf(
+                Opt("Convertir y conservar la original") { RecordingConverter.start(context, toConvert, deleteOriginal = false) },
+                Opt("Convertir y borrar la original") { RecordingConverter.start(context, toConvert, deleteOriginal = true) },
+                Opt("Cancelar") { }
+            ),
+            onDismiss = { converting = null }
+        )
     }
 
     val toDelete = deleting

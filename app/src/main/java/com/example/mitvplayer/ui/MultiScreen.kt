@@ -401,9 +401,10 @@ fun ChannelPickerDialog(vm: AppViewModel, onPick: (LiveChannel) -> Unit, onDismi
                 CenterLoading(text = "Cargando canales…")
             } else {
                 val words = searchKey(query).trim().split(' ').filter { it.isNotEmpty() }
-                val list = remember(words, categoryId, catalog) {
+                val visible = state.visibleItems
+                val list = remember(words, categoryId, visible) {
                     if (words.isNotEmpty() && words.joinToString("").length >= 2) {
-                        catalog.items.filter { channel -> words.all { channel.key.contains(it) } }.take(200)
+                        visible.filter { channel -> words.all { channel.key.contains(it) } }.take(200)
                     } else {
                         state.itemsFor(categoryId)
                     }

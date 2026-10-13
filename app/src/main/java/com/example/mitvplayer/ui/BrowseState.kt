@@ -48,7 +48,9 @@ class BrowseState<T : Item>(
     private val fetch: suspend (force: Boolean) -> Catalog<T>,
     private val favorites: () -> IdList?,
     private val recents: () -> IdList?,
-    private val categoryFilter: ((Category) -> Boolean)? = null
+    private val categoryFilter: ((Category) -> Boolean)? = null,
+    /** Categorías que se esconden ahora mismo (control parental). Puede leer estado de Compose. */
+    private val blocked: ((Category) -> Boolean)? = null
 ) {
     var catalog by mutableStateOf<Catalog<T>?>(null)
         private set
@@ -80,16 +82,46 @@ class BrowseState<T : Item>(
 
     // ------------------------------------------------------------- lo que se muestra
 
+    /** Identificadores de las categorías escondidas por el control parental. */
+    private val blockedIds: Set<String> by derivedStateOf {
+        val cat = catalog
+        val check = blocked
+        if (cat == null || check == null) emptySet() else cat.categories.filter(check).map { it.id }.toSet()
+    }
+
+    /** Todo lo de la sección sin lo escondido (para el buscador, la guía y los conteos). */
+    val visibleItems: List<T> by derivedStateOf {
+        val cat = catalog
+        val hide = blockedIds
+        when {
+            cat == null -> emptyList()
+            hide.isEmpty() -> cat.items
+            else -> cat.items.filter { it.categoryId !in hide }
+        }
+    }
+
+    /** Categorías de la sección sin las escondidas. */
+    val visibleCategories: List<Category> by derivedStateOf {
+        val cat = catalog
+        val hide = blockedIds
+        when {
+            cat == null -> emptyList()
+            hide.isEmpty() -> cat.categories
+            else -> cat.categories.filter { it.id !in hide }
+        }
+    }
+
     /** Todo lo que entra en esta sección (con el filtro de categorías aplicado). */
     private val pool: List<T> by derivedStateOf {
         val cat = catalog
         val filter = categoryFilter
+        val base = visibleItems
         when {
             cat == null -> emptyList()
-            filter == null -> cat.items
+            filter == null -> base
             else -> {
                 val ids = cat.categories.filter(filter).map { it.id }.toSet()
-                cat.items.filter { it.categoryId in ids }
+                base.filter { it.categoryId in ids }
             }
         }
     }
@@ -104,6 +136,15 @@ class BrowseState<T : Item>(
     val items: List<T> by derivedStateOf {
         val cat = catalog
         if (cat == null) emptyList() else sorted(itemsFor(selectedId, cat))
+    }
+
+    /** ¿Esta categoría está escondida por el control parental? */
+    fun isBlocked(categoryId: String): Boolean = categoryId.isNotEmpty() && categoryId in blockedIds
+
+    /** Si la categoría elegida quedó escondida (se bloqueó de nuevo), vuelve a TODO. */
+    fun ensureSelectionVisible() {
+        if (selectedId.startsWith("__")) return
+        if (selectedId in blockedIds) select(ROW_ALL)
     }
 
     val selectedName: String
@@ -129,11 +170,15 @@ class BrowseState<T : Item>(
         else -> pool.filter { it.categoryId == id }
     }
 
-    private fun favoriteItems(cat: Catalog<T>): List<T> =
-        favorites()?.ids.orEmpty().mapNotNull { cat.byId[it] }
+    private fun favoriteItems(cat: Catalog<T>): List<T> {
+        val hide = blockedIds
+        return favorites()?.ids.orEmpty().mapNotNull { cat.byId[it] }.filter { it.categoryId !in hide }
+    }
 
-    private fun recentItems(cat: Catalog<T>): List<T> =
-        recents()?.ids.orEmpty().mapNotNull { cat.byId[it] }
+    private fun recentItems(cat: Catalog<T>): List<T> {
+        val hide = blockedIds
+        return recents()?.ids.orEmpty().mapNotNull { cat.byId[it] }.filter { it.categoryId !in hide }
+    }
 
     private fun sorted(list: List<T>): List<T> = when (sort) {
         SortMode.DEFAULT -> list
@@ -156,8 +201,10 @@ class BrowseState<T : Item>(
             rows += CategoryRow(ROW_ADDED, "RECIENTEMENTE AÑADIDO", minOf(ADDED_LIMIT, pool.size))
         }
         val filter = categoryFilter
+        val hide = blockedIds
         for (category in cat.categories) {
             if (filter != null && !filter(category)) continue
+            if (category.id in hide) continue
             val count = cat.counts[category.id] ?: 0
             if (count > 0) rows += CategoryRow(category.id, category.name.trim(), count)
         }

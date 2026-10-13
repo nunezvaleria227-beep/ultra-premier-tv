@@ -56,6 +56,9 @@ class Library(prefs: SharedPreferences, user: String) {
     val recentMovies = IdList(prefs, "$user:recent_movies", 60)
     val recentSeries = IdList(prefs, "$user:recent_series", 60)
 
+    /** Películas y episodios a medias ("Continuar viendo"). */
+    val progress = ProgressStore(prefs, "$user:progress")
+
     fun favorites(kind: Kind): IdList = when (kind) {
         Kind.LIVE -> favLive
         Kind.MOVIES -> favMovies
@@ -78,5 +81,6 @@ class Library(prefs: SharedPreferences, user: String) {
         recentLive.clear()
         recentMovies.clear()
         recentSeries.clear()
+        progress.clear()
     }
 }

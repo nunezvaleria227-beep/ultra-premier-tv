@@ -54,7 +54,9 @@ class SavedRecording(
     val size: Long,
     val dateMs: Long,
     internal val uri: Uri?,
-    internal val file: File?
+    internal val file: File?,
+    /** "ts" (como se graba) o "mp4" (ya convertida). */
+    val ext: String = "ts"
 )
 
 /** Estado de la grabación en curso, visible desde las pantallas. */
@@ -93,6 +95,7 @@ class RecordingService : Service() {
         }
         val url = intent?.getStringExtra(EXTRA_URL)
         val name = intent?.getStringExtra(EXTRA_NAME) ?: "Canal"
+        val minutes = (intent?.getIntExtra(EXTRA_MINUTES, MAX_MINUTES) ?: MAX_MINUTES).coerceIn(1, MAX_MINUTES)
         if (url == null || worker?.isAlive == true) {
             if (worker?.isAlive != true) stopSelf()
             return START_NOT_STICKY
@@ -112,7 +115,7 @@ class RecordingService : Service() {
 
         stopRequested = false
         RecordingManager.stopAction = { requestStop() }
-        worker = Thread { record(url, name) }.also { it.start() }
+        worker = Thread { record(url, name, minutes) }.also { it.start() }
         return START_NOT_STICKY
     }
 
@@ -129,9 +132,9 @@ class RecordingService : Service() {
 
     // ------------------------------------------------------------------ grabación
 
-    private fun record(url: String, name: String) {
+    private fun record(url: String, name: String, minutes: Int) {
         val startedAt = System.currentTimeMillis()
-        val endsAt = startedAt + MAX_MINUTES * 60_000L
+        val endsAt = startedAt + minutes * 60_000L
         val stamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.US).format(Date(startedAt))
         var sink: Sink? = null
         var total = 0L
@@ -215,17 +218,18 @@ class RecordingService : Service() {
             val saved = total > 0
             main.post {
                 RecordingManager.current = null
-                finishMessage(saved, reason, where)
+                finishMessage(saved, reason, where, minutes)
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
             }
         }
     }
 
-    private fun finishMessage(saved: Boolean, reason: String, where: String) {
+    private fun finishMessage(saved: Boolean, reason: String, where: String, minutes: Int) {
         val text = when {
             !saved -> "No se pudo grabar este canal. Si tu cuenta solo permite una conexión, cierra la vista previa e inténtalo otra vez."
-            reason == REASON_LIMIT -> "Se cumplieron las 2 horas. La grabación se guardó en $where."
+            reason == REASON_LIMIT && minutes >= MAX_MINUTES -> "Se cumplieron las 2 horas. La grabación se guardó en $where."
+            reason == REASON_LIMIT -> "Terminó la grabación programada. Se guardó en $where."
             reason == REASON_SPACE -> "Casi no queda espacio. Lo grabado se guardó en $where."
             reason == REASON_LOST -> "Se perdió la señal. Lo grabado se guardó en $where."
             else -> "Grabación guardada en $where."
@@ -371,15 +375,18 @@ class RecordingService : Service() {
         private const val ACTION_STOP = "com.ultrapremier.tv.STOP_RECORDING"
         private const val EXTRA_URL = "url"
         private const val EXTRA_NAME = "name"
+        private const val EXTRA_MINUTES = "minutes"
         private const val CHANNEL_ID = "recording"
         private const val NOTIFICATION_ID = 77
         private const val NOTIFICATION_DONE_ID = 78
 
-        fun start(context: Context, url: String, name: String) {
+        /** [minutes] = null graba el máximo permitido ([MAX_MINUTES]). */
+        fun start(context: Context, url: String, name: String, minutes: Int? = null) {
             if (RecordingManager.current != null) return
             val intent = Intent(context, RecordingService::class.java)
                 .putExtra(EXTRA_URL, url)
                 .putExtra(EXTRA_NAME, name)
+                .putExtra(EXTRA_MINUTES, (minutes ?: MAX_MINUTES).coerceIn(1, MAX_MINUTES))
             ContextCompat.startForegroundService(context, intent)
         }
 
@@ -419,7 +426,8 @@ class RecordingService : Service() {
                                     size = c.getLong(2),
                                     dateMs = c.getLong(3) * 1000,
                                     uri = uri,
-                                    file = null
+                                    file = null,
+                                    ext = c.getString(1).orEmpty().substringAfterLast('.', "ts").lowercase()
                                 )
                             )
                         }
@@ -437,7 +445,7 @@ class RecordingService : Service() {
         }
 
         private fun addFiles(into: MutableList<SavedRecording>, dir: File) {
-            dir.listFiles { f -> f.isFile && f.extension == "ts" }?.forEach { f ->
+            dir.listFiles { f -> f.isFile && (f.extension == "ts" || f.extension == "mp4") }?.forEach { f ->
                 into.add(
                     SavedRecording(
                         title = f.nameWithoutExtension,
@@ -445,7 +453,8 @@ class RecordingService : Service() {
                         size = f.length(),
                         dateMs = f.lastModified(),
                         uri = null,
-                        file = f
+                        file = f,
+                        ext = f.extension.lowercase()
                     )
                 )
             }

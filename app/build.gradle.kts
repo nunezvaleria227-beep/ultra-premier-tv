@@ -17,6 +17,19 @@ android {
         val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionCode = runNumber
         versionName = "1.0.$runNumber"
+        // Solo español e inglés: quita los idiomas de las librerías que no se usan y la app pesa menos.
+        resourceConfigurations += listOf("es", "en")
+    }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "/META-INF/{AL2.0,LGPL2.1}",
+                "/META-INF/DEPENDENCIES",
+                "/META-INF/LICENSE*",
+                "/META-INF/NOTICE*"
+            )
+        }
     }
 
     // La llave de firma llega por variables de entorno (la crea el flujo de GitHub en cada compilación).
@@ -88,4 +101,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
+
+    // Convertir grabaciones (.ts) a MP4
+    implementation("androidx.media3:media3-transformer:1.4.1")
 }

@@ -86,11 +86,12 @@ fun SearchScreen(vm: AppViewModel, initialScope: SearchScope) {
         field.tryRequestFocus()
     }
 
-    val liveCatalog = vm.live.catalog
-    val movieCatalog = vm.movies.catalog
-    val seriesCatalog = vm.series.catalog
+    // Sin lo que esconde el control parental.
+    val liveItems = vm.live.visibleItems
+    val movieItems = vm.movies.visibleItems
+    val seriesItems = vm.series.visibleItems
 
-    val results by produceState(SearchResults.EMPTY, query, scope, liveCatalog, movieCatalog, seriesCatalog) {
+    val results by produceState(SearchResults.EMPTY, query, scope, liveItems, movieItems, seriesItems) {
         val words = searchKey(query).trim().split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty() || words.joinToString("").length < 2) {
             value = SearchResults.EMPTY
@@ -99,9 +100,9 @@ fun SearchScreen(vm: AppViewModel, initialScope: SearchScope) {
         delay(250)
         value = withContext(Dispatchers.Default) {
             SearchResults(
-                live = if (scope == SearchScope.ALL || scope == SearchScope.LIVE) findMatches(liveCatalog?.items, words) else emptyList(),
-                movies = if (scope == SearchScope.ALL || scope == SearchScope.MOVIES) findMatches(movieCatalog?.items, words) else emptyList(),
-                series = if (scope == SearchScope.ALL || scope == SearchScope.SERIES) findMatches(seriesCatalog?.items, words) else emptyList()
+                live = if (scope == SearchScope.ALL || scope == SearchScope.LIVE) findMatches(liveItems, words) else emptyList(),
+                movies = if (scope == SearchScope.ALL || scope == SearchScope.MOVIES) findMatches(movieItems, words) else emptyList(),
+                series = if (scope == SearchScope.ALL || scope == SearchScope.SERIES) findMatches(seriesItems, words) else emptyList()
             )
         }
     }

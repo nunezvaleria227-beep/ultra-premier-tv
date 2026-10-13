@@ -38,6 +38,7 @@ class Repository(
     private var seriesMemory: Catalog<SeriesItem>? = null
 
     private val epgCache = HashMap<String, Pair<Long, List<EpgEntry>>>()
+    private val tableCache = HashMap<String, Pair<Long, List<EpgEntry>>>()
     private val epgGate = Semaphore(3)
 
     /** Formato del video en vivo: "m3u8" (HLS) o "ts". */
@@ -82,6 +83,7 @@ class Repository(
         moviesMemory = null
         seriesMemory = null
         synchronized(epgCache) { epgCache.clear() }
+        synchronized(tableCache) { tableCache.clear() }
     }
 
     /** Borra las listas guardadas en el equipo (se vuelven a descargar al entrar). */
@@ -173,6 +175,15 @@ class Repository(
     /** Siempre en MPEG-TS: es el formato que se puede grabar tal cual a un archivo. */
     fun recordUrl(channelId: String): String = api.liveUrl(creds(), channelId, "ts")
 
+    /**
+     * Igual que [recordUrl], pero sirve aunque la app no esté abierta (grabaciones programadas):
+     * si no hay sesión en memoria usa la sesión guardada. Devuelve null si no hay ninguna.
+     */
+    fun recordUrlOffline(channelId: String): String? {
+        val c = credentials ?: session.load() ?: return null
+        return api.liveUrl(c, channelId, "ts")
+    }
+
     suspend fun shortEpg(streamId: String): List<EpgEntry> =
         withContext(Dispatchers.IO) { api.shortEpg(creds(), streamId) }
 
@@ -198,6 +209,28 @@ class Repository(
         return list
     }
 
+    /** Guía completa de un canal con caché de 15 minutos (para la guía en cuadrícula). Si falla, devuelve vacío. */
+    suspend fun epgTableCached(streamId: String): List<EpgEntry> {
+        val now = System.currentTimeMillis()
+        synchronized(tableCache) {
+            val cached = tableCache[streamId]
+            if (cached != null && now - cached.first < TABLE_MAX_AGE_MS) return cached.second
+        }
+        val list = epgGate.withPermit {
+            withContext(Dispatchers.IO) {
+                try {
+                    api.epgTable(creds(), streamId).sortedBy { it.start }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    emptyList()
+                }
+            }
+        }
+        synchronized(tableCache) { tableCache[streamId] = now to list }
+        return list
+    }
+
     /** Guía completa de un canal, para elegir un programa de Catch up. */
     suspend fun epgTable(streamId: String): List<EpgEntry> =
         withContext(Dispatchers.IO) { api.epgTable(creds(), streamId) }
@@ -214,6 +247,8 @@ class Repository(
 
     fun movieUrl(movie: Movie): String = api.movieUrl(creds(), movie.id, movie.extension)
 
+    fun movieUrlById(id: String, extension: String): String = api.movieUrl(creds(), id, extension)
+
     // ------------------------------------------------------------------- series
 
     suspend fun seriesDetail(seriesId: String): SeriesDetail =
@@ -221,9 +256,12 @@ class Repository(
 
     fun episodeUrl(episode: Episode): String = api.episodeUrl(creds(), episode.id, episode.extension)
 
+    fun episodeUrlById(id: String, extension: String): String = api.episodeUrl(creds(), id, extension)
+
     private companion object {
         const val LIBRARY_FILE = "library"
         const val CACHE_MAX_AGE_MS = 12L * 60 * 60 * 1000
         const val EPG_MAX_AGE_MS = 5L * 60 * 1000
+        const val TABLE_MAX_AGE_MS = 15L * 60 * 1000
     }
 }
