@@ -140,6 +140,8 @@ def wait_for(sub, timeout=25, exact=False):
         nodes = dump()
         if find(nodes, sub, exact):
             return nodes
+        if dismiss_update(nodes):
+            continue
         n += 1
         if n in (2, 6):
             tag = re.sub(r"\W+", "_", sub)[:20]
@@ -186,9 +188,19 @@ def current_focus():
     return out.strip()
 
 
+def dismiss_update(nodes):
+    """El aviso de versión nueva tapa la pantalla (la prueba compila con un número de versión bajo)."""
+    if nodes and find(nodes, "Hay una versión nueva") and find(nodes, "Más tarde"):
+        tap("Más tarde", nodes=nodes, wait=1.0)
+        return True
+    return False
+
+
 def go_home():
     for _ in range(6):
         nodes = dump()
+        if dismiss_update(nodes):
+            nodes = dump()
         if find(nodes, "TV EN DIRECTO") and find(nodes, "CONTINUAR VIENDO"):
             return nodes
         back(1.2)
