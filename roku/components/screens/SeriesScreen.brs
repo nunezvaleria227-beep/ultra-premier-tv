@@ -110,10 +110,10 @@ sub onEpisodeSelected(event as Object)
         if image = "" then image = toS(it.icon)
         items.Push({ id: e.id, name: e.title, icon: image, ext: e.ext, seriesName: toS(it.name), seriesId: toS(it.id), season: e.season, num: e.num })
     end for
-    pos = 0
+    secs = 0
     saved = findContinue("episode", items[flatIndex].id)
-    if saved <> invalid and toI(saved.pos) >= 10 then pos = toI(saved.pos)
-    m.top.event = { type: "play", mode: "episode", items: items, index: flatIndex, start: pos }
+    if saved <> invalid and toI(saved.pos) >= 10 then secs = toI(saved.pos)
+    m.top.event = { type: "play", mode: "episode", items: items, index: flatIndex, start: secs }
 end sub
 
 function onKeyEvent(key as String, press as Boolean) as Boolean

@@ -105,9 +105,9 @@ sub onAction(event as Object)
         m.top.event = { type: "play", mode: "movie", items: [item], index: 0, start: 0 }
     else if action = "resume"
         saved = findContinue("movie", item.id)
-        pos = 0
-        if saved <> invalid then pos = toI(saved.pos)
-        m.top.event = { type: "play", mode: "movie", items: [item], index: 0, start: pos }
+        secs = 0
+        if saved <> invalid then secs = toI(saved.pos)
+        m.top.event = { type: "play", mode: "movie", items: [item], index: 0, start: secs }
     else if action = "fav"
         toggleFavorite("movie", item)
         buildActions()

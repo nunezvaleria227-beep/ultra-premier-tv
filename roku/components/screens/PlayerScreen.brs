@@ -187,13 +187,13 @@ end sub
 sub saveProgress()
     if m.mode = "live" or m.leaving then return
     if m.items.Count() = 0 then return
-    pos = Int(m.video.position)
+    secs = Int(m.video.position)
     dur = Int(m.video.duration)
-    if pos < 10 then return
+    if secs < 10 then return
     it = m.items[m.index]
     kind = "movie"
     if m.mode = "episode" then kind = "episode"
-    updateContinue({ kind: kind, id: toS(it.id), name: displayTitle(it), icon: toS(it.icon), ext: toS(it.ext), pos: pos, dur: dur })
+    updateContinue({ kind: kind, id: toS(it.id), name: displayTitle(it), icon: toS(it.icon), ext: toS(it.ext), pos: secs, dur: dur })
 end sub
 
 sub leave()

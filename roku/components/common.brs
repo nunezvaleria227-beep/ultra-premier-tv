@@ -237,10 +237,10 @@ sub updateContinue(entry as Object)
     for each e in loadList("continue")
         if not (toS(e.kind) = kind and toS(e.id) = id) then kept.Push(e)
     end for
-    pos = toI(entry.pos)
+    secs = toI(entry.pos)
     dur = toI(entry.dur)
-    finished = (dur > 0 and (pos >= dur * 0.95 or dur - pos < 45))
-    if pos >= 10 and not finished then kept.Unshift(entry)
+    finished = (dur > 0 and (secs >= dur * 0.95 or dur - secs < 45))
+    if secs >= 10 and not finished then kept.Unshift(entry)
     while kept.Count() > 20
         kept.Pop()
     end while
