@@ -57,25 +57,41 @@ sub askText(titleText as String, current as String, secure as Boolean, which as 
     dlg = CreateObject("roSGNode", "StandardKeyboardDialog")
     dlg.title = titleText
     dlg.text = current
-    dlg.buttons = ["Aceptar", "Cancelar"]
+    ' Un solo botón: Atrás también cierra el teclado y lo escrito se conserva (así también se puede llenar con pruebas automáticas).
+    dlg.buttons = ["Aceptar"]
     if secure and dlg.textEditBox <> invalid then dlg.textEditBox.secureMode = true
-    dlg.observeFieldScoped("buttonSelected", "onKeyboardDone")
     m.dialog = dlg
     m.which = which
+    ' El texto se va guardando mientras se escribe.
+    dlg.observeFieldScoped("text", "onKeyboardText")
+    dlg.observeFieldScoped("buttonSelected", "onKeyboardDone")
+    dlg.observeFieldScoped("wasClosed", "onKeyboardClosed")
     m.top.getScene().dialog = dlg
+end sub
+
+sub onKeyboardText()
+    dlg = m.dialog
+    if dlg = invalid then return
+    value = dlg.text
+    if m.which = "user" then m.user = value.Trim()
+    if m.which = "pass" then m.pass = value
+    refreshList()
 end sub
 
 sub onKeyboardDone()
     dlg = m.dialog
     if dlg = invalid then return
-    if dlg.buttonSelected = 0
-        value = dlg.text
-        if m.which = "user" then m.user = value.Trim()
-        if m.which = "pass" then m.pass = value
-        refreshList()
-    end if
-    dlg.close = true
+    onKeyboardText()
     m.dialog = invalid
+    dlg.close = true
+    m.list.setFocus(true)
+end sub
+
+sub onKeyboardClosed()
+    if m.dialog <> invalid
+        onKeyboardText()
+        m.dialog = invalid
+    end if
     m.list.setFocus(true)
 end sub
 

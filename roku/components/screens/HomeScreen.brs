@@ -52,3 +52,35 @@ sub onSelected(event as Object)
     node = m.grid.content.getChild(index)
     m.top.event = { type: "open", target: node.id }
 end sub
+
+' ----------------------------------------------------------------- tecla * (opciones): cerrar sesión
+
+function onKeyEvent(key as String, press as Boolean) as Boolean
+    if not press then return false
+    if key = "options"
+        showOptions()
+        return true
+    end if
+    return false
+end function
+
+sub showOptions()
+    dlg = CreateObject("roSGNode", "Dialog")
+    dlg.title = "Opciones"
+    s = m.global.session
+    if s <> invalid and s.user <> invalid then dlg.message = "Cuenta: " + toS(s.user)
+    dlg.buttons = ["Cerrar sesión", "Cancelar"]
+    dlg.observeFieldScoped("buttonSelected", "onOptionsChoice")
+    m.dialog = dlg
+    m.top.getScene().dialog = dlg
+end sub
+
+sub onOptionsChoice()
+    dlg = m.dialog
+    if dlg = invalid then return
+    choice = dlg.buttonSelected
+    dlg.close = true
+    m.dialog = invalid
+    m.grid.setFocus(true)
+    if choice = 0 then m.top.event = { type: "logout" }
+end sub

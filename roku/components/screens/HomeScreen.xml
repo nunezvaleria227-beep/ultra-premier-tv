@@ -12,7 +12,7 @@
     <Label id="clock" translation="[880,40]" width="360" height="40" horizAlign="right" font="font:MediumSystemFont" color="0xF2F5FFFF" />
     <Label id="account" translation="[880,84]" width="360" height="60" horizAlign="right" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
     <MarkupGrid id="grid" translation="[70,196]" itemComponentName="HomeTile" itemSize="[360,200]" itemSpacing="[30,30]" numColumns="3" numRows="2" focusBitmapUri="pkg:/images/focus.9.png" />
-    <Label id="hint" translation="[40,672]" width="1200" height="30" horizAlign="center" font="font:SmallSystemFont" color="0xA3AECCFF" text="Usa las flechas y OK para elegir" />
+    <Label id="hint" translation="[40,672]" width="1200" height="30" horizAlign="center" font="font:SmallSystemFont" color="0xA3AECCFF" text="Usa las flechas y OK para elegir      Asterisco (*): cerrar sesión" />
     <Timer id="tick" duration="20" repeat="true" />
   </children>
 </component>

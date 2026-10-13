@@ -1,0 +1,22 @@
+params:
+    rasp_version: 1
+    default_keypress_wait: 2
+    channels:
+        Ultra Premier TV: dev
+steps:
+    - launch: Ultra Premier TV
+    - pause: 4
+    - press: ok
+    - pause: 2
+    - text: script-login
+    - press: back
+    - press: down
+    - press: ok
+    - pause: 2
+    - text: script-password
+    - press: back
+    - press: down
+    - press: ok
+    - pause: 10
+    - press: ok
+    - pause: 4

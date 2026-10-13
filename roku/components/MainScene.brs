@@ -243,6 +243,8 @@ sub applyDeepLink()
     if id = "" then return
     item = { id: id, name: "", icon: "", ext: "" }
     if kind = "movie"
+        ' Roku espera que un enlace directo a una película empiece a reproducirla.
+        item.autoplay = true
         openMovie(item)
     else if kind = "series" or kind = "season" or kind = "episode"
         openSeries(item)

@@ -7,6 +7,7 @@ sub init()
     m.actions = m.top.findNode("actions")
     m.status = m.top.findNode("status")
     m.idTag = m.top.findNode("idTag")
+    m.autoplayDone = false
     m.tasks = []
     m.ext = "mp4"
     m.actionIds = []
@@ -43,6 +44,7 @@ sub onInfo(event as Object)
     m.status.text = ""
     if resp.ok <> true
         m.plot.text = "No se pudo cargar la descripción, pero la película se puede reproducir."
+        maybeAutoplay()
         return
     end if
     info = resp.info
@@ -63,6 +65,20 @@ sub onInfo(event as Object)
     m.extra.text = extra
     if info.cover <> "" and toS(m.top.item.icon) = "" then m.cover.uri = info.cover
     if info.ext <> "" then m.ext = info.ext
+    maybeAutoplay()
+end sub
+
+' Si se llegó por un enlace directo, la película empieza sola en cuanto se sabe su formato.
+sub maybeAutoplay()
+    if m.autoplayDone then return
+    it = m.top.item
+    if it = invalid or it.autoplay <> true then return
+    m.autoplayDone = true
+    item = { id: toS(it.id), name: m.name.text, icon: toS(it.icon), ext: m.ext }
+    saved = findContinue("movie", item.id)
+    secs = 0
+    if saved <> invalid and toI(saved.pos) >= 5 then secs = toI(saved.pos)
+    m.top.event = { type: "play", mode: "movie", items: [item], index: 0, start: secs }
 end sub
 
 function joinParts(parts as Object) as String
