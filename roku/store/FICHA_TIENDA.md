@@ -23,6 +23,8 @@ Lo que solo puede hacer el dueño de la cuenta está marcado con **(tú)**.
 - **Capturas** (hasta 6, 1920×1080): **(tú)** tómalas de tu Roku (en `http://IP-DEL-ROKU` → **Utilities → Screenshot**; si salen de 1280×720, escálalas a 1920×1080). Deben ser capturas reales de la app: inicio, TV en directo, películas, ficha de película, series y reproducción.
 - **Política de privacidad**: <https://github.com/nunezvaleria227-beep/ultra-premier-tv/blob/main/docs/PRIVACIDAD.md>
 - **Términos**: <https://github.com/nunezvaleria227-beep/ultra-premier-tv/blob/main/docs/TERMINOS.md>
+- **Sitio web del desarrollador**: <https://ultrapremiertv.com>
+  Roku revisa este sitio durante la certificación. Hoy no trae enlaces a privacidad, términos ni contacto; conviene agregarlos (los textos están en `docs/`) y que lo que anuncia coincida con lo que el canal hace y con los derechos que tengas.
 - **Soporte / "learn more"**: <https://github.com/nunezvaleria227-beep/ultra-premier-tv/issues>
 - **Contactos administrativo y técnico**: **(tú)** tu nombre y tu correo.
 - **Descripción en el dispositivo** (máx. 300), español:
