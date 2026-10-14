@@ -1,0 +1,7 @@
+Subtítulos en internet
+Para buscar subtítulos en español o inglés cuando la película no los trae, la app usa OpenSubtitles (gratis). Crea una cuenta en opensubtitles.com, abre "API consumers" y crea tu clave. El usuario y la contraseña son opcionales, pero dan más descargas al día.
+Clave (API key)
+Usuario (opcional)
+Contraseña (opcional)
+Guardar
+Cancelar

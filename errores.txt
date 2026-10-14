@@ -1,0 +1,17 @@
+10-14 19:32:28.841 E/AndroidRuntime( 4372): FATAL EXCEPTION: Transformer:Internal
+10-14 19:32:28.841 E/AndroidRuntime( 4372): Process: com.ultrapremier.tv, PID: 4372
+10-14 19:32:28.841 E/AndroidRuntime( 4372): java.lang.OutOfMemoryError: Failed to allocate a 9288 byte allocation with 25165824 free bytes and 304MB until OOM, target footprint 242661744, growth limit 536870912; failed due to fragmentation (largest possible contiguous allocation 7200 bytes)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at dalvik.system.VMRuntime.newNonMovableArray(Native Method)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at java.nio.DirectByteBuffer$MemoryRef.<init>(DirectByteBuffer.java:70)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at java.nio.ByteBuffer.allocateDirect(ByteBuffer.java:258)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at C2.f.i(SourceFile:51)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at B.z.a0(SourceFile:18)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at B.z.a0(SourceFile:10)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at D2.S.g(SourceFile:198)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at D2.j0.c(SourceFile:423)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at D2.e0.handleMessage(SourceFile:115)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at android.os.Handler.dispatchMessage(Handler.java:102)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at android.os.Looper.loop(Looper.java:223)
+10-14 19:32:28.841 E/AndroidRuntime( 4372): 	at android.os.HandlerThread.run(HandlerThread.java:67)
+---- errores de la app ----
+10-14 19:32:28.841 E/AndroidRuntime( 4372): Process: com.ultrapremier.tv, PID: 4372

@@ -1,0 +1,4 @@
+Tamaño de la imagen
+Normal (se ve completa)
+Llenar la pantalla (estira la imagen)
+Acercar (recorta los bordes)

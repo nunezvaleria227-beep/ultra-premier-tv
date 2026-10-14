@@ -1,0 +1,7 @@
+Subtítulos en internet
+Para buscar subtítulos hace falta una clave gratuita de OpenSubtitles:
+
+1. Entra a opensubtitles.com y crea una cuenta gratis.
+2. En tu cuenta abre "API consumers" y crea una clave.
+3. En Ultra Premier TV: Ajustes → Subtítulos en internet, y escribe la clave.
+ENTENDIDO

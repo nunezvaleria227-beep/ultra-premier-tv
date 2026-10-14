@@ -1,0 +1,14 @@
+Elige un PIN
+Escribe 4 números. Lo pedirá para ver el contenido para adultos.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+0
+⌫
+✕

@@ -1,0 +1,150 @@
+mock listo en puerto 8880
+GET /player_api.php?username=demo&password=demo
+GET /player_api.php?username=demo&password=demo
+GET /player_api.php?username=demo&password=demo&action=get_live_categories
+GET /player_api.php?username=demo&password=demo&action=get_series_categories
+GET /player_api.php?username=demo&password=demo&action=get_vod_categories
+GET /player_api.php?username=demo&password=demo&action=get_live_streams
+GET /player_api.php?username=demo&password=demo&action=get_vod_streams
+GET /player_api.php?username=demo&password=demo&action=get_series
+GET /img/poster.jpg
+GET /player_api.php?username=demo&password=demo&action=get_short_epg&stream_id=103&limit=4
+GET /player_api.php?username=demo&password=demo&action=get_short_epg&stream_id=101&limit=4
+GET /player_api.php?username=demo&password=demo&action=get_short_epg&stream_id=102&limit=4
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=102
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=103
+GET /player_api.php?username=demo&password=demo&action=get_short_epg&stream_id=201&limit=4
+GET /img/poster.jpg
+GET /img/poster.jpg
+GET /img/poster.jpg
+GET /img/poster.jpg
+GET /img/poster.jpg
+GET /player_api.php?username=demo&password=demo&action=get_short_epg&stream_id=202&limit=4
+GET /player_api.php?username=demo&password=demo&action=get_short_epg&stream_id=301&limit=4
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=202
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=301
+GET /live/demo/demo/102.m3u8
+GET /live/demo/demo/seg0.ts
+GET /live/demo/demo/seg1.ts
+GET /live/demo/demo/seg2.ts
+GET /live/demo/demo/seg3.ts
+GET /live/demo/demo/seg4.ts
+GET /live/demo/demo/seg5.ts
+GET /live/demo/demo/202.m3u8
+GET /live/demo/demo/seg0.ts
+GET /live/demo/demo/seg1.ts
+GET /live/demo/demo/seg2.ts
+GET /live/demo/demo/seg3.ts
+GET /live/demo/demo/seg4.ts
+GET /live/demo/demo/seg5.ts
+GET /live/demo/demo/202.m3u8
+GET /live/demo/demo/seg0.ts
+GET /live/demo/demo/seg1.ts
+GET /live/demo/demo/seg2.ts
+GET /live/demo/demo/seg3.ts
+GET /live/demo/demo/seg4.ts
+GET /live/demo/demo/seg5.ts
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=101
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=103
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=102
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=201
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=202
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=301
+GET /player_api.php?username=demo&password=demo&action=get_simple_data_table&stream_id=101
+GET /player_api.php?username=demo&password=demo&action=get_vod_info&vod_id=501
+GET /img/backdrop.jpg
+GET /player_api.php?username=demo&password=demo&action=get_vod_info&vod_id=501
+GET /movie/demo/demo/501.mp4
+GET /player_api.php?username=demo&password=demo&action=get_vod_info&vod_id=501
+GET /movie/demo/demo/501.mp4
+GET /os/api/v1/subtitles?languages=en&tmdb_id=603&type=movie&year=2021
+POST /os/api/v1/download
+GET /os/file/4201.srt
+GET /movie/demo/demo/501.mp4
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 59148)
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/socketserver.py", line 692, in process_request_thread
+    self.finish_request(request, client_address)
+  File "/usr/lib/python3.12/socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "/usr/lib/python3.12/socketserver.py", line 761, in __init__
+    self.handle()
+  File "/usr/lib/python3.12/http/server.py", line 438, in handle
+    self.handle_one_request()
+  File "/usr/lib/python3.12/http/server.py", line 404, in handle_one_request
+    self.raw_requestline = self.rfile.readline(65537)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/socket.py", line 707, in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+ConnectionResetError: [Errno 104] Connection reset by peer
+----------------------------------------
+GET /movie/demo/demo/501.mp4
+GET /movie/demo/demo/501.mp4
+GET /player_api.php?username=demo&password=demo&action=get_series_info&series_id=701
+GET /series/demo/demo/9011.mp4
+GET /os/api/v1/subtitles?episode_number=1&languages=en&parent_tmdb_id=1396&season_number=1&type=episode
+POST /os/api/v1/download
+GET /os/file/4201.srt
+GET /series/demo/demo/9011.mp4
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /live/demo/demo/101.ts
+GET /player_api.php?username=demo&password=demo&action=get_short_epg&stream_id=201&limit=4
+GET /__log

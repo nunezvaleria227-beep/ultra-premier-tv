@@ -1,0 +1,15 @@
+Atrás
+Ultra Premier TV
+Ajustes
+Formato de TV en vivo: HLS (m3u8) (cambiar)
+Si un canal se corta o no abre, prueba cambiando el formato.
+Actualizar todas las listas ahora
+Vuelve a descargar canales, películas y series. Se actualizan solas cada 12 horas.
+Buscar actualización de la app
+Versión instalada: 1.0.27. Cuando hay una nueva, la app te avisa sola al abrirla.
+Contenido para adultos visible · Bloquear ahora
+Se vuelve a esconder solo al cerrar sesión o al cerrar la app.
+Cambiar PIN
+Quitar PIN
+Subtítulos al empezar: Español (cambiar)
+Se activan solos en películas y series. También se cambian dentro del video (botón CC o tecla Menú).

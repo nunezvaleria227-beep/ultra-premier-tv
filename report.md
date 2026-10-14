@@ -1,0 +1,85 @@
+# Informe de la prueba de humo
+
+- **INFO** tamaño de pantalla: Physical size: 2560x1800 Override size: 1280x720 densidad Physical density: 320 Override density: 160
+- **OK** Pantalla de inicio de sesión visible
+- **OK** Inicio de sesión correcto y pantalla principal visible
+- **OK** La pantalla principal muestra cuántos canales hay
+- **OK** Muestra cuántas películas hay
+- **OK** Muestra cuántas series hay
+- **INFO** Textos de la principal: Ultra Premier TV | 07:24 PM | octubre 14, 2026 | Búsqueda maestra | Avisos | Mi cuenta | Ajustes | TV EN DIRECTO | 6 canales | Última actualización: hace 1 seg | CINE | 5 películas | SERIES | 2 series | EPG | PANTALLA MÚLTIPLE | CATCH UP | CONTINUAR VIENDO | Hola, demo  ·  EXPIRACIÓN: enero 12, 2027
+- **INFO** Textos de TV en vivo: Atrás | Ultra Premier TV | |  Live | 07:24 PM    octubre 14, 2026 | Más opciones | Buscar | TODO | 6 | FAVORITOS | 0 | HISTORIAL DE CANALES | MX | NOTICIAS | 3 | MX | DEPORTES | 2 | XXX ADULTOS | 1 | MX | Canal Uno HD | Película de la noche 3 | MX | Canal Uno FHD | MX | Canal Uno 4K | MX | Deportes 1 HD | Magacín 3 | MX | Deportes 2 | ● En vivo | XXX Canal Adulto | Elige un canal y pulsa OK
+- **OK** Aparece la categoría Noticias
+- **AVISO** Se ve una categoría de adultos: XXX ADULTOS
+- **OK** Canal «Canal Uno FHD» en la lista
+- **OK** Canal «Canal Uno 4K» en la lista
+- **OK** Canal «Canal Uno HD» en la lista
+- **OK** El canal sin guía propia muestra la guía de su canal hermano
+- **OK** El canal sin ninguna guía muestra «En vivo»
+- **INFO** Actividad en primer plano: mResumedActivity: ActivityRecord{3b56d4c u0 com.ultrapremier.tv/com.example.mitvplayer.PlayerActivity t9}
+- **OK** El canal ofrece exactamente las 3 opciones de tamaño
+- **INFO** Textos de la guía: Atrás | Ultra Premier TV | TODO | Ver en cuadrícula | MX | Canal Uno HD | 19:00  Película de la noche 3 | 19:30  Deportes en vivo 4 | MX | Canal Uno FHD | MX | Canal Uno 4K | MX | Deportes 1 HD | 19:00  Magacín 3 | 19:30  Noticiero 4 | MX | Deportes 2 | ● En vivo | XXX Canal Adulto
+- **OK** La guía muestra programas
+- **INFO** Bloques «En vivo» visibles: 1
+- **INFO** Guía en cuadrícula: Atrás | Ultra Premier TV | TODO | ◀ 3 h | Ahora | 3 h ▶ | mié. 14 oct. | 18:30 | 19:00 | 19:30 | 20:00 | 20:30 | 21:00 | 21:30 | 22:00 | MX | Canal Uno HD | Noticiero 2 | 18:30 – 19:00 | Película de la noche 3 | 19:00 – 19:30 | Deportes en vivo 4 | 19:30 – 20:00 | Documental 5 | 20:00 – 20:30 | Serie estelar 6 | 20:30 – 21:00 | Magacín 7 | 21:00 – 21:30 | Noticiero 8 | 21:30 – 22:00 | Película de la noche 9 | 22:00 – 22:30 | MX | Canal Uno FHD | MX | Canal Uno 4K | MX | Deportes 1 HD | Serie estelar 2 | Magacín 3 | Noticiero 4 | Película de la noche 5 | Deportes en vivo 6 | Documental 7 | Seri
+- **OK** La cuadrícula muestra «En vivo» en los canales sin guía
+- **INFO** Opciones al pulsar «Deportes en vivo 4»: Deportes en vivo 4 | MX | Canal Uno HD · 19:30 – 20:00
+
+Descripción de Deportes en vivo 4 | Programar grabación | Ver este canal ahora | Cerrar
+- **OK** Se programó una grabación desde la guía
+- **INFO** Textos de Cine: Ultra Premier TV | Ocultar categorías | TODO | 5 | FAVORITOS | 0 | RECIENTEMENTE MIRADA | RECIENTEMENTE AÑADIDO | ACCIÓN | 2 | COMEDIA | +18 ADULTOS | 1 | Atrás | Más opciones | Buscar | ES - La Película de Prueba (2021) FHD | 8 | Otra Película Divertida (2019) | 6 | Acción Total (2020) [4K] | Comedia Familiar (2018) | Película Para Adultos (2022) | 4
+- **OK** Lupa en la lista de películas en (1240, 38, 1264, 62)
+- **INFO** Textos del detalle: ES - La Película de Prueba (2021) FHD | 2021   •   01:30:00   •   Acción, Aventura   •   ★ 7.5 | Una película de prueba con una sinopsis larga para comprobar cómo se ve el texto en la pantalla de detalle, con varias líneas y acentos: canción, niño, pingüino. | Director: Carlos Prueba | Reparto: Ana Gómez, Luis Pérez, Marta Ruiz | ▶  Reproducir | 🎬  Tráiler | ☆  Añadir a favoritos | Buscar
+- **OK** Lupa de búsqueda del detalle de película: (1238, 40, 1262, 64) (esquina superior derecha)
+- **INFO** Actividad en primer plano: mResumedActivity: ActivityRecord{99f712b u0 com.ultrapremier.tv/com.example.mitvplayer.PlayerActivity t9}
+- **OK** El menú de opciones del reproductor ofrece Subtítulos y Tamaño
+- **INFO** Opciones de subtítulos: Subtítulos | Desactivados | Español | Buscar en internet: Inglés
+- **OK** Hay opción para desactivar subtítulos
+- **OK** Se ofrece conseguir subtítulos en inglés
+- **INFO** Subtítulo incluido elegido: True
+- **INFO** Respuesta al buscar sin clave: Subtítulos en internet | Para buscar subtítulos hace falta una clave gratuita de OpenSubtitles:
+
+1. Entra a opensubtitles.com y crea una cuenta gratis.
+2. En tu cuenta abre "API consumers" y crea una clave.
+3. En Ultra Premier TV: Ajustes → Subtítulos en internet, y escribe la clave. | ENTENDIDO
+- **OK** La película ofrece las 3 opciones de tamaño
+- **INFO** Textos de Ajustes: Atrás | Ultra Premier TV | Ajustes | Formato de TV en vivo: HLS (m3u8) (cambiar) | Si un canal se corta o no abre, prueba cambiando el formato. | Actualizar todas las listas ahora | Vuelve a descargar canales, películas y series. Se actualizan solas cada 12 horas. | Buscar actualización de la app | Versión instalada: 1.0.27. Cuando hay una nueva, la app te avisa sola al abrirla. | Control parental: poner un PIN | Esconde las categorías para adultos (XXX, +18, adultos…) en listas, buscador y guía
+- **INFO** Después de guardar: Atrás | Ultra Premier TV | Ajustes | Formato de TV en vivo: HLS (m3u8) (cambiar) | Si un canal se corta o no abre, prueba cambiando el formato. | Actualizar todas las listas ahora | Vuelve a descargar canales, películas y series. Se actualizan solas cada 12 horas. | Buscar actualización de la app | 
+- **INFO** Captura pelicula_subtitulo_automatico: debe verse «SUBTITULO INCLUIDO EN EL VIDEO» sin tocar nada (español recordado)
+- **OK** Tras buscar, el subtítulo en inglés quedó disponible en la lista
+- **INFO** Textos del detalle de serie: La Serie de Prueba | 2020  •  Drama  •  ★ 8.2 | ☆  Añadir a favoritos | 🎬  Tráiler | Una serie de prueba con varias temporadas. | Director: Director Prueba | Reparto: Reparto de prueba | Temporada 1 | Temporada 2 | E | 1. Episodio 1 de la temporada 1 | 1 min | Resumen del episodio 1. | 2. Episodio 2 de la temporada 1 | Resumen del episodio 2. | 3. Episodio 3 de la temporada 1 | Resumen del episodio 3. | Buscar
+- **OK** Lupa de búsqueda del detalle de serie: (1238, 40, 1262, 64)
+- **INFO** Actividad en primer plano: mResumedActivity: ActivityRecord{2c65299 u0 com.ultrapremier.tv/com.example.mitvplayer.PlayerActivity t9}
+- **OK** El menú de opciones del reproductor ofrece Subtítulos y Tamaño
+- **INFO** Opciones de subtítulos: Subtítulos | Desactivados | Español | Inglés (internet)
+- **OK** Hay opción para desactivar subtítulos
+- **OK** Se ofrece conseguir subtítulos en inglés
+- **INFO** Subtítulo incluido elegido: True
+- **INFO** El inglés ya estaba descargado (se buscó solo al empezar, por el idioma recordado)
+- **OK** La película ofrece las 3 opciones de tamaño
+- **INFO** «PANTALLA MÚLTIPLE»: Elija diseño de pantalla múltiple
+- **INFO** «CATCH UP»: Atrás | Ultra Premier TV | CATCH UP | Buscar | Tu servidor no tiene canales con Catch up (programas ya emitidos).
+Es un servicio que debe incluir tu proveedor.
+- **INFO** «CONTINUAR VIENDO»: Atrás | Ultra Premier TV | Continuar viendo | La Serie de Prueba | T1 · E1 — Episodio 1 de la temporada 1 | Vas por 00:47 de 01:30 | Quitar | ES - La Película de Prueba (2021) FHD | Vas por 00:42 de 01:30
+- **INFO** «Búsqueda maestra»: Atrás | Ultra Premier TV | Búsqueda maestra | Todo | En vivo | Películas | Series | Escribe al menos 2 letras.
+- **INFO** «Avisos»: Atrás | Ultra Premier TV | Avisos | Mensaje de tu proveedor | Bienvenido a la prueba | Vencimiento | Tu cuenta está activa hasta el enero 12, 2027 (89 días). | Conexiones | Tu cuenta permite 2 conexión(es) a la vez. Si ves un error de "máximo de cone
+- **INFO** «Mi cuenta»: Atrás | Ultra Premier TV | Mi cuenta | Usuario | demo | Estado | Active | Vence | enero 12, 2027 | Días restantes | 89 | Conexiones | 0 de 2 | Cerrar sesión
+- **INFO** «radio»: Atrás | Ultra Premier TV | |  Radio | 07:31 PM    octubre 14, 2026 | Más opciones | Buscar | TODO | 0 | FAVORITOS | HISTORIAL DE CANALES | 2 | Tu servidor no tiene categorías de radio.
+(Se buscan categorías cuyo nombre diga "radio".) | Elige un canal y pulsa OK
+- **INFO** «grabaciones»: Atrás | Ultra Premier TV | Grabaciones | Cada grabación dura como máximo 2 horas. Al terminar se guarda sola en la memoria de este dispositivo (Películas / Ultra Premier TV). | ● Grabando: MX | Canal Uno HD | 02:04 · 121 MB · se guarda sola en 30:55 | Detener y guardar | Todavía no hay grabaciones.
+- **INFO** Grabaciones al empezar este paso: Atrás | Ultra Premier TV | Grabaciones | Cada grabación dura como máximo 2 horas. Al terminar se guarda sola en la memoria de este dispositivo (Películas / Ultra Premier TV). | ● Grabando: MX | Canal Uno HD | 02:13 · 132 MB · se guarda sola en 30:46 | Detener y guardar | Todavía no hay grabaciones.
+- **OK** Una grabación en curso: la programada desde la guía arrancó sola a su hora (o ya había una)
+- **INFO** Después de detener: Atrás | Ultra Premier TV | Grabaciones | Cada grabación dura como máximo 2 horas. Al terminar se guarda sola en la memoria de este dispositivo (Películas / Ultra Premier TV). | MX Canal Uno HD 20261014 1930 | TS · 134 MB · octubre 14, 2026 07:30 PM | A MP4 | Borrar
+- **OK** La grabación guardada ofrece «A MP4»
+- **INFO** Progreso: Atrás | Ultra Premier TV | Grabaciones | Cada grabación dura como máximo 2 horas. Al terminar se guarda sola en la memoria de este dispositivo (Películas / Ultra Premier TV). | MX Canal Uno HD 20261014 1930 | TS · 134 MB · octubre 14, 2026 07:30 PM | A MP4 | Borrar
+- **INFO** La conversión tardó unos 10 s (terminó: True)
+- **INFO** Pantalla tras convertir: Atrás | Ultra Premier TV | Grabaciones | Cada grabación dura como máximo 2 horas. Al terminar se guarda sola en la memoria de este dispositivo (Películas / Ultra Premier TV). | MX Canal Uno HD 20261014 1930 | TS · 134 MB · octubre 14, 2026 07:30 PM | A MP4 | Borrar
+- **INFO** Archivos guardados: ls: /sdcard/Android/data/com.ultrapremier.tv/files/Movies/Grabaciones: Permission denied / total 137648 / -rwx------ 1 u0_a161 u0_a161 140945104 2026-10-14 19:32 MX_Canal_Uno_HD_20261014_1930.ts / 
+- **FALLO** No se encontró ningún archivo MP4 tras convertir
+- **FALLO** La app se CERRÓ durante «grabar y convertir a MP4»: E/AndroidRuntime( 4372): FATAL EXCEPTION: Transformer:Internal / E/AndroidRuntime( 4372): Process: com.ultrapremier.tv, PID: 4372 / E/AndroidRuntime( 4372): java.lang.OutOfMemoryError: Failed to allocate a 9288 byte allocation with 25165824 free bytes and 304MB until OOM, target footprint 242661744, growth limit 536870912; failed due to fragmentation (largest  / E/AndroidRuntime( 4372): 	at dalvik.system.VMRuntime.newNonMovableArray(Native Method) / E/AndroidRuntime( 4372): 	at java.nio.DirectByteBuffer$MemoryRef.<init>(DirectByteBuffer.java:70) / E/AndroidRuntime( 4372): 	at java.nio.ByteBuffer.allocateDirect(ByteBuffer.java:258) / E/AndroidRuntime( 4372): 	at C2.f.i(SourceFile:51) / E/AndroidRuntime( 4372): 	at B.z.a0(SourceFile:18)
+- **OK** El control parental quedó activado
+- **OK** Con el control parental, la categoría XXX no aparece en TV
+- **OK** El canal para adultos no aparece
+- **OK** En Cine no aparecen las películas ni la categoría +18
+- **OK** Con el PIN correcto el contenido para adultos se muestra
+- **FALLO** Hubo 15 líneas de cierre/ANR; ver errores.txt
+- **RESUMEN** 3 fallos
