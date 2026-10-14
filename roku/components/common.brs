@@ -337,7 +337,8 @@ end sub
 ' kind: "live", "movie" o "series"
 function streamUrl(kind as String, id as String, ext as String) as String
     s = m.global.session
-    return s.base + "/" + kind + "/" + s.user + "/" + s.pass + "/" + id + "." + ext
+    ' Usuario y contraseña van "escapados": un acento, un espacio o un símbolo (# ? / %) romperían la dirección del video.
+    return s.base + "/" + kind + "/" + urlEscape(toS(s.user)) + "/" + urlEscape(toS(s.pass)) + "/" + id + "." + ext
 end function
 
 ' ----------------------------------------------------------------- red
