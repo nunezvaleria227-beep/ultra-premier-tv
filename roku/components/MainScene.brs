@@ -50,13 +50,16 @@ sub onLaunchTimer()
     finishLaunch()
 end sub
 
-' ¿Este enlace directo hace que empiece a reproducirse algo (película o canal)?
+' ¿Este enlace directo hace que empiece a reproducirse algo? (Roku pide reproducir directo en todos los tipos.)
 function linkPlays(link as Dynamic) as Boolean
     if link = invalid then return false
     if Type(link) <> "roAssociativeArray" then return false
     if toS(link.contentId) = "" then return false
     kind = LCase(toS(link.mediaType))
-    return (kind = "movie" or kind = "live")
+    if kind = "movie" or kind = "tvspecial" or kind = "shortformvideo" then return true
+    if kind = "series" or kind = "season" or kind = "episode" then return true
+    if kind = "live" or kind = "livefeed" or kind = "sportsevent" then return true
+    return false
 end function
 
 ' Roku avisa que la app usa mucha memoria: se sueltan las listas guardadas para volver a pedirlas cuando se necesiten.
@@ -320,13 +323,25 @@ sub applyDeepLink()
     showHome()
     if id = "" then return
     item = { id: id, name: "", icon: "", ext: "" }
-    if kind = "movie"
+    if kind = "movie" or kind = "tvspecial" or kind = "shortformvideo"
         ' Roku espera que un enlace directo a una película empiece a reproducirla.
         item.autoplay = true
         openMovie(item)
-    else if kind = "series" or kind = "season" or kind = "episode"
+    else if kind = "series" or kind = "season"
+        ' A una serie se entra reproduciendo un episodio (donde se quedó la persona, o el primero).
+        item.autoplay = true
         openSeries(item)
-    else if kind = "live"
+    else if kind = "episode"
+        saved = findContinue("episode", id)
+        secs = 0
+        if saved <> invalid
+            if toS(saved.ext) <> "" then item.ext = toS(saved.ext)
+            if toI(saved.pos) >= 5 then secs = toI(saved.pos)
+        end if
+        if item.ext = "" then item.ext = "mp4"
+        item.name = "Episodio"
+        openPlayer({ mode: "episode", items: [item], index: 0, start: secs })
+    else if kind = "live" or kind = "livefeed" or kind = "sportsevent"
         openPlayer({ mode: "live", items: [item], index: 0, start: 0 })
     end if
 end sub

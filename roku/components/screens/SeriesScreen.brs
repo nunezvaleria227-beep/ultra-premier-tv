@@ -11,6 +11,7 @@ sub init()
     m.seasons = []
     m.flat = []
     m.pane = "seasons"
+    m.autoplayDone = false
     m.seasonList.visible = false
     m.episodeList.visible = false
     m.seasonList.observeField("itemFocused", "onSeasonFocused")
@@ -75,7 +76,49 @@ sub onInfo(event as Object)
     showSeason(0)
     m.pane = "seasons"
     m.seasonList.setFocus(true)
+    maybeAutoplay()
 end sub
+
+' Si se llegó por un enlace directo a una serie, Roku exige reproducir un episodio sin mostrar pantallas intermedias:
+' si la persona ya iba viendo la serie sigue donde se quedó; si no, empieza por el primer episodio.
+sub maybeAutoplay()
+    if m.autoplayDone then return
+    it = m.top.item
+    if it = invalid then return
+    if not it.DoesExist("autoplay") then return
+    if it.autoplay <> true then return
+    if m.flat.Count() = 0 then return
+    m.autoplayDone = true
+    flatIndex = 0
+    secs = 0
+    found = false
+    for each saved in loadList("continue")
+        if toS(saved.kind) = "episode"
+            for i = 0 to m.flat.Count() - 1
+                if toS(m.flat[i].id) = toS(saved.id)
+                    flatIndex = i
+                    if toI(saved.pos) >= 5 then secs = toI(saved.pos)
+                    found = true
+                    exit for
+                end if
+            end for
+        end if
+        if found then exit for
+    end for
+    m.top.event = { type: "play", mode: "episode", items: episodeItems(), index: flatIndex, start: secs }
+end sub
+
+' Todos los episodios de la serie, en orden, listos para el reproductor.
+function episodeItems() as Object
+    it = m.top.item
+    items = []
+    for each e in m.flat
+        image = e.image
+        if image = "" then image = toS(it.icon)
+        items.Push({ id: e.id, name: e.title, icon: image, ext: e.ext, seriesName: m.name.text, seriesId: toS(it.id), season: e.season, num: e.num })
+    end for
+    return items
+end function
 
 ' Muestra los episodios de la temporada que está en la posición "seasonIndex".
 sub showSeason(seasonIndex as Integer)
@@ -107,13 +150,7 @@ sub onEpisodeSelected(event as Object)
     node = m.episodeList.content.getChild(event.getData())
     if node = invalid then return
     flatIndex = node.id.ToInt()
-    it = m.top.item
-    items = []
-    for each e in m.flat
-        image = e.image
-        if image = "" then image = toS(it.icon)
-        items.Push({ id: e.id, name: e.title, icon: image, ext: e.ext, seriesName: m.name.text, seriesId: toS(it.id), season: e.season, num: e.num })
-    end for
+    items = episodeItems()
     secs = 0
     saved = findContinue("episode", items[flatIndex].id)
     if saved <> invalid and toI(saved.pos) >= 5 then secs = toI(saved.pos)
