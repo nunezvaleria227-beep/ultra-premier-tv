@@ -1,0 +1,268 @@
+<meta charset="utf-8">
+<title>Ultra Premier TV Samsung</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:wght@400;600&display=swap">
+<style>
+/* Una sola mesa de trabajo oscura: la TV al centro, el control remoto y el avance al lado; en celular todo se apila. */
+:root {
+    --bg: #070918;
+    --panel: #10153f;
+    --panel-2: #1a2160;
+    --line: #2a3382;
+    --fg: #eef1ff;
+    --muted: #a6aedb;
+    --accent: #3a86ff;
+    --accent-ink: #04112e;
+    --ok: #46d39a;
+    --warn: #ffb938;
+    --todo: #8f98c9;
+    --font-display: "Bricolage Grotesque", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-body: "Public Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    padding-block: 28px 56px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.page { max-width: 1240px; margin: 0 auto; display: grid; gap: 32px; }
+
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; }
+.top > div { min-width: 0; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(28px, 5vw, 44px); line-height: 1.05; margin: 0 0 6px; letter-spacing: -0.01em; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--accent); }
+.lead { margin: 0; color: var(--muted); max-width: 62ch; }
+.stamp { font-size: 14px; color: var(--muted); display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+.stamp::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px rgba(70, 211, 154, 0.18); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "tv" "remote" "progress"; gap: 24px; align-items: start; }
+.tv-col { grid-area: tv; min-width: 0; }
+.remote { grid-area: remote; }
+#progress-box { grid-area: progress; }
+@media (min-width: 980px) {
+    .layout { grid-template-columns: minmax(0, 1fr) 340px; grid-template-areas: "tv remote" "progress remote"; }
+}
+.turn { display: none; margin: 10px 0 0; font-size: 14px; color: var(--warn); }
+@media (max-width: 640px) { .turn { display: block; } }
+
+.tv { background: #02030c; border: 1px solid var(--line); border-radius: 16px; padding: clamp(6px, 1.1vw, 14px); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55); }
+.screen { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 6px; background: #000; max-width: 100%; }
+.screen iframe { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; border: 0; transform-origin: 0 0; background: #0a0c22; }
+.boot { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; gap: 6px; background: #05061a; color: var(--muted); font-size: 15px; padding: 16px; }
+.boot strong { font-family: var(--font-display); font-size: 20px; color: var(--fg); }
+.stand { width: 26%; height: 8px; margin: 0 auto; background: linear-gradient(#1a2160, #0a0d2e); border-radius: 0 0 10px 10px; }
+.hint { margin: 14px 0 0; color: var(--muted); font-size: 14px; max-width: 70ch; }
+.hint b { color: var(--fg); font-weight: 600; }
+
+h2 { font-family: var(--font-display); font-weight: 800; font-size: 20px; line-height: 1.2; margin: 0 0 12px; text-wrap: balance; }
+
+.remote { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 18px; display: grid; gap: 14px; justify-items: center; }
+.remote h2 { justify-self: start; margin: 0; }
+.pad { display: grid; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 64px); gap: 6px; }
+.pad button:nth-child(1) { grid-column: 2; grid-row: 1; }
+.pad button:nth-child(2) { grid-column: 1; grid-row: 2; }
+.pad button:nth-child(3) { grid-column: 2; grid-row: 2; }
+.pad button:nth-child(4) { grid-column: 3; grid-row: 2; }
+.pad button:nth-child(5) { grid-column: 2; grid-row: 3; }
+.keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: 100%; }
+.rb { font: inherit; font-size: 15px; font-weight: 600; color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; min-height: 48px; padding: 8px 10px; cursor: pointer; touch-action: manipulation; }
+.rb:hover { border-color: var(--accent); }
+.rb:active { transform: translateY(1px); background: #232c7a; }
+.rb.ok { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); border-radius: 50%; font-size: 17px; }
+.rb.dir { font-size: 20px; }
+.rb:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+.colors { display: flex; gap: 10px; justify-content: center; }
+.colors .rb { width: 52px; min-height: 28px; border-radius: 999px; padding: 0; border: 0; }
+.c-red { background: #e5484d; } .c-green { background: #3dd68c; } .c-yellow { background: #ffd33d; } .c-blue { background: #4c8dff; }
+
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.steps li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: start; font-size: 15px; }
+.tag { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; margin-top: 2px; }
+.tag.done { color: var(--ok); } .tag.doing { color: var(--warn); } .tag.todo { color: var(--todo); }
+
+.shots h2, .limits h2 { font-size: 24px; }
+.shot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.shot { margin: 0; display: grid; gap: 8px; min-width: 0; }
+.shot img { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); background: #000; }
+.shot figcaption { font-size: 14px; color: var(--muted); }
+.limits ul { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 78ch; color: var(--muted); }
+.limits li b { color: var(--fg); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { .boot { transition: opacity 0.4s; } .boot.gone { opacity: 0; pointer-events: none; } }
+</style>
+
+<div class="page">
+    <header class="top">
+        <div>
+            <h1>Ultra Premier TV <em>Samsung</em></h1>
+            <p class="lead">Así se ve la app para Samsung TV (sistema Tizen). Es la misma de Fire TV, con las mismas pantallas, y está funcionando abajo con datos de ejemplo.</p>
+        </div>
+        <span class="stamp" id="stamp">Actualizado: __STAMP__</span>
+    </header>
+
+    <main class="layout">
+        <section class="tv-col" aria-label="Pantalla de la TV">
+            <div class="tv">
+                <div class="screen" id="screen">
+                    <iframe id="tvframe" title="Ultra Premier TV para Samsung, vista previa"></iframe>
+                    <div class="boot" id="boot"><strong>Encendiendo la TV…</strong><span>Un momento</span></div>
+                </div>
+            </div>
+            <div class="stand" aria-hidden="true"></div>
+            <p class="hint">Ya viene con el usuario <b>demo</b> y la clave <b>demo</b>. Toca <b>OK</b> en el control, o haz clic en la pantalla y usa el teclado: flechas para moverte, <b>Enter</b> para elegir y <b>Esc</b> para volver. Los canales, las películas y los videos son de ejemplo.</p>
+            <p class="turn">En el celular la TV se ve pequeña. Gira el teléfono o ábrela en una computadora para verla mejor.</p>
+        </section>
+
+        <section class="remote" aria-label="Control remoto">
+                <h2>Control remoto</h2>
+                <div class="pad">
+                    <button type="button" class="rb dir" data-key="38" aria-label="Arriba">&#9650;</button>
+                    <button type="button" class="rb dir" data-key="37" aria-label="Izquierda">&#9664;</button>
+                    <button type="button" class="rb ok" data-key="13" aria-label="OK">OK</button>
+                    <button type="button" class="rb dir" data-key="39" aria-label="Derecha">&#9654;</button>
+                    <button type="button" class="rb dir" data-key="40" aria-label="Abajo">&#9660;</button>
+                </div>
+                <div class="keys">
+                    <button type="button" class="rb" data-key="10009">Atrás</button>
+                    <button type="button" class="rb" data-key="457">Info</button>
+                    <button type="button" class="rb" data-key="10252">Play / Pausa</button>
+                    <button type="button" class="rb" data-key="413">Stop</button>
+                    <button type="button" class="rb" data-key="412">&#9664;&#9664; Atrasar</button>
+                    <button type="button" class="rb" data-key="417">Adelantar &#9654;&#9654;</button>
+                    <button type="button" class="rb" data-key="427">Canal +</button>
+                    <button type="button" class="rb" data-key="428">Canal &minus;</button>
+                </div>
+                <div class="colors" role="group" aria-label="Botones de colores">
+                    <button type="button" class="rb c-red" data-key="403" aria-label="Rojo"></button>
+                    <button type="button" class="rb c-green" data-key="404" aria-label="Verde"></button>
+                    <button type="button" class="rb c-yellow" data-key="405" aria-label="Amarillo"></button>
+                    <button type="button" class="rb c-blue" data-key="406" aria-label="Azul"></button>
+                </div>
+        </section>
+
+        <section class="panel" id="progress-box" hidden>
+            <h2>Avance del trabajo</h2>
+            <ul class="steps" id="progress"></ul>
+        </section>
+    </main>
+
+    <section class="shots" id="shots-box" hidden>
+        <h2>Capturas de la prueba automática</h2>
+        <div class="shot-grid" id="shots"></div>
+    </section>
+
+    <section class="limits">
+        <h2>Lo que esta vista no puede mostrar</h2>
+        <ul>
+            <li><b>El video real.</b> Aquí el video es una animación. En la TV, la imagen viene del servidor de tu proveedor.</li>
+            <li><b>El teclado de la TV.</b> Para escribir usuario y clave, Samsung pone su propio teclado en pantalla.</li>
+            <li><b>La instalación.</b> Para probarla en tu TV hace falta activar el modo desarrollador y crear un certificado de Samsung. Se hace desde tu computadora, un paso a la vez.</li>
+            <li><b>La tienda de Samsung.</b> Publicarla tiene reglas propias y aún no he confirmado si aceptan apps de IPTV.</li>
+        </ul>
+    </section>
+</div>
+
+<script type="application/json" id="app-doc">__APP_DOC__</script>
+<script type="application/json" id="progress-data">__PROGRESS__</script>
+<script type="application/json" id="shots-data">__SHOTS__</script>
+<script>
+(function () {
+    var frame = document.getElementById("tvframe");
+    var screen = document.getElementById("screen");
+    var boot = document.getElementById("boot");
+    var ready = false;
+
+    function readJson(id, fallback) {
+        try { return JSON.parse(document.getElementById(id).textContent); } catch (e) { return fallback; }
+    }
+
+    // La TV es de 1920 x 1080; se reduce para que quepa en el ancho disponible.
+    function fit() {
+        var w = screen.clientWidth || 1920;
+        frame.style.transform = "scale(" + (w / 1920) + ")";
+    }
+    if (window.ResizeObserver) new ResizeObserver(fit).observe(screen);
+    window.addEventListener("resize", fit);
+    fit();
+
+    function hideBoot() {
+        ready = true;
+        boot.className = "boot gone";
+        setTimeout(function () { boot.hidden = true; }, 500);
+    }
+    function failBoot() {
+        if (ready) return;
+        boot.innerHTML = "";
+        var a = document.createElement("strong"); a.textContent = "La vista previa no pudo arrancar aquí";
+        var b = document.createElement("span"); b.textContent = "Mira las capturas más abajo, que muestran la app funcionando.";
+        boot.appendChild(a); boot.appendChild(b);
+    }
+
+    window.addEventListener("message", function (e) {
+        if (e.source === frame.contentWindow && e.data && e.data.upReady) hideBoot();
+    });
+    var doc = readJson("app-doc", null);
+    if (typeof doc === "string" && doc) frame.srcdoc = doc; else failBoot();
+    setTimeout(failBoot, 8000);
+
+    // Teclas: se mandan a la app con un mensaje, así funciona aunque el navegador aísle el cuadro.
+    function press(code) {
+        try { frame.contentWindow.postMessage({ upKey: code }, "*"); } catch (e) { /* nada */ }
+    }
+    var buttons = document.querySelectorAll("[data-key]");
+    for (var i = 0; i < buttons.length; i++) {
+        buttons[i].addEventListener("click", function (ev) {
+            var b = ev.currentTarget;
+            press(parseInt(b.getAttribute("data-key"), 10));
+            try { b.blur(); frame.focus(); } catch (e) { /* nada */ }
+        });
+    }
+    // Con el teclado de la computadora cuando el foco no está dentro de la pantalla.
+    var KEYS = { 37: 1, 38: 1, 39: 1, 40: 1, 13: 1, 27: 1, 8: 1 };
+    document.addEventListener("keydown", function (e) {
+        var t = e.target;
+        if (t && t !== document.body && t !== document.documentElement) return;
+        if (!KEYS[e.keyCode]) return;
+        e.preventDefault();
+        press(e.keyCode);
+    });
+
+    // Avance del trabajo
+    var progress = readJson("progress-data", []);
+    if (progress && progress.length) {
+        var ul = document.getElementById("progress");
+        var labels = { done: "Listo", doing: "En curso", todo: "Falta" };
+        for (var p = 0; p < progress.length; p++) {
+            var li = document.createElement("li");
+            var tag = document.createElement("span");
+            var st = progress[p].state in labels ? progress[p].state : "todo";
+            tag.className = "tag " + st; tag.textContent = labels[st];
+            var tx = document.createElement("span"); tx.textContent = progress[p].text;
+            li.appendChild(tag); li.appendChild(tx); ul.appendChild(li);
+        }
+        document.getElementById("progress-box").hidden = false;
+    }
+
+    // Capturas
+    var shots = readJson("shots-data", []);
+    if (shots && shots.length) {
+        var grid = document.getElementById("shots");
+        for (var s = 0; s < shots.length; s++) {
+            var fig = document.createElement("figure"); fig.className = "shot";
+            var img = document.createElement("img");
+            img.src = shots[s].src; img.alt = shots[s].caption; img.loading = "lazy";
+            var cap = document.createElement("figcaption"); cap.textContent = shots[s].caption;
+            fig.appendChild(img); fig.appendChild(cap); grid.appendChild(fig);
+        }
+        document.getElementById("shots-box").hidden = false;
+    }
+})();
+</script>

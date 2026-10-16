@@ -1,0 +1,77 @@
+name: Samsung (Tizen)
+
+# Revisa la app de Samsung TV, la prueba en un navegador con un control remoto simulado y arma los archivos
+# para instalarla (.wgt sin firmar y proyecto completo para Tizen Studio).
+# Se publican en la versión "samsung-latest" (marcada como preliminar para no desplazar al APK de Android,
+# que usa "Latest").
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tizen/**"
+      - "tools/tizen_build.py"
+      - "tools/tizen_ui_test.js"
+      - ".github/workflows/tizen.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  tizen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Revisar que todo esté completo y en ES5
+        run: python3 -I tools/tizen_build.py check
+
+      - name: Instalar el navegador de pruebas
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Probar la app con un control remoto simulado
+        run: |
+          python3 -I tools/tizen_build.py preview "$RUNNER_TEMP/prev"
+          python3 -m http.server 8765 --directory "$RUNNER_TEMP/prev/app" >/dev/null 2>&1 &
+          sleep 2
+          mkdir -p shots
+          NODE_PATH="$PWD/node_modules" node tools/tizen_ui_test.js http://127.0.0.1:8765/index.html shots 2>&1 | tee ui.log
+          grep -E "^[0-9]+ bien, [0-9]+ mal" ui.log | while IFS= read -r line; do echo "::notice::$line"; done
+          grep -qE "^[0-9]+ bien, 0 mal" ui.log
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: UltraPremierTV-Samsung-capturas
+          path: shots
+
+      - name: Armar los archivos para instalar
+        run: |
+          mkdir -p out
+          python3 -I tools/tizen_build.py wgt out/UltraPremierTV.wgt
+          python3 -I tools/tizen_build.py project out/UltraPremierTV-Samsung-proyecto.zip
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UltraPremierTV-Samsung
+          path: out
+
+      - name: Publicar en la versión "samsung-latest"
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view samsung-latest >/dev/null 2>&1; then
+            gh release create samsung-latest --target "${{ github.sha }}" --prerelease --latest=false \
+              --title "Ultra Premier TV para Samsung (más reciente)" \
+              --notes "Proyecto para Tizen Studio y paquete .wgt sin firmar. Se actualiza solo con cada cambio de la app de Samsung. La guía de instalación viene dentro del .zip (LEEME.md)."
+          fi
+          gh release upload samsung-latest out/UltraPremierTV.wgt out/UltraPremierTV-Samsung-proyecto.zip --clobber

@@ -11,11 +11,15 @@ on:
   push:
     branches:
       - main
-    # Los cambios que solo tocan la app de Roku no publican una versión nueva del APK.
+    # Los cambios que solo tocan la app de Roku o la de Samsung no publican una versión nueva del APK.
     paths-ignore:
       - "roku/**"
+      - "tizen/**"
       - "docs/**"
+      - "tools/tizen_build.py"
+      - "tools/tizen_ui_test.js"
       - ".github/workflows/roku.yml"
+      - ".github/workflows/tizen.yml"
   workflow_dispatch:
   schedule:
     # Cada 3 días: solo "toca" la llave guardada para que GitHub no la borre por falta de uso.

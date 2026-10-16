@@ -1,0 +1,276 @@
+/* Ultra Premier TV para Samsung (Tizen). Pantalla fija de 1920x1080: la TV la escala sola.
+   Colores tomados de la app de Fire TV. Se evitan efectos pesados (sombras grandes, filtros) para que corra fluido en TV viejas. */
+
+:root {
+    --bg: #0A0C22;
+    --side: #05061A;
+    --panel: #232A63;
+    --panel-focus: #3040A0;
+    --row-sel: #2E3470;
+    --accent: #2F7BFF;
+    --on-accent: #04132B;
+    --text: #F2F5FA;
+    --text2: #A3AECC;
+    --error: #FF6B6B;
+    --star: #FFC93C;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+::-webkit-scrollbar { display: none; }
+
+html, body {
+    margin: 0; padding: 0;
+    width: 1920px; height: 1080px;
+    overflow: hidden;
+    background: var(--bg) url(../images/bg.jpg) center / cover no-repeat;
+    color: var(--text);
+    font-family: "Roboto", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 28px;
+    -webkit-user-select: none; user-select: none;
+}
+/* Durante la reproducción el fondo se quita para que se vea el video (AVPlay lo dibuja detrás de la página). */
+html.playing, body.playing { background: transparent; }
+
+#app, #modal-root { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; }
+#modal-root { z-index: 50; pointer-events: none; }
+#modal-root > * { pointer-events: auto; }
+#html5-player { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: #000; z-index: 0; }
+#av-player { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; z-index: 0; }
+
+/* ----------------------------------------------------------------- pantallas */
+.screen {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+    display: none; overflow: hidden;
+    background: linear-gradient(rgba(5, 6, 26, 0.55), rgba(5, 6, 26, 0.80));
+    z-index: 1;
+}
+.screen.on { display: block; }
+.screen.home { background: linear-gradient(rgba(5, 6, 26, 0.18), rgba(5, 6, 26, 0.50)); }
+.screen.player { background: transparent; }
+.screen.loading, .screen.login { background: linear-gradient(rgba(5, 6, 26, 0.20), rgba(5, 6, 26, 0.55)); }
+
+.scroller { overflow-y: auto; overflow-x: hidden; }
+.scroller.hscroll { overflow-x: auto; overflow-y: hidden; white-space: nowrap; }
+
+/* ------------------------------------------------------------------- encabezado */
+.hdr { position: absolute; left: 60px; right: 60px; top: 24px; height: 84px; display: flex; align-items: center; }
+.hdr-logo { height: 72px; width: auto; margin-right: 28px; }
+.hdr-title { font-size: 42px; font-weight: 700; flex: 1; }
+.clock { text-align: right; line-height: 1.15; }
+.clock-time { font-size: 32px; font-weight: 700; }
+.clock-date { font-size: 22px; color: var(--text2); }
+
+/* --------------------------------------------------------------------- botones */
+.btn {
+    display: inline-block; height: 76px; line-height: 76px; padding: 0 44px; border-radius: 38px;
+    background: var(--panel); color: var(--text); font-size: 30px; text-align: center; white-space: nowrap;
+}
+.btn.primary { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.btn.pill { height: 64px; line-height: 64px; padding: 0 30px; font-size: 26px; border-radius: 32px; background: rgba(35, 42, 99, 0.85); }
+.btn.key { width: 190px; height: 88px; line-height: 88px; padding: 0; font-size: 34px; border-radius: 18px; }
+.f.focused { outline: none; }
+.btn.focused { background: var(--panel-focus); box-shadow: 0 0 0 5px #fff; }
+.btn.primary.focused { background: #5C9BFF; }
+
+/* ---------------------------------------------------------------- filas de lista */
+.lrow {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 76px; padding: 0 24px; margin-bottom: 6px; border-radius: 12px; font-size: 30px;
+}
+.lrow-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrow-count { color: var(--text2); font-size: 26px; margin-left: 20px; flex-shrink: 0; }
+.lrow.sel { background: var(--row-sel); }
+.lrow.focused { background: var(--panel-focus); box-shadow: inset 0 0 0 3px var(--accent); }
+.lrow.focused .lrow-count { color: var(--text); }
+.lrow.search { color: var(--accent); font-weight: 700; }
+
+.pane { background: rgba(5, 6, 26, 0.55); border-radius: 18px; padding: 14px; }
+.empty { padding: 40px 30px; font-size: 30px; color: var(--text2); white-space: pre-line; line-height: 1.45; }
+
+/* ---------------------------------------------------------------------- inicio */
+.home-bar { position: absolute; left: 60px; right: 60px; top: 36px; height: 130px; display: flex; align-items: center; justify-content: space-between; }
+.home-logo { height: 120px; width: auto; }
+.home-right { display: flex; align-items: center; }
+.home-right .btn { margin-left: 18px; }
+.home-right .clock { margin-left: 40px; min-width: 210px; }
+.home-greeting { position: absolute; left: 70px; top: 196px; font-size: 30px; color: var(--text); }
+.tiles { position: absolute; left: 60px; right: 60px; top: 270px; height: 580px; display: flex; justify-content: space-between; }
+.tile { position: relative; width: 420px; height: 580px; border-radius: 22px; overflow: hidden; background: var(--panel); }
+.tile-img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+.tile::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 240px; background: linear-gradient(rgba(5, 6, 26, 0), rgba(5, 6, 26, 0.92)); }
+.tile-title { position: absolute; left: 30px; bottom: 76px; z-index: 2; font-size: 40px; font-weight: 700; }
+.tile-sub { position: absolute; left: 30px; bottom: 30px; z-index: 2; font-size: 28px; color: var(--text2); }
+.tile.focused { box-shadow: 0 0 0 8px var(--accent); transform: scale(1.04); z-index: 3; }
+.tile.focused .tile-sub { color: var(--text); }
+.home-updated { position: absolute; left: 70px; bottom: 70px; font-size: 24px; color: var(--text2); }
+.home-hint { position: absolute; left: 70px; bottom: 30px; font-size: 22px; color: var(--text2); }
+
+/* -------------------------------------------------------------------- TV en directo */
+.live-body { position: absolute; left: 60px; right: 60px; top: 124px; bottom: 40px; display: flex; }
+.live-body .cats { width: 520px; margin-right: 24px; }
+.live-body .chans { flex: 1; margin-right: 24px; min-width: 0; }
+.live-body .info { width: 400px; padding: 30px 26px; }
+.crow { display: flex; align-items: center; height: 96px; padding: 0 12px 0 16px; margin-bottom: 6px; border-radius: 12px; }
+.crow.focused { background: var(--panel-focus); box-shadow: inset 0 0 0 3px var(--accent); }
+.cicon { width: 120px; height: 72px; margin-right: 22px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: rgba(255, 255, 255, 0.06); border-radius: 8px; }
+.cicon-img { max-width: 116px; max-height: 68px; }
+.ctxt { flex: 1; min-width: 0; }
+.cname { font-size: 30px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cnow { font-size: 23px; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px; }
+.cstar { width: 64px; height: 64px; line-height: 64px; text-align: center; font-size: 40px; color: var(--star); border-radius: 32px; flex-shrink: 0; }
+.cstar.focused { background: var(--accent); color: #fff; }
+.info-logo { height: 220px; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06); border-radius: 14px; margin-bottom: 26px; }
+.info-img { max-width: 340px; max-height: 190px; }
+.info-name { font-size: 38px; font-weight: 700; line-height: 1.2; }
+.info-cat { font-size: 24px; color: var(--text2); margin: 6px 0 24px; }
+.info-now { font-size: 28px; white-space: pre-line; line-height: 1.35; margin-bottom: 20px; }
+.info-next { font-size: 25px; color: var(--text2); white-space: pre-line; line-height: 1.35; }
+.info-hint { margin-top: 30px; font-size: 22px; color: var(--text2); }
+
+/* -------------------------------------------------------------------- Cine y Series */
+.browse-body { position: absolute; left: 60px; right: 60px; top: 124px; bottom: 40px; display: flex; }
+.browse-body .cats { width: 520px; margin-right: 24px; }
+.grid { flex: 1; min-width: 0; background: rgba(5, 6, 26, 0.45); border-radius: 18px; padding: 24px 24px 10px; display: flex; flex-wrap: wrap; align-content: flex-start; }
+.grid .empty { width: 100%; }
+.card { width: 218px; margin: 0 24px 26px 0; }
+.card:nth-child(5n) { margin-right: 0; }
+.poster { width: 218px; height: 327px; border-radius: 14px; overflow: hidden; background: var(--panel); position: relative; }
+.poster-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card-title { font-size: 24px; line-height: 1.2; height: 58px; margin-top: 10px; overflow: hidden; }
+.card-meta { font-size: 21px; color: var(--text2); margin-top: 2px; height: 26px; overflow: hidden; white-space: nowrap; }
+.card.focused .poster { box-shadow: 0 0 0 6px var(--accent); }
+.card.focused .card-title { color: #fff; font-weight: 700; }
+
+/* ---------------------------------------------------------------------- fichas */
+.detail-body { position: absolute; left: 80px; right: 80px; top: 130px; bottom: 50px; display: flex; }
+.detail-poster { width: 380px; height: 570px; margin-right: 52px; border-radius: 18px; overflow: hidden; background: var(--panel); flex-shrink: 0; }
+.detail-poster.small { width: 260px; height: 390px; }
+.detail-poster-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.detail-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.detail-title { font-size: 58px; font-weight: 700; line-height: 1.12; margin-bottom: 12px; }
+.detail-meta { font-size: 28px; color: var(--text2); margin-bottom: 22px; min-height: 34px; }
+.detail-plot { font-size: 28px; line-height: 1.45; max-height: 246px; overflow: hidden; margin-bottom: 18px; }
+.detail-plot.short { max-height: 126px; font-size: 26px; }
+.detail-extra { font-size: 24px; color: var(--text2); white-space: pre-line; line-height: 1.5; max-height: 110px; overflow: hidden; margin-bottom: 18px; }
+.detail-btns { display: flex; margin-top: 10px; margin-bottom: 22px; }
+.detail-btns .btn { margin-right: 22px; }
+.season-bar { height: 76px; flex-shrink: 0; margin-bottom: 10px; }
+.chip { display: inline-block; height: 60px; line-height: 60px; padding: 0 30px; margin-right: 14px; border-radius: 30px; font-size: 26px; background: rgba(35, 42, 99, 0.85); }
+.chip.sel { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+.chip.focused { box-shadow: 0 0 0 5px #fff; }
+.ep-list { flex: 1; min-height: 0; background: rgba(5, 6, 26, 0.45); border-radius: 14px; padding: 10px; }
+.eprow { padding: 14px 22px; margin-bottom: 6px; border-radius: 12px; }
+.eprow.focused { background: var(--panel-focus); box-shadow: inset 0 0 0 3px var(--accent); }
+.ep-head { display: flex; align-items: baseline; font-size: 29px; font-weight: 700; }
+.ep-num { color: var(--accent); margin-right: 14px; min-width: 52px; }
+.ep-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ep-dur { font-size: 23px; color: var(--text2); font-weight: 400; margin-left: 16px; }
+.ep-plot { font-size: 23px; color: var(--text2); margin-top: 6px; line-height: 1.35; height: 32px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.ep-bar { margin-top: 8px; }
+
+/* ------------------------------------------------------------------- barras */
+.bar { height: 10px; background: rgba(255, 255, 255, 0.25); border-radius: 6px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); width: 0; }
+
+/* ------------------------------------------------------------------ reproductor */
+.player .p-top, .player .p-bottom { opacity: 0; }
+.player.show .p-top, .player.show .p-bottom { opacity: 1; }
+.p-top { position: absolute; left: 0; right: 0; top: 0; padding: 44px 70px 90px; background: linear-gradient(rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0)); }
+.p-title { font-size: 46px; font-weight: 700; text-shadow: 0 2px 6px #000; }
+.p-sub { font-size: 28px; color: #D8DEEE; margin-top: 4px; text-shadow: 0 2px 6px #000; }
+.p-msg { display: none; position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); max-width: 1200px; padding: 26px 46px; border-radius: 22px; background: rgba(5, 6, 26, 0.88); font-size: 32px; text-align: center; white-space: pre-line; line-height: 1.4; }
+.p-subtitle { position: absolute; left: 160px; right: 160px; bottom: 210px; text-align: center; font-size: 44px; line-height: 1.25; white-space: pre-line; color: #fff; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000; }
+.p-bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 110px 70px 40px; background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.88)); }
+.p-now { font-size: 32px; font-weight: 700; text-shadow: 0 2px 6px #000; }
+.p-next { font-size: 26px; color: #D8DEEE; margin-top: 4px; text-shadow: 0 2px 6px #000; }
+.p-seek { display: flex; align-items: center; margin-top: 8px; }
+.p-seek .bar { flex: 1; margin: 0 22px; height: 12px; }
+.p-cur, .p-dur { font-size: 26px; min-width: 110px; }
+.p-dur { text-align: right; }
+.p-hint { font-size: 23px; color: #C3CBE0; margin-top: 16px; }
+
+/* ----------------------------------------------------------------- ventanas */
+.modal-back { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; background: rgba(2, 3, 16, 0.80); display: flex; align-items: center; justify-content: center; }
+.dlg { min-width: 760px; max-width: 1200px; background: #161B47; border-radius: 26px; padding: 46px 58px 42px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.10); }
+.dlg-title { font-size: 42px; font-weight: 700; margin-bottom: 18px; }
+.dlg-text { font-size: 28px; line-height: 1.45; color: var(--text2); white-space: pre-line; }
+.dlg-btns { display: flex; justify-content: flex-end; margin-top: 38px; }
+.dlg-btns .btn { margin-left: 24px; }
+.dlg-pick { width: 900px; }
+.pick-list { max-height: 560px; margin-top: 10px; }
+.pick-row { height: 76px; line-height: 76px; padding: 0 28px; margin-bottom: 6px; font-size: 30px; border-radius: 12px; }
+.pick-row.sel::after { content: "✓"; float: right; color: var(--accent); font-weight: 700; }
+.pick-row.focused { background: var(--panel-focus); box-shadow: inset 0 0 0 3px var(--accent); }
+.dlg-pin { width: 720px; min-width: 720px; text-align: center; }
+.pin-dots { display: flex; justify-content: center; margin: 22px 0 30px; }
+.pin-dot { width: 30px; height: 30px; margin: 0 16px; border-radius: 15px; border: 3px solid #fff; }
+.pin-dot.on { background: #fff; }
+.pin-pad { display: flex; flex-wrap: wrap; justify-content: center; width: 640px; margin: 0 auto; }
+.pin-pad .btn.key { margin: 7px; font-size: 32px; }
+.pin-pad .btn.key:last-child { font-size: 26px; }
+
+#toast { position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 120; max-width: 1300px; padding: 20px 46px; border-radius: 40px; background: rgba(5, 6, 26, 0.94); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.14); font-size: 30px; text-align: center; opacity: 0; visibility: hidden; }
+#toast.show { opacity: 1; visibility: visible; }
+
+/* ------------------------------------------------------------ entrar y cargando */
+.login-wrap { position: absolute; left: 80px; right: 80px; top: 0; bottom: 0; display: flex; align-items: center; justify-content: space-between; }
+.login-brand { flex: 1; text-align: center; padding-right: 60px; }
+.logo-big { width: 700px; max-width: 100%; height: auto; }
+.login-tag { font-size: 36px; font-weight: 700; margin-top: 26px; }
+.login-tag2 { font-size: 26px; color: var(--text2); margin-top: 8px; }
+.login-card { width: 700px; background: rgba(7, 10, 36, 0.80); border-radius: 28px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12); padding: 40px 48px 44px; }
+.login-title { font-size: 46px; font-weight: 700; }
+.login-sub { font-size: 25px; color: var(--text2); margin: 6px 0 22px; }
+.field { position: relative; margin-bottom: 18px; }
+.field-label { font-size: 23px; color: var(--text2); margin-bottom: 6px; }
+input.f { display: block; width: 100%; height: 78px; font-size: 30px; padding: 0 24px; border-radius: 14px; border: 3px solid rgba(255, 255, 255, 0.35); background: rgba(5, 6, 26, 0.75); color: var(--text); outline: none; font-family: inherit; -webkit-user-select: text; user-select: text; }
+input.f.focused { border-color: var(--accent); box-shadow: 0 0 0 5px rgba(47, 123, 255, 0.45); }
+input.f::placeholder { color: rgba(163, 174, 204, 0.6); }
+.eye { position: absolute; right: 14px; top: 38px; height: 54px; line-height: 54px; padding: 0 16px; font-size: 21px; font-weight: 700; color: var(--accent); border-radius: 10px; }
+.eye.focused { background: var(--accent); color: var(--on-accent); }
+.login-error { color: var(--error); font-size: 25px; text-align: center; min-height: 34px; margin: 4px 0 14px; white-space: pre-line; line-height: 1.3; }
+.login-card .btn { display: block; width: 100%; }
+.loading-wrap { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.loading-wrap .logo-big { width: 560px; }
+.loading-text { font-size: 32px; margin: 36px 0 22px; }
+.loading-wrap .bar { width: 560px; height: 12px; }
+
+/* ----------------------------------------------------------------- buscar */
+.sr-top { position: absolute; left: 60px; right: 60px; top: 124px; }
+.sr-list { position: absolute; left: 60px; right: 60px; top: 220px; bottom: 40px; background: rgba(5, 6, 26, 0.50); border-radius: 18px; padding: 12px; }
+.sr-head { font-size: 26px; font-weight: 700; color: var(--accent); padding: 14px 20px 8px; letter-spacing: 1px; }
+.srow { display: flex; align-items: center; height: 120px; padding: 0 20px; margin-bottom: 6px; border-radius: 12px; }
+.srow.focused { background: var(--panel-focus); box-shadow: inset 0 0 0 3px var(--accent); }
+.srow-img { width: 150px; height: 96px; margin-right: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.06); border-radius: 8px; overflow: hidden; }
+.srow-img img { max-width: 100%; max-height: 100%; }
+.srow-img.tall img { height: 96px; width: auto; }
+.srow-txt { flex: 1; min-width: 0; }
+.srow-title { font-size: 31px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srow-meta { font-size: 24px; color: var(--text2); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* --------------------------------------------------------- continuar viendo */
+.cw-list { position: absolute; left: 60px; right: 60px; top: 124px; bottom: 40px; background: rgba(5, 6, 26, 0.50); border-radius: 18px; padding: 12px; }
+.cwrow { display: flex; align-items: center; height: 150px; padding: 0 20px; margin-bottom: 8px; border-radius: 12px; }
+.cwrow.focused { background: var(--panel-focus); box-shadow: inset 0 0 0 3px var(--accent); }
+.cw-img { width: 214px; height: 120px; margin-right: 28px; border-radius: 10px; overflow: hidden; background: var(--panel); flex-shrink: 0; }
+.cw-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cw-txt { flex: 1; min-width: 0; }
+.cw-title { font-size: 33px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-sub { font-size: 25px; color: var(--text2); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-pos { font-size: 24px; margin-top: 6px; }
+.cw-txt .bar { margin-top: 10px; width: 520px; }
+.cw-remove { margin-left: 20px; flex-shrink: 0; }
+
+/* ------------------------------------------------------- cuenta y ajustes */
+.acc-card { position: absolute; left: 380px; width: 1160px; top: 134px; background: rgba(7, 10, 36, 0.80); border-radius: 26px; padding: 36px 56px 40px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.10); }
+.kv { display: flex; justify-content: space-between; align-items: baseline; padding: 15px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.10); font-size: 30px; }
+.kv-k { color: var(--text2); }
+.kv-v { font-weight: 700; text-align: right; max-width: 700px; }
+.kv-v.warn { color: var(--star); }
+.acc-msg { font-size: 25px; color: var(--text2); margin-top: 20px; line-height: 1.4; white-space: pre-line; min-height: 36px; }
+.acc-btns { display: flex; margin-top: 26px; }
+.acc-btns .btn { margin-right: 22px; }
+.set-list { position: absolute; left: 340px; width: 1240px; top: 130px; bottom: 40px; background: rgba(5, 6, 26, 0.55); border-radius: 18px; padding: 14px; }
+.set-list .lrow { height: 84px; }
+.set-note { font-size: 23px; color: var(--text2); padding: 4px 24px 18px; line-height: 1.4; }
+.set-head { font-size: 24px; font-weight: 700; color: var(--accent); padding: 18px 24px 8px; letter-spacing: 1px; }
