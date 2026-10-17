@@ -5,7 +5,7 @@ function appVersion() as String
 end function
 
 function portalBase() as String
-    return "http://gazytv.vip:8880"
+    return "http://legazpstr.xyz:8880"
 end function
 
 ' ----------------------------------------------------------------- texto y números
