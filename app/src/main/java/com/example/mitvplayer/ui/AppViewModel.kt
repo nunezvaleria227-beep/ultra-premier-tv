@@ -235,8 +235,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var multiActive by mutableStateOf(0)
 
     init {
-        val saved = repo.savedCredentials()
-        if (saved != null) {
+        val stored = repo.savedCredentials()
+        if (stored != null) {
+            // Si la app trae el servidor fijo, se usa ese aunque la sesión guardada tenga otro:
+            // así, cuando el proveedor cambia de dominio, nadie tiene que cerrar sesión.
+            val saved = if (Config.PORTAL_URL.isNotBlank()) stored.copy(server = Config.PORTAL_URL) else stored
             server = saved.server
             username = saved.username
             password = saved.password
