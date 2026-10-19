@@ -21,7 +21,10 @@ import java.util.Locale
 import java.util.TimeZone
 import javax.net.ssl.SSLException
 
-class AuthException(message: String) : IOException(message)
+open class AuthException(message: String) : IOException(message)
+
+/** El servidor respondió 401/403: rechazó la petición antes de revisar usuario y contraseña. */
+class AccessDeniedException(code: Int) : AuthException("Acceso denegado por el servidor ($code)")
 
 /**
  * Cliente de la API estándar de Xtream Codes (player_api.php).
@@ -106,7 +109,7 @@ class XtreamApi(private val client: OkHttpClient) {
             .build()
         client.newCall(request).execute().use { response ->
             if (response.code == 401 || response.code == 403) {
-                throw AuthException("Acceso denegado por el servidor (${response.code})")
+                throw AccessDeniedException(response.code)
             }
             if (!response.isSuccessful) {
                 throw IOException("El servidor respondió con error ${response.code}")
@@ -323,7 +326,7 @@ class XtreamApi(private val client: OkHttpClient) {
             .build()
         client.newCall(request).execute().use { response ->
             if (response.code == 401 || response.code == 403) {
-                throw AuthException("Acceso denegado por el servidor (${response.code})")
+                throw AccessDeniedException(response.code)
             }
             if (!response.isSuccessful) {
                 throw IOException("El servidor respondió con error ${response.code}")

@@ -23,6 +23,7 @@ class Repository(
 ) {
     private val appContext = context.applicationContext
     private val cacheDir: File = File(appContext.cacheDir, "catalogs").also { it.mkdirs() }
+    private val networkPrefs = appContext.getSharedPreferences(NETWORK_FILE, Context.MODE_PRIVATE)
 
     var credentials: Credentials? = null
         private set
@@ -70,13 +71,34 @@ class Repository(
 
     suspend fun login(input: Credentials, remember: Boolean): AccountInfo {
         val normalized = input.copy(server = api.normalizeServer(input.server))
-        val info = withContext(Dispatchers.IO) { api.login(normalized) }
+        val info = withContext(Dispatchers.IO) { loginTryingAgents(normalized) }
         credentials = normalized
         account = info
         library = Library(appContext.getSharedPreferences(LIBRARY_FILE, Context.MODE_PRIVATE), normalized.username)
         clearMemory()
         if (remember) session.save(normalized) else session.clear()
         return info
+    }
+
+    /**
+     * Inicia sesión con la identificación (User-Agent) actual. Si el servidor la rechaza con 401/403,
+     * prueba las otras de [Config.userAgentOptions] y guarda la primera que funcione.
+     */
+    private fun loginTryingAgents(c: Credentials): AccountInfo {
+        val candidates = (listOf(Config.userAgent) + Config.userAgentOptions()).distinct()
+        var denied: AccessDeniedException? = null
+        for (agent in candidates) {
+            Config.userAgent = agent
+            try {
+                val info = api.login(c)
+                networkPrefs.edit().putString(KEY_USER_AGENT, agent).apply()
+                return info
+            } catch (e: AccessDeniedException) {
+                denied = e
+            }
+        }
+        Config.userAgent = candidates.first()
+        throw denied ?: AuthException("Acceso denegado por el servidor")
     }
 
     fun logout() {
@@ -375,6 +397,8 @@ class Repository(
 
     private companion object {
         const val LIBRARY_FILE = "library"
+        const val NETWORK_FILE = "network"
+        const val KEY_USER_AGENT = "user_agent"
         const val CACHE_MAX_AGE_MS = 12L * 60 * 60 * 1000
         const val EPG_MAX_AGE_MS = 5L * 60 * 1000
         const val TABLE_MAX_AGE_MS = 15L * 60 * 1000
