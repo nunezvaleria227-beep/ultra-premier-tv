@@ -20,7 +20,7 @@ Solo en el almacenamiento privado de la app en tu Roku. No se sube a ningún ser
 - **Quitar la app del Roku** borra todo lo demás: favoritos, ajustes y PIN.
 
 ## Qué se envía y a dónde
-- La app se conecta **únicamente al servidor de tu proveedor** (en esta versión, `gazytv.vip`). Le envía tu usuario y contraseña para iniciar sesión, y lo que
+- La app se conecta **únicamente al servidor de tu proveedor** (en esta versión, `gzytv.click`). Le envía tu usuario y contraseña para iniciar sesión, y lo que
   pides: listas de canales, películas y series, la guía de programación y el video. Si abres la app con la sesión guardada, vuelve a comprobar tu cuenta con ese servidor.
 - La conexión con ese servidor es la que ofrece tu proveedor y **puede no estar cifrada**. Por eso, no uses en otros servicios la misma contraseña de tu cuenta de televisión.
 - Los carteles y logos se descargan de las direcciones que indica ese servidor, que pueden pertenecer a terceros.
@@ -69,7 +69,7 @@ Only in the app's private storage on your Roku. Nothing is uploaded to any serve
 - **Removing the app from your Roku** deletes everything else: favorites, settings and PIN.
 
 ## Sent over the network
-- The app connects **only to your provider's server** (in this version, `gazytv.vip`). It sends your username and password to sign in, and what you ask for: channel, movie and series lists,
+- The app connects **only to your provider's server** (in this version, `gzytv.click`). It sends your username and password to sign in, and what you ask for: channel, movie and series lists,
   the program guide and the video. When the app opens with your saved session, it checks your account with that server again.
 - The connection to that server is the one your provider offers and **may not be encrypted**. For that reason, do not reuse your TV account password on other services.
 - Posters and logos are downloaded from the addresses that server provides, which may belong to third parties.

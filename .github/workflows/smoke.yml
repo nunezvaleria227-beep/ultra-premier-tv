@@ -63,7 +63,7 @@ jobs:
 
       - name: Apuntar la app al servidor de prueba
         run: |
-          sed -i 's#http://gazytv.vip:8880#http://10.0.2.2:8880#' app/src/main/java/com/example/mitvplayer/Config.kt
+          sed -i -E 's#PORTAL_URL: String = "[^"]*"#PORTAL_URL: String = "http://10.0.2.2:8880"#' app/src/main/java/com/example/mitvplayer/Config.kt
           SUB=app/src/main/java/com/example/mitvplayer/data/SubtitleService.kt
           if [ -f "$SUB" ]; then sed -i 's#https://api.opensubtitles.com/api/v1#http://10.0.2.2:8880/os/api/v1#' "$SUB"; fi
           grep -rn "10.0.2.2" app/src/main/java/com/example/mitvplayer/ || true

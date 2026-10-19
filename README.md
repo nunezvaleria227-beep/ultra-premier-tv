@@ -37,7 +37,7 @@ Funciona con Fire OS 6 en adelante (Android 7.1+). Se maneja con el control remo
 Abre `app/src/main/java/com/example/mitvplayer/Config.kt`:
 
 ```kotlin
-const val PORTAL_URL: String = "http://legazpstr.xyz:8880"
+const val PORTAL_URL: String = "http://gzytv.click:8880"
 ```
 
 - **Con URL puesta (como viene ahora):** la app solo pide usuario y contraseña.

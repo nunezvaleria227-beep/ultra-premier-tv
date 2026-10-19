@@ -82,7 +82,7 @@ El comando `package` deja el `.wgt` firmado dentro de la carpeta `salida`; ese e
 - `config.xml`: nombre, permisos (internet y control remoto) y acceso al servidor.
 - `index.html`, `css/`, `js/`, `images/`: la app. Está escrita en ES5 a propósito para que funcione en TV de años distintos.
 - Video: usa **AVPlay** de Samsung (con `<video>` normal de respaldo). Formatos de canal en vivo: HLS (m3u8) o TS, se cambia con el botón amarillo del control o en Ajustes.
-- Servidor: `js/config.js` → `PORTAL_URL`. Hoy apunta a `http://gazytv.vip:8880`. Si lo dejas vacío, la pantalla de entrar pide también el servidor.
+- Servidor: `js/config.js` → `PORTAL_URL`. Hoy apunta a `http://gzytv.click:8880`. Si lo dejas vacío, la pantalla de entrar pide también el servidor.
 - Sesión: usuario y clave se guardan solo en la memoria de la propia TV. No hay estadísticas ni anuncios.
 
 **Lo que esta primera versión no tiene todavía** (sí está en Fire TV): guía de canales en cuadrícula, varias pantallas a la vez, retroceder en vivo, grabaciones, búsqueda de subtítulos en línea, radio y avisos.
