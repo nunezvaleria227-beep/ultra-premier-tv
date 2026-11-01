@@ -7,7 +7,7 @@ object Config {
      * - Si la rellenas, la app solo pedirá usuario y contraseña.
      * - Si la dejas vacía, la pantalla de inicio de sesión también pedirá la URL.
      */
-    const val PORTAL_URL: String = "http://gzytv.click:8880"
+    const val PORTAL_URL: String = "http://ultrapremier.vip"
 
     /** Identificación propia de la app (User-Agent). */
     const val DEFAULT_USER_AGENT: String = "UltraPremierTV/1.0 (Linux; Android)"
