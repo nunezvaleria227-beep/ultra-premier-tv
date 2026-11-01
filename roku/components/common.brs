@@ -5,7 +5,7 @@ function appVersion() as String
 end function
 
 function portalBase() as String
-    return "http://gzytv.click:8880"
+    return "http://ultrapremiertv.vip"
 end function
 
 ' ----------------------------------------------------------------- texto y números
