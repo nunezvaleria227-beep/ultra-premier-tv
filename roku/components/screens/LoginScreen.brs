@@ -38,7 +38,7 @@ end sub
 sub refreshList()
     c = m.list.content
     c.getChild(0).title = "Usuario:   " + m.user
-    c.getChild(1).title = "Contraseña:   " + String(Len(m.pass), "*")
+    c.getChild(1).title = "Contraseña:   " + m.pass
     c.getChild(2).title = "Entrar"
 end sub
 
@@ -62,7 +62,7 @@ sub onSelected(event as Object)
     if index = 0
         askText("Usuario", m.user, false, "user")
     else if index = 1
-        askText("Contraseña", m.pass, true, "pass")
+        askText("Contraseña", m.pass, false, "pass")
     else
         m.manual = true
         submit()
