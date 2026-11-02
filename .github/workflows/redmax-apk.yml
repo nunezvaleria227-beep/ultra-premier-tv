@@ -1,0 +1,163 @@
+name: Red Max Plus APK
+
+# Genera el APK final de Red Max Plus en la nube; no hace falta Android Studio.
+#  - Cada vez que se sube código a la rama main compila el proyecto y publica el APK en "Releases".
+#  - También se puede lanzar a mano desde la pestaña Actions.
+#  - La llave de firma vive en los "secrets" del repositorio (SIGNING_KEYSTORE_B64 y SIGNING_PASSWORD),
+#    así cada versión nueva se instala ENCIMA de la anterior sin desinstalar y no se pierde nunca.
+#    Si esos secrets no existen, se usa una llave guardada en la caché de GitHub (respaldo).
+#  - El enlace estable al último APK es:
+#    https://github.com/<dueño>/red-max-plus/releases/latest/download/RedMaxPlus.apk
+on:
+  push:
+    branches:
+      - main
+      - red-max-plus
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+  workflow_dispatch:
+  schedule:
+    # Cada 3 días: solo "toca" la llave de respaldo para que GitHub no la borre por falta de uso.
+    - cron: "23 6 */3 * *"
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/signing
+          key: redmaxplus-signing-v1
+
+  build:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Restaurar la llave de respaldo
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/signing
+          key: redmaxplus-signing-v1
+
+      - name: Preparar la llave de firma
+        env:
+          SIGNING_KEYSTORE_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          DIR="$RUNNER_TEMP/signing"
+          mkdir -p "$DIR"
+          if [ -n "$SIGNING_KEYSTORE_B64" ] && [ -n "$SIGNING_PASSWORD" ]; then
+            printf '%s' "$SIGNING_KEYSTORE_B64" | base64 -d > "$DIR/secret.jks"
+            KS="$DIR/secret.jks"
+            PASS="$SIGNING_PASSWORD"
+            KEY_STATE="la llave fija del repositorio: se instala encima de la versión anterior"
+            echo "::notice::Llave de firma tomada de los secrets del repositorio."
+          else
+            if [ ! -s "$DIR/release.jks" ] || [ ! -s "$DIR/pass.txt" ]; then
+              rm -f "$DIR/release.jks" "$DIR/pass.txt"
+              printf '%s' "$(openssl rand -hex 16)" > "$DIR/pass.txt"
+              keytool -genkeypair -noprompt \
+                -keystore "$DIR/release.jks" -storetype PKCS12 \
+                -alias redmaxplus -keyalg RSA -keysize 2048 -validity 10000 \
+                -storepass "$(cat "$DIR/pass.txt")" -keypass "$(cat "$DIR/pass.txt")" \
+                -dname "CN=Red Max Plus, O=Red Max Plus, C=MX"
+              echo "::warning::Sin secrets de firma: se creó una llave de respaldo en la caché."
+            fi
+            KS="$DIR/release.jks"
+            PASS="$(cat "$DIR/pass.txt")"
+            KEY_STATE="llave de respaldo de la caché (agrega los secrets para fijarla)"
+          fi
+          echo "::add-mask::$PASS"
+          FINGERPRINT="$(keytool -list -v -keystore "$KS" -storepass "$PASS" -alias redmaxplus | grep -m1 'SHA256:' | sed 's/^ *//')"
+          {
+            echo "KEY_STATE=$KEY_STATE"
+            echo "KEY_FINGERPRINT=$FINGERPRINT"
+            echo "KEYSTORE_PATH=$KS"
+            echo "KEYSTORE_PASSWORD=$PASS"
+            echo "KEY_ALIAS=redmaxplus"
+            echo "KEY_PASSWORD=$PASS"
+          } >> "$GITHUB_ENV"
+
+      - name: Compilar APK release
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleRelease --console=plain --stacktrace 2>&1 | tee build.log || {
+            echo "---- ERRORES DE COMPILACION ----"
+            grep -E "^e: |error: |What went wrong" -A2 build.log | grep -v '^--$' | head -80 | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit 1
+          }
+          cp app/build/outputs/apk/release/app-release.apk RedMaxPlus.apk
+
+      - name: Verificar firma y que no sea de depuración
+        run: |
+          BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          APK=RedMaxPlus.apk
+          "$BT/apksigner" verify --verbose --print-certs "$APK" | tee sign.log
+          if grep -qi "Android Debug" sign.log; then
+            echo "::error::El APK está firmado con la llave de depuración"
+            exit 1
+          fi
+          "$BT/aapt" dump badging "$APK" > badging.log
+          if grep -q "application-debuggable" badging.log; then
+            echo "::error::El APK es depurable"
+            exit 1
+          fi
+          echo "::notice::$(grep -m1 '^package:' badging.log)"
+          echo "::notice::$(grep -m1 '^application-label:' badging.log)"
+          echo "::notice::$(grep -m1 'leanback-launchable-activity' badging.log | cut -c1-120)"
+          echo "::notice::$(grep -m1 'Signer #1 certificate SHA-256' sign.log)"
+
+      - name: Notas de la versión
+        run: |
+          {
+            echo "Red Max Plus 1.0.${{ github.run_number }}"
+            echo
+            echo "- Llave de firma: $KEY_STATE"
+            echo "- Huella de la llave: $KEY_FINGERPRINT"
+          } > release-notes.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RedMaxPlus-apk
+          path: RedMaxPlus.apk
+
+      # Versión de prueba (rama red-max-plus dentro de otro repositorio): se publica siempre en la
+      # misma versión preliminar "redmax-latest", sin tocar las versiones de ese repositorio.
+      - name: Publicar versión de prueba
+        if: github.ref == 'refs/heads/red-max-plus'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! gh release view redmax-latest >/dev/null 2>&1; then
+            gh release create redmax-latest --target "${{ github.sha }}" --prerelease --latest=false \
+              --title "Red Max Plus (más reciente)" \
+              --notes "APK de Red Max Plus para Fire TV y Android. Se actualiza con cada cambio."
+          fi
+          gh release upload redmax-latest RedMaxPlus.apk --clobber
+          echo "::notice::Descarga: https://github.com/${{ github.repository }}/releases/download/redmax-latest/RedMaxPlus.apk"
+
+      - name: Publicar en Releases
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Red Max Plus 1.0.${{ github.run_number }}
+          body_path: release-notes.md
+          files: RedMaxPlus.apk

@@ -1,0 +1,13 @@
+# Perfil de arranque: le dice a Android qué código compilar de antemano para que la app abra y se desplace más rápido.
+# Cubre la app y las librerías que más se usan al abrir pantallas, listas y el reproductor.
+HSPLcom/example/mitvplayer/**;->**(**)**
+Lcom/example/mitvplayer/**;
+HSPLcoil/**;->**(**)**
+HSPLokhttp3/**;->**(**)**
+HSPLokio/**;->**(**)**
+HSPLandroidx/media3/**;->**(**)**
+HSPLandroidx/compose/**;->**(**)**
+HSPLandroidx/lifecycle/**;->**(**)**
+HSPLandroidx/activity/**;->**(**)**
+HSPLkotlinx/coroutines/**;->**(**)**
+HSPLkotlin/**;->**(**)**
