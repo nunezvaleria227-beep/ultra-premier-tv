@@ -1,5 +1,7 @@
 package com.example.mitvplayer.ui
 
+import com.example.mitvplayer.data.AccessDeniedException
+import com.example.mitvplayer.data.AuthException
 import android.app.Application
 import android.Manifest
 import android.content.Context
@@ -266,20 +268,34 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun doLogin(credentials: Credentials, remember: Boolean) {
         loginState = LoginUiState(loading = true)
-        try {
-            repo.login(credentials, remember)
-            resetBrowsing()
-            liveFormat = repo.liveFormat
-            loginState = LoginUiState()
-            homeFocus = 0
-            stack = listOf(Screen.Home)
-            preload()
-            checkForUpdate()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            loginState = LoginUiState(error = e.userMessage())
+        // Primero el servidor principal; si no responde o rechaza la conexión, se prueban los de
+        // respaldo (Config.BACKUP_URLS) con el mismo usuario y contraseña.
+        val servers = if (Config.PORTAL_URL.isNotBlank()) {
+            (listOf(credentials.server) + Config.BACKUP_URLS).map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        } else {
+            listOf(credentials.server)
         }
+        val errors = mutableListOf<Exception>()
+        for (serverUrl in servers) {
+            try {
+                repo.login(credentials.copy(server = serverUrl), remember)
+                resetBrowsing()
+                liveFormat = repo.liveFormat
+                loginState = LoginUiState()
+                homeFocus = 0
+                stack = listOf(Screen.Home)
+                preload()
+                checkForUpdate()
+                return
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errors += e
+            }
+        }
+        // Si algún servidor contestó "usuario o contraseña incorrectos", ese es el mensaje más útil.
+        val shown = errors.firstOrNull { it is AuthException && it !is AccessDeniedException } ?: errors.firstOrNull()
+        loginState = LoginUiState(error = shown?.userMessage() ?: "No se pudo entrar")
     }
 
     /** Lee las tres listas en segundo plano, a la vez, para que ya estén al abrir cada sección. */

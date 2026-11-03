@@ -9,6 +9,12 @@ object Config {
      */
     const val PORTAL_URL: String = "http://ultrapremiertv.vip"
 
+    /**
+     * Servidores de respaldo. Si el principal no responde (está caído, el dominio dejó de funcionar
+     * o rechaza la conexión), la app prueba estos en orden con el mismo usuario y contraseña.
+     */
+    val BACKUP_URLS: List<String> = listOf("http://gazyd.club:8880")
+
     /** Identificación propia de la app (User-Agent). */
     const val DEFAULT_USER_AGENT: String = "UltraPremierTV/1.0 (Linux; Android)"
 
