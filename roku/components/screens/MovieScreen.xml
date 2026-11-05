@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!-- Ficha de película (como en Fire TV): imagen de fondo, cartel a la izquierda con brillo azul, título grande
+     en cursiva, datos, sinopsis, reparto y botones inclinados. -->
 <component name="MovieScreen" extends="Group">
   <interface>
     <field id="item" type="assocarray" onChange="onItem" />
@@ -8,15 +10,48 @@
   <script type="text/brightscript" uri="pkg:/components/screens/MovieScreen.brs" />
   <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
-    <Rectangle id="shade" color="0x050824B8" width="1280" height="720" />
-    <Poster id="cover" translation="[60,80]" width="300" height="450" loadDisplayMode="scaleToFit" />
-    <Label id="name" translation="[400,70]" width="820" height="80" wrap="true" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
-    <Label id="meta" translation="[400,160]" width="820" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <Label id="plot" translation="[400,200]" width="820" height="200" wrap="true" font="font:SmallSystemFont" color="0xF2F5FFFF" />
-    <Label id="extra" translation="[400,400]" width="820" height="60" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <LabelList id="actions" translation="[400,470]" itemSize="[380,46]" numRows="4" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <Label id="status" translation="[400,420]" width="820" height="40" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <Label id="idTag" translation="[400,676]" width="820" height="26" font="font:SmallSystemFont" color="0x8A94B8FF" />
+    <Poster uri="pkg:/images/bg_detail.jpg" width="1280" height="720" />
+    <Poster id="backdrop" width="1280" height="720" loadDisplayMode="scaleToZoom" loadWidth="1280" loadHeight="720" />
+    <Poster uri="pkg:/images/detail_fade.png" width="1280" height="720" />
+
+    <Poster uri="pkg:/images/poster_glow.9.png" translation="[22,57]" width="252" height="352" />
+    <Poster uri="pkg:/images/card_bg.9.png" translation="[48,83]" width="200" height="300" />
+    <MaskGroup maskUri="pkg:/images/detail_mask.png" maskSize="[200,300]" translation="[48,83]">
+      <Poster id="cover" width="200" height="300" loadDisplayMode="scaleToZoom" loadWidth="300" loadHeight="450" />
+    </MaskGroup>
+
+    <Poster uri="pkg:/images/spark.png" translation="[283,86]" width="11" height="11" />
+    <Label id="kicker" translation="[300,83]" width="880" height="17" color="0x3FD0FFFF" text="PELÍCULA">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Bold.ttf" size="11" />
+    </Label>
+    <Label id="name" translation="[283,101]" width="900" wrap="true" maxLines="2" lineSpacing="-7" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="37" />
+    </Label>
+    <Label id="meta" translation="[283,190]" width="860" height="20" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="13" />
+    </Label>
+    <Poster id="hdBox" uri="pkg:/images/badge_hd.9.png" translation="[500,192]" width="26" height="16" />
+    <Label id="hdText" translation="[500,192]" width="26" height="16" horizAlign="center" vertAlign="center" color="0xB8C6ECFF" text="HD">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Bold.ttf" size="10" />
+    </Label>
+    <Label id="plot" translation="[283,220]" width="765" wrap="true" maxLines="4" lineSpacing="5" color="0xD5DEF7FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Regular.ttf" size="14" />
+    </Label>
+    <Label id="extra" translation="[283,330]" width="765" wrap="true" maxLines="2" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Regular.ttf" size="11" />
+    </Label>
+    <SlantRow id="actions" translation="[283,380]" maxWidth="940" />
+    <Poster id="progBg" uri="pkg:/images/prog_bg.9.png" translation="[283,450]" width="200" height="4" visible="false" />
+    <Poster id="progBar" uri="pkg:/images/prog_fg.png" translation="[283,450]" width="0" height="4" visible="false" />
+    <Label id="progLabel" translation="[494,443]" width="400" height="18" color="0x8FA3D6FF" visible="false">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="11" />
+    </Label>
+    <Label id="status" translation="[283,190]" width="860" height="20" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="14" />
+    </Label>
+    <Label id="idTag" translation="[48,684]" width="820" height="18" color="0x5F6F9AFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Regular.ttf" size="11" />
+    </Label>
+    <UltraTopBar id="topBar" active="movie" />
   </children>
 </component>

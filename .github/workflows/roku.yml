@@ -45,7 +45,7 @@ jobs:
         run: |
           rm -rf pkg && cp -r roku pkg
           sed -i "s/^build_version=.*/build_version=${{ github.run_number }}/" pkg/manifest
-          (cd pkg && zip -r -9 -X ../UltraPremierTV-Roku.zip manifest source components images)
+          (cd pkg && zip -r -9 -X ../UltraPremierTV-Roku.zip manifest source components images fonts)
           unzip -l UltraPremierTV-Roku.zip | tail -3
           echo "::notice::$(grep -E '^(title|major_version|minor_version|build_version)=' pkg/manifest | tr '\n' ' ')"
 

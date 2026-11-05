@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!-- Ajustes: cuenta, control parental, PIN, subtítulos, borrar "Continuar viendo" y cerrar sesión. -->
 <component name="SettingsScreen" extends="Group">
   <interface>
     <field id="event" type="assocarray" alwaysNotify="true" />
@@ -7,10 +8,19 @@
   <script type="text/brightscript" uri="pkg:/components/screens/SettingsScreen.brs" />
   <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
-    <Rectangle id="shade" color="0x050824A0" width="1280" height="720" />
-    <Label id="title" text="Ajustes" translation="[40,28]" width="500" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
-    <LabelList id="list" translation="[40,100]" itemSize="[760,48]" numRows="9" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <Label id="status" translation="[40,560]" width="1200" height="80" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <Poster uri="pkg:/images/bg_detail.jpg" width="1280" height="720" />
+    <Poster uri="pkg:/images/ic_settings.png" translation="[48,87]" width="24" height="24" blendColor="0xF2F6FFFF" />
+    <Label translation="[82,80]" width="500" height="38" vertAlign="center" color="0xF2F6FFFF" text="AJUSTES">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="27" />
+    </Label>
+    <LabelList id="list" translation="[48,134]" itemSize="[780,50]" numRows="9" focusBitmapUri="pkg:/images/list_focus.9.png"
+      color="0xF2F6FFFF" focusedColor="0xFFFFFFFF" vertFocusAnimationStyle="floatingFocus">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-SemiBold.ttf" size="17" />
+      <Font role="focusedFont" uri="pkg:/fonts/InterDisplay-Bold.ttf" size="17" />
+    </LabelList>
+    <Label id="status" translation="[48,610]" width="1184" height="60" wrap="true" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="14" />
+    </Label>
+    <UltraTopBar id="topBar" active="more" />
   </children>
 </component>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Barra de arriba de Ultra Premier TV: logo, pestañas inclinadas (Inicio, En vivo, Películas, Series, Buscar, Más)
+     y el reloj. La pestaña de la pantalla actual va en azul; la enfocada, en blanco. -->
+<component name="UltraTopBar" extends="Group">
+  <interface>
+    <field id="active" type="string" onChange="onActive" />
+    <field id="selected" type="string" alwaysNotify="true" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/widgets/UltraTopBar.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Poster uri="pkg:/images/top_shade.png" width="1280" height="77" />
+    <Poster uri="pkg:/images/logo_bar.png" translation="[48,15]" width="84" height="48" />
+    <Group id="tabs" translation="[161,22]" />
+    <Label id="clock" translation="[932,13]" width="300" height="30" horizAlign="right" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="23" />
+    </Label>
+    <Label id="dateLabel" translation="[832,44]" width="400" height="16" horizAlign="right" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="11" />
+    </Label>
+    <Timer id="clockTimer" duration="15" repeat="true" />
+  </children>
+</component>

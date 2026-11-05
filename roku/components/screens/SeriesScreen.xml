@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!-- Ficha de serie (como en Fire TV): imagen de fondo, título grande en cursiva, datos y sinopsis, botones inclinados,
+     temporadas como pastillas inclinadas y los episodios en tarjetas. -->
 <component name="SeriesScreen" extends="Group">
   <interface>
     <field id="item" type="assocarray" onChange="onItem" />
@@ -8,16 +10,39 @@
   <script type="text/brightscript" uri="pkg:/components/screens/SeriesScreen.brs" />
   <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
-    <Rectangle id="shade" color="0x050824B8" width="1280" height="720" />
-    <Label id="name" translation="[40,28]" width="1200" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
-    <Poster id="cover" translation="[40,90]" width="220" height="330" loadDisplayMode="scaleToFit" />
-    <Label id="meta" translation="[40,430]" width="240" height="50" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <Label id="plot" translation="[40,484]" width="240" height="170" wrap="true" maxLines="8" font="font:SmallSystemFont" color="0xF2F5FFFF" />
-    <LabelList id="seasonList" translation="[300,100]" itemSize="[230,44]" numRows="10" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <LabelList id="episodeList" translation="[550,100]" itemSize="[690,44]" numRows="10" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <Label id="status" translation="[300,280]" width="940" height="120" horizAlign="center" wrap="true" font="font:MediumSystemFont" color="0xF2F5FFFF" />
-    <Label id="idTag" translation="[300,556]" width="940" height="26" font="font:SmallSystemFont" color="0x8A94B8FF" />
-    <Label id="hint" translation="[40,672]" width="1200" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" text="OK: ver episodio      Play/Pausa: agregar o quitar de favoritos" />
+    <Poster uri="pkg:/images/bg_detail.jpg" width="1280" height="720" />
+    <Poster id="backdrop" width="1280" height="720" loadDisplayMode="scaleToZoom" loadWidth="1280" loadHeight="720" />
+    <Poster uri="pkg:/images/detail_fade.png" width="1280" height="720" />
+
+    <Group id="head" translation="[48,83]">
+      <Poster uri="pkg:/images/spark.png" translation="[0,3]" width="11" height="11" />
+      <Label id="kicker" translation="[17,0]" width="900" height="17" color="0x3FD0FFFF" text="SERIE">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Bold.ttf" size="11" />
+      </Label>
+      <Label id="name" translation="[0,18]" width="1000" wrap="true" maxLines="2" lineSpacing="-7" color="0xF2F6FFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="37" />
+      </Label>
+      <Label id="meta" translation="[0,66]" width="1000" height="20" color="0xB8C6ECFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="13" />
+      </Label>
+      <Label id="plot" translation="[0,92]" width="734" wrap="true" maxLines="2" lineSpacing="5" color="0xD5DEF7FF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Regular.ttf" size="14" />
+      </Label>
+    </Group>
+    <SlantRow id="btns" translation="[48,236]" maxWidth="1180" />
+    <SlantRow id="seasonList" translation="[48,298]" small="true" primaryCount="0" maxWidth="1180" />
+    <RowList id="episodeList" translation="[48,350]" itemComponentName="EpisodeCard" numRows="1" itemSize="[1232,170]"
+      rowItemSize="[[212,168]]" rowItemSpacing="[[16,0]]" rowHeights="[170]" showRowLabel="[false]"
+      drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" />
+    <Label id="status" translation="[48,300]" width="1100" height="80" wrap="true" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="16" />
+    </Label>
+    <Label id="idTag" translation="[48,684]" width="600" height="18" color="0x5F6F9AFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Regular.ttf" size="11" />
+    </Label>
+    <Label id="hint" translation="[632,684]" width="600" height="18" horizAlign="right" color="0x8FA3D6FF" text="OK: ver el episodio   ·   Play/Pausa: Mi lista">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="11" />
+    </Label>
+    <UltraTopBar id="topBar" active="series" />
   </children>
 </component>

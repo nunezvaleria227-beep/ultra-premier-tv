@@ -1,7 +1,10 @@
 ' Utilidades compartidas. Cada componente que las necesita incluye este archivo.
 
+' Versión instalada (la del manifiesto, por ejemplo "1.0.30").
 function appVersion() as String
-    return "1.0"
+    v = CreateObject("roAppInfo").GetVersion()
+    if v = invalid or v = "" then return "1.0"
+    return v
 end function
 
 ' Servidores de respaldo: si el principal no contesta o no acepta la cuenta, se prueban en orden.
@@ -64,6 +67,16 @@ function fmtDateEs(epoch as Integer) as String
     dt.FromSeconds(epoch)
     dt.ToLocalTime()
     return dt.GetDayOfMonth().ToStr() + " de " + months[dt.GetMonth() - 1] + " de " + dt.GetYear().ToStr()
+end function
+
+' "MIÉRCOLES 4 NOV" (fecha de la barra de arriba)
+function fmtBarDate(epoch as Integer) as String
+    days = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"]
+    months = ["ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"]
+    dt = CreateObject("roDateTime")
+    dt.FromSeconds(epoch)
+    dt.ToLocalTime()
+    return days[dt.GetDayOfWeek()] + " " + dt.GetDayOfMonth().ToStr() + " " + months[dt.GetMonth() - 1]
 end function
 
 function nowSecs() as Integer
@@ -132,6 +145,43 @@ function isAdultName(name as String) as Boolean
 end function
 
 ' Los favoritos se marcan con "* " delante del nombre.
+' Mayúsculas también para las letras con acento (los títulos van en mayúsculas, como en Fire TV).
+function upper(s as String) as String
+    u = UCase(s)
+    pairs = [["á", "Á"], ["é", "É"], ["í", "Í"], ["ó", "Ó"], ["ú", "Ú"], ["ñ", "Ñ"], ["ü", "Ü"], ["à", "À"], ["è", "È"], ["ì", "Ì"], ["ò", "Ò"], ["ù", "Ù"], ["ç", "Ç"], ["â", "Â"], ["ê", "Ê"], ["ô", "Ô"], ["ã", "Ã"], ["õ", "Õ"]]
+    for each p in pairs
+        u = u.Replace(p[0], p[1])
+    end for
+    return u
+end function
+
+' Letra de la app (Inter Display): "BlackItalic", "ExtraBoldItalic", "Black", "Bold", "SemiBold", "Medium" o "Regular".
+function uFont(name as String, size as Integer) as Object
+    f = CreateObject("roSGNode", "Font")
+    f.uri = "pkg:/fonts/InterDisplay-" + name + ".ttf"
+    f.size = size
+    return f
+end function
+
+' Calificación de 0 a 10 que manda el servidor (texto o número).
+function ratingNum(v as Dynamic) as Float
+    if v = invalid then return 0.0
+    t = Type(v)
+    if t = "String" or t = "roString" then return Val(v)
+    if t = "Float" or t = "roFloat" or t = "Double" or t = "roDouble" or t = "Integer" or t = "roInt" or t = "LongInteger" or t = "roLongInteger"
+        return v * 1.0
+    end if
+    return 0.0
+end function
+
+' "7.6" -> "8" (insignia azul de los carteles); vacío si no hay calificación.
+function ratingBadge(v as Dynamic) as String
+    r = ratingNum(v)
+    if r < 0.5 then return ""
+    if r > 10 then r = 10
+    return Int(r + 0.5).ToStr()
+end function
+
 function rawName(title as String) as String
     if Left(title, 2) = "* " then return Mid(title, 3)
     return title

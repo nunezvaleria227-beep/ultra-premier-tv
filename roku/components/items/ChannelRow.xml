@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Un canal en la lista: recuadro con su logo y su nombre. -->
+<!-- Un canal en la lista de En vivo: número, logo en caja blanca y nombre. -->
 <component name="ChannelRow" extends="Group">
   <interface>
     <field id="itemContent" type="node" onChange="onContent" />
+    <field id="index" type="integer" onChange="onContent" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/items/ChannelRow.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Rectangle id="card" width="470" height="52" color="0x0E1648E6" />
-    <Rectangle id="logoBox" translation="[6,6]" width="40" height="40" color="0x1A2766FF" />
-    <Poster id="logo" translation="[6,6]" width="40" height="40" loadDisplayMode="scaleToFit" loadWidth="80" loadHeight="80" />
-    <Label id="name" translation="[58,0]" width="352" height="52" vertAlign="center" font="font:SmallBoldSystemFont" color="0xF2F5FFFF" />
-    <Rectangle id="favBox" translation="[418,13]" width="44" height="26" color="0xFFC83DFF" visible="false" />
-    <Label id="fav" translation="[418,13]" width="44" height="26" horizAlign="center" vertAlign="center" font="font:SmallestBoldSystemFont" color="0x1A1200FF" text="FAV" visible="false" />
+    <Poster uri="pkg:/images/list_row.9.png" width="560" height="56" />
+    <Label id="num" translation="[6,0]" width="36" height="56" horizAlign="right" vertAlign="center" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="12" />
+    </Label>
+    <Poster uri="pkg:/images/logo_box.9.png" translation="[52,6]" width="44" height="44" />
+    <Poster id="logo" translation="[55,9]" width="38" height="38" loadDisplayMode="scaleToFit" loadWidth="76" loadHeight="76" />
+    <Label id="name" translation="[110,0]" width="400" height="56" vertAlign="center" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Bold.ttf" size="16" />
+    </Label>
+    <Poster id="fav" uri="pkg:/images/star.png" translation="[524,18]" width="20" height="20" visible="false" />
   </children>
 </component>

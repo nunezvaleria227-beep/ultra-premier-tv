@@ -6,10 +6,14 @@
   </interface>
   <script type="text/brightscript" uri="pkg:/components/items/ContinueRow.brs" />
   <children>
-    <Rectangle id="card" width="1200" height="60" color="0x0E1648E6" />
-    <Rectangle id="thumbBox" translation="[6,6]" width="64" height="48" color="0x1A2766FF" />
-    <Poster id="thumb" translation="[6,6]" width="64" height="48" loadDisplayMode="scaleToZoom" loadWidth="128" loadHeight="96" />
-    <Label id="name" translation="[84,5]" width="1090" height="30" font="font:SmallBoldSystemFont" color="0xF2F5FFFF" />
-    <Label id="subtitle" translation="[84,32]" width="1090" height="24" font="font:SmallestSystemFont" color="0xA3AECCFF" />
+    <Poster uri="pkg:/images/list_row.9.png" width="1184" height="62" />
+    <Poster uri="pkg:/images/card_bg.9.png" translation="[7,7]" width="86" height="48" />
+    <Poster id="thumb" translation="[7,7]" width="86" height="48" loadDisplayMode="scaleToZoom" loadWidth="172" loadHeight="96" />
+    <Label id="name" translation="[108,7]" width="1050" height="26" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Bold.ttf" size="17" />
+    </Label>
+    <Label id="subtitle" translation="[108,33]" width="1050" height="20" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="13" />
+    </Label>
   </children>
 </component>

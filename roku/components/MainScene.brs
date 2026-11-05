@@ -1,7 +1,7 @@
 ' Escena principal: guarda la sesión y maneja la pila de pantallas.
 
 sub init()
-    m.top.backgroundColor = "0x0A0C22FF"
+    m.top.backgroundColor = "0x040A1EFF"
     ' "cache" guarda las últimas listas abiertas para que volver a entrar sea instantáneo.
     m.global.addFields({ session: { parental: true }, cache: CreateObject("roSGNode", "Node") })
     m.stack = []
@@ -18,6 +18,7 @@ sub init()
     m.launchTimer.observeField("fire", "onLaunchTimer")
     m.prefetch = []
     m.prefetchUser = ""
+    m.moreDialog = invalid
     ' Tienda de Roku: solo se usa para la pantalla oficial "Solicitud de información" al iniciar sesión.
     m.store = CreateObject("roSGNode", "ChannelStore")
     m.store.observeField("userData", "onRokuUserData")
@@ -89,6 +90,31 @@ sub popScreen()
     prev.callFunc("focusScreen")
 end sub
 
+sub openTarget(target as String)
+    if target = "live" or target = "movie" or target = "series"
+        openBrowse(target)
+    else if target = "search"
+        pushScreen(CreateObject("roSGNode", "SearchScreen"))
+    else if target = "continue"
+        pushScreen(CreateObject("roSGNode", "ContinueScreen"))
+    else if target = "settings"
+        pushScreen(CreateObject("roSGNode", "SettingsScreen"))
+    end if
+end sub
+
+' Deja solo el inicio (sin enfocar cada pantalla que se cierra).
+sub popToRoot()
+    if m.stack.Count() <= 1 then return
+    while m.stack.Count() > 1
+        top = m.stack.Pop()
+        if top.subtype() = "SearchScreen" then top.callFunc("onClose")
+        m.top.RemoveChild(top)
+    end while
+    root = m.stack[0]
+    root.visible = true
+    root.callFunc("focusScreen")
+end sub
+
 sub clearStack()
     for each s in m.stack
         if s.subtype() = "SearchScreen" then s.callFunc("onClose")
@@ -154,16 +180,22 @@ sub onEvent(event as Object)
         ' La entrada automática no funcionó: ahora la persona debe corregir sus datos.
         beginDialog()
     else if t = "open"
+        openTarget(toS(e.target))
+    else if t = "nav"
+        ' Pestaña de la barra de arriba en otra pantalla: se vuelve al inicio y desde ahí se abre lo elegido.
         target = toS(e.target)
-        if target = "live" or target = "movie" or target = "series"
-            openBrowse(target)
-        else if target = "search"
-            pushScreen(CreateObject("roSGNode", "SearchScreen"))
-        else if target = "continue"
-            pushScreen(CreateObject("roSGNode", "ContinueScreen"))
-        else if target = "settings"
-            pushScreen(CreateObject("roSGNode", "SettingsScreen"))
+        if target = "more"
+            showMore()
+            return
         end if
+        popToRoot()
+        if target = "mine"
+            if m.stack.Count() > 0 then m.stack[0].goShelf = "mine"
+        else if target <> "home"
+            openTarget(target)
+        end if
+    else if t = "more"
+        showMore()
     else if t = "openMovie"
         openMovie(e.item)
     else if t = "openSeries"
@@ -175,15 +207,7 @@ sub onEvent(event as Object)
     else if t = "playEntry"
         playEntry(e.entry)
     else if t = "logout"
-        regDelete("user")
-        regDelete("pass")
-        regDelete("account")
-        regDelete("liveExt")
-        regDelete("base")
-        m.prefetchUser = ""
-        cacheClear()
-        m.global.session = { parental: true }
-        showLogin()
+        logout()
     else if t = "back"
         popScreen()
     else if t = "started"
@@ -191,6 +215,66 @@ sub onEvent(event as Object)
         m.launchTimer.control = "stop"
         finishLaunch()
     end if
+end sub
+
+sub logout()
+    regDelete("user")
+    regDelete("pass")
+    regDelete("account")
+    regDelete("liveExt")
+    regDelete("base")
+    m.prefetchUser = ""
+    cacheClear()
+    m.global.session = { parental: true }
+    showLogin()
+end sub
+
+' ----------------------------------------------------------------- pestaña "Más" (igual que en Fire TV)
+
+sub showMore()
+    if m.moreDialog <> invalid then return
+    dlg = CreateObject("roSGNode", "Dialog")
+    dlg.title = "Más opciones"
+    s = m.global.session
+    if s <> invalid and s.user <> invalid then dlg.message = "Cuenta: " + toS(s.user)
+    dlg.buttons = ["Continuar viendo", "Mi lista", "Ajustes", "Cerrar sesión", "Cancelar"]
+    dlg.observeFieldScoped("buttonSelected", "onMoreChoice")
+    dlg.observeFieldScoped("wasClosed", "onMoreClosed")
+    m.moreDialog = dlg
+    m.top.dialog = dlg
+end sub
+
+sub onMoreChoice()
+    dlg = m.moreDialog
+    if dlg = invalid then return
+    choice = dlg.buttonSelected
+    m.moreDialog = invalid
+    dlg.close = true
+    if choice = 0
+        popToRoot()
+        openTarget("continue")
+    else if choice = 1
+        popToRoot()
+        if m.stack.Count() > 0 then m.stack[0].goShelf = "mine"
+    else if choice = 2
+        popToRoot()
+        openTarget("settings")
+    else if choice = 3
+        logout()
+    else
+        refocusTop()
+    end if
+end sub
+
+' Se cerró con Atrás: el foco vuelve a la pantalla de arriba.
+sub onMoreClosed()
+    if m.moreDialog = invalid then return
+    m.moreDialog = invalid
+    refocusTop()
+end sub
+
+sub refocusTop()
+    if m.stack.Count() > 0 then m.stack[m.stack.Count() - 1].callFunc("focusScreen")
 end sub
 
 sub onLoggedIn(e as Object)

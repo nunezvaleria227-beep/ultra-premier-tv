@@ -12,6 +12,16 @@ sub init()
     m.status = m.top.findNode("status")
     m.hint = m.top.findNode("hint")
     m.epgTimer = m.top.findNode("epgTimer")
+    m.bg = m.top.findNode("bg")
+    m.titleIcon = m.top.findNode("titleIcon")
+    m.topBar = m.top.findNode("topBar")
+    m.nowTime = m.top.findNode("nowTime")
+    m.nowBar = m.top.findNode("nowBar")
+    m.nowBarBg = m.top.findNode("nowBarBg")
+    m.liveBadgeBg = m.top.findNode("liveBadgeBg")
+    m.liveBadgeBg.width = 21 + Int(m.top.findNode("liveBadgeText").boundingRect().width) + 10
+    m.catList = invalid
+    m.selIdx = -1
 
     m.tasks = []
     m.allItems = invalid
@@ -23,7 +33,8 @@ sub init()
     m.epgId = ""
     m.pendingLogo = ""
 
-    m.cats.observeField("itemSelected", "onCatSelected")
+    m.cats.observeField("rowItemSelected", "onChipSelected")
+    m.topBar.observeField("selected", "onTopBar")
     m.chans.observeField("itemSelected", "onChanSelected")
     m.chans.observeField("itemFocused", "onChanFocused")
     m.grid.observeField("itemSelected", "onGridSelected")
@@ -33,23 +44,63 @@ end sub
 sub onKind()
     kind = m.top.kind
     if kind = "live"
-        m.title.text = "TV en directo"
+        m.title.text = "TV EN VIVO"
+        m.titleIcon.uri = "pkg:/images/ic_tv.png"
+        m.bg.uri = "pkg:/images/bg_live.jpg"
+        m.hint.text = "OK: ver el canal   ·   Play/Pausa: favorito   ·   *: buscar en esta lista"
     else if kind = "movie"
-        m.title.text = "Películas"
+        m.title.text = "PELÍCULAS"
+        m.titleIcon.uri = "pkg:/images/ic_movies.png"
+        m.bg.uri = "pkg:/images/bg_movies.jpg"
+        m.hint.text = "OK: abrir   ·   Play/Pausa: favorito   ·   *: buscar en esta lista"
     else
-        m.title.text = "Series"
+        m.title.text = "SERIES"
+        m.titleIcon.uri = "pkg:/images/ic_series.png"
+        m.bg.uri = "pkg:/images/bg_series.jpg"
+        m.hint.text = "OK: abrir   ·   Play/Pausa: favorito   ·   *: buscar en esta lista"
     end if
-    m.hint.text = "OK: abrir      Play/Pausa: favorito      Asterisco (*): buscar en la lista"
+    m.topBar.active = kind
     ' Si las categorías ya se bajaron hace poco (por ejemplo al entrar a la app), se muestran al instante.
     cachedCats = cacheGet("cats_" + kind, 900)
     if cachedCats <> invalid and cachedCats.getChildCount() > 1
-        m.cats.content = cachedCats
-        showStatus("Elige una categoría con OK")
-        focusPane("cats")
+        setCategories(cachedCats)
         return
     end if
     showStatus("Cargando categorías…")
     runApi({ action: "categories", type: kind, tag: kind }, "onCategories")
+end sub
+
+' Pasa la lista de categorías a la fila de pastillas y abre la primera (después de Favoritos).
+sub setCategories(list as Object)
+    m.catList = list
+    root = CreateObject("roSGNode", "ContentNode")
+    row = root.CreateChild("ContentNode")
+    for i = 0 to list.getChildCount() - 1
+        c = list.getChild(i)
+        chip = row.CreateChild("ContentNode")
+        chip.id = c.id
+        if c.id = "__fav__" then chip.title = "Favoritos" else chip.title = c.title
+    end for
+    m.cats.content = root
+    first = 0
+    if list.getChildCount() > 1 then first = 1
+    selectCategory(first)
+    focusPane("cats")
+end sub
+
+sub onChipSelected(event as Object)
+    at = event.getData()
+    if at = invalid or at.Count() < 2 then return
+    selectCategory(at[1])
+end sub
+
+sub onTopBar()
+    target = m.topBar.selected
+    if target = m.top.kind
+        focusPane("cats")
+        return
+    end if
+    m.top.event = { type: "nav", target: target }
 end sub
 
 sub focusScreen()
@@ -78,8 +129,11 @@ sub focusPane(p as String)
         else
             m.grid.setFocus(true)
         end if
+    else if p = "tabs"
+        m.topBar.setFocus(true)
     else
         m.pane = "cats"
+        if m.selIdx >= 0 then m.cats.jumpToRowItem = [0, m.selIdx]
         m.cats.setFocus(true)
     end if
 end sub
@@ -100,15 +154,18 @@ sub onCategories(event as Object)
     end if
     root = resp.content
     cachePut("cats_" + m.top.kind, root)
-    m.cats.content = root
-    showStatus("Elige una categoría con OK")
-    focusPane("cats")
+    showStatus("")
+    setCategories(root)
 end sub
 
-sub onCatSelected(event as Object)
-    index = event.getData()
-    node = m.cats.content.getChild(index)
+sub selectCategory(index as Integer)
+    if m.catList = invalid then return
+    node = m.catList.getChild(index)
     if node = invalid then return
+    row = m.cats.content.getChild(0)
+    if m.selIdx >= 0 and m.selIdx < row.getChildCount() then row.getChild(m.selIdx).ShortDescriptionLine2 = ""
+    m.selIdx = index
+    row.getChild(index).ShortDescriptionLine2 = "sel"
     m.catId = node.id
     m.catTitle = node.title
     m.filterText = ""
@@ -186,7 +243,7 @@ sub showItems(content as Object)
     label = m.catTitle + "  ·  " + n.ToStr() + " elementos"
     if m.filterText <> "" then label = m.catTitle + "  ·  filtro «" + m.filterText + "»  ·  " + n.ToStr() + " resultados"
     m.filterLabel.text = label
-    focusPane("items")
+    if m.pane = "items" then focusPane("items")
 end sub
 
 ' ----------------------------------------------------------------- abrir
@@ -233,11 +290,14 @@ sub onChanFocused(event as Object)
     if m.shown = invalid or index < 0 then return
     c = m.shown.getChild(index)
     if c = invalid then return
-    m.chanName.text = rawName(c.title)
+    m.chanName.text = upper(rawName(c.title))
     m.chanLogo.uri = ""
     m.pendingLogo = c.HDPosterUrl
     m.nowLabel.text = ""
+    m.nowTime.text = ""
     m.nextLabel.text = ""
+    m.nowBar.visible = false
+    m.nowBarBg.visible = false
     m.epgId = c.id
     m.epgTimer.control = "stop"
     m.epgTimer.control = "start"
@@ -253,17 +313,32 @@ end sub
 sub onEpg(event as Object)
     resp = event.getData()
     if resp.tag <> m.epgId then return
+    m.nowBar.visible = false
+    m.nowBarBg.visible = false
     if resp.ok = true and resp.nowEntry <> invalid
         e = resp.nowEntry
-        m.nowLabel.text = "Ahora (" + fmtHM(e.start) + " - " + fmtHM(e.stop) + "):" + Chr(10) + e.title
+        title = e.title
+        if title = "" then title = "En vivo"
+        m.nowLabel.text = title
+        m.nowTime.text = fmtHM(e.start) + " – " + fmtHM(e.stop)
+        span = e.stop - e.start
+        if span > 0
+            pct = (nowSecs() - e.start) / span
+            if pct < 0.02 then pct = 0.02
+            if pct > 1 then pct = 1
+            m.nowBar.width = Int(552 * pct)
+            m.nowBar.visible = true
+            m.nowBarBg.visible = true
+        end if
     else
         m.nowLabel.text = "En vivo"
+        m.nowTime.text = "Este canal no tiene guía de programación."
     end if
     if resp.ok = true and resp.nextEntry <> invalid
         u = resp.nextEntry
-        m.nextLabel.text = "Después (" + fmtHM(u.start) + "):" + Chr(10) + u.title
+        m.nextLabel.text = u.title + "   ·   " + fmtHM(u.start)
     else
-        m.nextLabel.text = ""
+        m.nextLabel.text = "—"
     end if
 end sub
 
@@ -368,25 +443,27 @@ end sub
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
     if key = "back"
-        if m.pane = "items"
+        if m.pane <> "cats"
             focusPane("cats")
             return true
         end if
         return false
     end if
-    if key = "left"
+    if key = "down"
+        if m.pane = "tabs"
+            focusPane("cats")
+        else if m.pane = "cats"
+            if m.shown <> invalid then focusPane("items")
+        end if
+        return true
+    end if
+    if key = "up"
         if m.pane = "items"
             focusPane("cats")
-            return true
+        else if m.pane = "cats"
+            focusPane("tabs")
         end if
-        return false
-    end if
-    if key = "right"
-        if m.pane = "cats" and m.shown <> invalid
-            focusPane("items")
-            return true
-        end if
-        return false
+        return true
     end if
     if key = "play"
         if m.pane = "items" then toggleFav()

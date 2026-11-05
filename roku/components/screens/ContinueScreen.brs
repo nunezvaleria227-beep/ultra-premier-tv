@@ -2,12 +2,40 @@ sub init()
     m.list = m.top.findNode("list")
     m.status = m.top.findNode("status")
     m.entries = []
+    m.pane = "list"
+    m.topBar = m.top.findNode("topBar")
+    m.topBar.observeField("selected", "onTopBar")
     m.list.observeField("itemSelected", "onSelected")
 end sub
 
+sub onTopBar()
+    m.top.event = { type: "nav", target: m.topBar.selected }
+end sub
+
+' Arriba desde la primera fila sube a la barra; abajo (o Atrás) desde la barra vuelve a la lista.
+function tabsKey(key as String) as Boolean
+    if m.pane = "tabs"
+        if key = "down" or key = "back"
+            m.pane = "list"
+            focusScreen()
+            return true
+        end if
+        return false
+    end if
+    if key = "up"
+        m.pane = "tabs"
+        m.topBar.setFocus(true)
+        return true
+    end if
+    return false
+end function
+
+
 sub focusScreen()
     rebuild()
-    if m.list.visible
+    if m.pane = "tabs"
+        m.topBar.setFocus(true)
+    else if m.list.visible
         m.list.setFocus(true)
     else
         m.top.setFocus(true)
@@ -72,6 +100,7 @@ end sub
 
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
+    if tabsKey(key) then return true
     if key = "options" and m.entries.Count() > 0
         idx = m.list.itemFocused
         if idx >= 0 and idx < m.entries.Count()

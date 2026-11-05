@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!-- Buscar: teclado en pantalla a la izquierda; a la derecha filtros inclinados (Todo, Películas, Series, Canales)
+     y los resultados en carteles. Arriba la barra con las pestañas. -->
 <component name="SearchScreen" extends="Group">
   <interface>
     <field id="event" type="assocarray" alwaysNotify="true" />
@@ -8,12 +10,21 @@
   <script type="text/brightscript" uri="pkg:/components/screens/SearchScreen.brs" />
   <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
-    <Rectangle id="shade" color="0x050824A0" width="1280" height="720" />
-    <Label id="title" text="Búsqueda" translation="[40,28]" width="500" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
-    <LabelList id="form" translation="[40,100]" itemSize="[420,46]" numRows="3" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <Label id="status" translation="[40,260]" width="420" height="140" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <LabelList id="results" translation="[490,100]" itemSize="[750,44]" numRows="11" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <Label id="hint" translation="[40,672]" width="1200" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" text="Busca por nombre en canales, películas y series (ignora acentos y mayúsculas)" />
+    <Poster uri="pkg:/images/bg_search.jpg" width="1280" height="720" />
+    <Poster uri="pkg:/images/ic_search.png" translation="[48,87]" width="24" height="24" blendColor="0xF2F6FFFF" />
+    <Label translation="[82,80]" width="400" height="38" vertAlign="center" color="0xF2F6FFFF" text="BUSCAR">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="27" />
+    </Label>
+
+    <MiniKeyboard id="kb" translation="[40,128]" />
+    <SlantRow id="searchBtn" translation="[48,590]" />
+
+    <SlantRow id="filters" translation="[480,132]" small="true" primaryCount="0" selectedIndex="0" maxWidth="750" />
+    <MarkupGrid id="grid" translation="[480,186]" itemComponentName="PosterCard" itemSize="[128,222]"
+      itemSpacing="[20,16]" numColumns="5" numRows="2" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
+    <Label id="status" translation="[480,300]" width="720" height="120" horizAlign="center" wrap="true" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="16" />
+    </Label>
+    <UltraTopBar id="topBar" active="search" />
   </children>
 </component>

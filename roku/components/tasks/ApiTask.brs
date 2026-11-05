@@ -18,6 +18,8 @@ sub doWork()
         res = doSeriesInfo(req, res)
     else if action = "epg"
         res = doEpg(req, res)
+    else if action = "home"
+        res = doHome(req, res)
     else
         res.error = "Acción desconocida."
     end if
@@ -213,7 +215,9 @@ function doItems(req as Object, res as Object) as Object
                 if favs.DoesExist(id) then title = "* " + name
                 small = icon
                 if kind <> "live" then small = thumbUrl(icon)
-                list.Push({ id: id, title: title, HDPosterUrl: small, FHDPosterUrl: icon, ShortDescriptionLine1: title, StreamFormat: ext })
+                rate = ""
+                if kind <> "live" then rate = ratingBadge(s.rating)
+                list.Push({ id: id, title: title, HDPosterUrl: small, FHDPosterUrl: icon, ShortDescriptionLine1: title, StreamFormat: ext, Rating: rate })
                 if list.Count() >= 3000 then exit for
             end if
         end if
@@ -256,6 +260,7 @@ function doVodInfo(req as Object, res as Object) as Object
         duration: toS(info.duration)
         rating: toS(info.rating)
         cover: toS(info.movie_image)
+        backdrop: firstUrl(info.backdrop_path)
         ext: ext
     }
     return res
@@ -330,6 +335,7 @@ function doSeriesInfo(req as Object, res as Object) as Object
         year: year
         rating: toS(info.rating)
         cover: toS(info.cover)
+        backdrop: firstUrl(info.backdrop_path)
     }
     res.seasons = seasons
     return res
@@ -358,5 +364,191 @@ function doEpg(req as Object, res as Object) as Object
             end if
         end if
     end for
+    return res
+end function
+
+' ----------------------------------------------------------------- inicio: lo más nuevo de películas, series y un grupo de canales
+
+function firstUrl(v as Dynamic) as String
+    if v = invalid then return ""
+    if Type(v) = "roArray"
+        for each u in v
+            t = toS(u)
+            if t <> "" then return t
+        end for
+        return ""
+    end if
+    return toS(v)
+end function
+
+' Pide varias direcciones a la vez. Devuelve los textos en el mismo orden (invalid donde falló).
+function fetchAll(urls as Object, timeoutMs as Integer) as Object
+    port = CreateObject("roMessagePort")
+    xfers = []
+    pendingIds = {}
+    out = []
+    for i = 0 to urls.Count() - 1
+        x = CreateObject("roUrlTransfer")
+        x.SetPort(port)
+        x.SetUrl(urls[i])
+        x.EnableEncodings(true)
+        x.AddHeader("User-Agent", "Mozilla/5.0 (UltraPremierTV Roku)")
+        if x.AsyncGetToString() then pendingIds[x.GetIdentity().ToStr()] = i
+        xfers.Push(x)
+        out.Push(invalid)
+    end for
+    clock = CreateObject("roTimespan")
+    while pendingIds.Count() > 0 and clock.TotalMilliseconds() < timeoutMs
+        msg = Wait(400, port)
+        if Type(msg) = "roUrlEvent"
+            key = msg.GetSourceIdentity().ToStr()
+            if pendingIds.DoesExist(key)
+                code = msg.GetResponseCode()
+                if code >= 200 and code < 300 then out[pendingIds[key]] = msg.GetString()
+                pendingIds.Delete(key)
+            end if
+        end if
+    end while
+    for each x in xfers
+        x.AsyncCancel()
+    end for
+    return out
+end function
+
+' Las primeras categorías (sin las de adultos si el control parental está activo).
+function firstCats(act as String, n as Integer) as Object
+    found = []
+    json = getJson(apiUrl(act, ""))
+    if json = invalid or Type(json) <> "roArray" then return found
+    hideAdult = parentalOn()
+    for each c in json
+        if Type(c) = "roAssociativeArray"
+            name = toS(c.category_name)
+            id = toS(c.category_id)
+            if id <> "" and not (hideAdult and isAdultName(name)) then found.Push({ id: id, name: name })
+        end if
+        if found.Count() >= n then exit for
+    end for
+    return found
+end function
+
+function homeEntry(s as Object, kind as String, catName as String) as Dynamic
+    name = toS(s.name)
+    if name = "" then return invalid
+    e = { kind: kind, id: "", name: name, icon: "", backdrop: "", plot: "", year: "", genre: "", rating: "", score: 0.0, ext: "", cat: catName, added: 0 }
+    if kind = "movie"
+        e.id = toS(s.stream_id)
+        e.icon = toS(s.stream_icon)
+        e.ext = toS(s.container_extension)
+        if e.ext = "" then e.ext = "mp4"
+        e.rating = toS(s.rating)
+        e.score = ratingNum(s.rating)
+        e.added = toI(s.added)
+    else if kind = "series"
+        e.id = toS(s.series_id)
+        e.icon = toS(s.cover)
+        e.backdrop = firstUrl(s.backdrop_path)
+        e.plot = toS(s.plot)
+        e.genre = toS(s.genre)
+        y = toS(s.releaseDate)
+        if Len(y) >= 4 then y = Left(y, 4)
+        e.year = y
+        e.rating = toS(s.rating)
+        e.score = ratingNum(s.rating)
+        e.added = toI(s.last_modified)
+    else
+        e.id = toS(s.stream_id)
+        e.icon = toS(s.stream_icon)
+    end if
+    if e.id = "" then return invalid
+    return e
+end function
+
+sub addHomeItems(txt as Dynamic, kind as String, catName as String, out as Object, seen as Object, limit as Integer)
+    if txt = invalid then return
+    json = ParseJson(txt)
+    if json = invalid or Type(json) <> "roArray" then return
+    hideAdult = parentalOn()
+    n = 0
+    for each s in json
+        if Type(s) = "roAssociativeArray"
+            e = homeEntry(s, kind, catName)
+            if e <> invalid
+                key = kind + e.id
+                if not seen.DoesExist(key) and not (hideAdult and isAdultName(e.name))
+                    seen[key] = true
+                    out.Push(e)
+                    n = n + 1
+                    if n >= limit then exit for
+                end if
+            end if
+        end if
+    end for
+end sub
+
+function doHome(req as Object, res as Object) as Object
+    movieCats = firstCats("get_vod_categories", 3)
+    seriesCats = firstCats("get_series_categories", 2)
+    liveCats = firstCats("get_live_categories", 1)
+    urls = []
+    for each c in movieCats
+        urls.Push(apiUrl("get_vod_streams", "&category_id=" + urlEscape(c.id)))
+    end for
+    for each c in seriesCats
+        urls.Push(apiUrl("get_series", "&category_id=" + urlEscape(c.id)))
+    end for
+    for each c in liveCats
+        urls.Push(apiUrl("get_live_streams", "&category_id=" + urlEscape(c.id)))
+    end for
+    texts = fetchAll(urls, 30000)
+    movies = []
+    series = []
+    live = []
+    seen = {}
+    i = 0
+    for each c in movieCats
+        addHomeItems(texts[i], "movie", c.name, movies, seen, 4000)
+        texts[i] = invalid
+        i = i + 1
+    end for
+    for each c in seriesCats
+        addHomeItems(texts[i], "series", c.name, series, seen, 4000)
+        texts[i] = invalid
+        i = i + 1
+    end for
+    liveName = ""
+    for each c in liveCats
+        addHomeItems(texts[i], "live", c.name, live, seen, 20)
+        texts[i] = invalid
+        liveName = c.name
+        i = i + 1
+    end for
+    if movies.Count() = 0 and series.Count() = 0 and live.Count() = 0
+        res.error = "No se pudo cargar el inicio. Revisa tu internet e inténtalo otra vez."
+        return res
+    end if
+    ' "Mejor calificadas": películas con 7 o más, de la mejor a la peor.
+    top = []
+    for each e in movies
+        if e.score >= 7 then top.Push(e)
+    end for
+    top.SortBy("score", "r")
+    while top.Count() > 20
+        top.Pop()
+    end while
+    movies.SortBy("added", "r")
+    series.SortBy("added", "r")
+    while movies.Count() > 20
+        movies.Pop()
+    end while
+    while series.Count() > 20
+        series.Pop()
+    end while
+    res.ok = true
+    res.movies = movies
+    res.top = top
+    res.series = series
+    res.live = live
+    res.liveName = liveName
     return res
 end function

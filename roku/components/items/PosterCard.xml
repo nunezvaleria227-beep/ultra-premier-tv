@@ -1,15 +1,34 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Película o serie: cartel dentro de un recuadro, con el nombre abajo. -->
+<!-- Película o serie: cartel con esquinas redondas, calificación en azul, estrella si es favorito y el nombre debajo.
+     Al enfocarlo crece un poco con borde blanco y brillo azul (como en Fire TV). Sirve en filas (RowList) y cuadrículas. -->
 <component name="PosterCard" extends="Group">
   <interface>
     <field id="itemContent" type="node" onChange="onContent" />
+    <field id="focusPercent" type="float" onChange="paint" />
+    <field id="gridHasFocus" type="boolean" onChange="paint" />
+    <field id="rowListHasFocus" type="boolean" onChange="paint" />
+    <field id="rowFocusPercent" type="float" value="1.0" onChange="paint" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/items/PosterCard.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Rectangle id="card" width="150" height="256" color="0x0E1648FF" />
-    <Poster id="art" width="150" height="206" loadDisplayMode="scaleToZoom" loadWidth="300" loadHeight="412" />
-    <Label id="title" translation="[6,208]" width="138" height="46" wrap="true" vertAlign="center" horizAlign="center" font="font:SmallestSystemFont" color="0xF2F5FFFF" />
-    <Rectangle id="favBox" translation="[0,0]" width="40" height="22" color="0xFFC83DFF" visible="false" />
-    <Label id="fav" translation="[0,0]" width="40" height="22" horizAlign="center" vertAlign="center" font="font:SmallestBoldSystemFont" color="0x1A1200FF" text="FAV" visible="false" />
+    <Group id="card" scaleRotateCenter="[64,96]">
+      <Poster uri="pkg:/images/card_bg.9.png" width="128" height="192" />
+      <Label id="initial" width="128" height="192" horizAlign="center" vertAlign="center" color="0x3A4E8CFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="44" />
+      </Label>
+      <MaskGroup maskUri="pkg:/images/card_mask.png" maskSize="[128,192]">
+        <Poster id="art" width="128" height="192" loadDisplayMode="scaleToZoom" loadWidth="256" loadHeight="384" />
+      </MaskGroup>
+      <Poster id="rateBox" uri="pkg:/images/badge_blue.9.png" translation="[6,6]" width="27" height="27" visible="false" />
+      <Label id="rate" translation="[6,6]" width="27" height="27" horizAlign="center" vertAlign="center" color="0xFFFFFFFF" visible="false">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Bold.ttf" size="14" />
+      </Label>
+      <Poster id="fav" uri="pkg:/images/star.png" translation="[102,7]" width="20" height="20" visible="false" />
+      <Poster id="ring" uri="pkg:/images/poster_ring.9.png" translation="[-14,-14]" width="156" height="220" visible="false" />
+    </Group>
+    <Label id="title" translation="[2,201]" width="124" height="18" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-ExtraBoldItalic.ttf" size="11" />
+    </Label>
   </children>
 </component>

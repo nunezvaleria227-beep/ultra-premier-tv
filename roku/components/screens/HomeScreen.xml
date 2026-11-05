@@ -1,18 +1,118 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!-- Inicio de Ultra Premier TV ("Mosaico", como en Fire TV): lo destacado en grande, al lado el canal en vivo
+     y "Continuar viendo", abajo las filas de carteles y arriba la barra con las pestañas inclinadas. -->
 <component name="HomeScreen" extends="Group">
   <interface>
     <field id="event" type="assocarray" alwaysNotify="true" />
+    <field id="goShelf" type="string" alwaysNotify="true" onChange="onGoShelf" />
     <function name="focusScreen" />
   </interface>
   <script type="text/brightscript" uri="pkg:/components/screens/HomeScreen.brs" />
   <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
-    <Poster id="logo" uri="pkg:/images/logo.png" translation="[34,12]" width="270" height="153" loadDisplayMode="scaleToFit" />
-    <Label id="clock" translation="[880,40]" width="360" height="40" horizAlign="right" font="font:MediumSystemFont" color="0xF2F5FFFF" />
-    <Label id="account" translation="[880,84]" width="360" height="60" horizAlign="right" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <MarkupGrid id="grid" translation="[70,196]" itemComponentName="HomeTile" itemSize="[360,200]" itemSpacing="[30,30]" numColumns="3" numRows="2" focusBitmapUri="pkg:/images/focus.9.png" />
-    <Label id="hint" translation="[40,672]" width="1200" height="30" horizAlign="center" font="font:SmallSystemFont" color="0xA3AECCFF" text="Usa las flechas y OK para elegir      Asterisco (*): cerrar sesión" />
-    <Timer id="tick" duration="20" repeat="true" />
+    <Poster uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
+
+    <!-- lo destacado (706x344) -->
+    <Group id="hero" translation="[48,94]">
+      <Poster uri="pkg:/images/tile_panel.9.png" width="706" height="344" />
+      <MaskGroup maskUri="pkg:/images/hero_mask.png" maskSize="[706,344]">
+        <Poster id="heroArt" width="706" height="344" loadDisplayMode="scaleToZoom" loadWidth="706" loadHeight="344" />
+      </MaskGroup>
+      <Poster uri="pkg:/images/hero_shade.png" width="706" height="344" />
+      <Poster id="heroBorder" uri="pkg:/images/tile_border.9.png" width="706" height="344" />
+      <Poster id="heroRing" uri="pkg:/images/tile_ring.9.png" translation="[-16,-16]" width="738" height="376" visible="false" />
+      <Group id="heroBadge" translation="[32,60]">
+        <Poster id="heroBadgeBg" uri="pkg:/images/badge_slant.9.png" width="100" height="22" />
+        <Label id="heroBadgeText" translation="[13,0]" height="22" vertAlign="center" color="0xFFFFFFFF">
+          <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="12" />
+        </Label>
+      </Group>
+      <Label id="heroTitle" translation="[32,95]" width="440" wrap="true" maxLines="2" lineSpacing="-9" color="0xFFFFFFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="43" />
+      </Label>
+      <Label id="heroMeta" translation="[32,190]" width="440" height="20" color="0xB8C6ECFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-SemiBold.ttf" size="15" />
+      </Label>
+      <Label id="heroPlot" translation="[32,219]" width="440" wrap="true" maxLines="2" lineSpacing="3" color="0xD5DEF7FF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Regular.ttf" size="14" />
+      </Label>
+      <Label id="heroStatus" translation="[32,130]" width="440" wrap="true" maxLines="3" color="0xB8C6ECFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="17" />
+      </Label>
+      <SlantRow id="heroBtns" translation="[32,270]" maxWidth="640" />
+    </Group>
+
+    <!-- canal en vivo (462x164) -->
+    <Group id="liveTile" translation="[770,94]" scaleRotateCenter="[231,82]">
+      <Poster uri="pkg:/images/live_bg.png" width="462" height="164" />
+      <Poster id="liveIconBig" translation="[291,8]" width="147" height="147" loadDisplayMode="scaleToFit" loadWidth="294" loadHeight="294" opacity="0.18" />
+      <Poster uri="pkg:/images/live_shade.png" width="462" height="164" />
+      <Poster id="liveBorder" uri="pkg:/images/tile_border.9.png" width="462" height="164" />
+      <Poster id="liveBadgeBg" uri="pkg:/images/badge_red.9.png" translation="[16,16]" width="74" height="19" />
+      <Poster uri="pkg:/images/dot.png" translation="[24,23]" width="5" height="5" />
+      <Label id="liveBadgeText" translation="[34,16]" height="19" vertAlign="center" color="0xFFFFFFFF" text="EN VIVO">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="10" />
+      </Label>
+      <Poster uri="pkg:/images/logo_box.9.png" translation="[16,97]" width="51" height="51" />
+      <Poster id="liveLogo" translation="[19,100]" width="45" height="45" loadDisplayMode="scaleToFit" loadWidth="90" loadHeight="90" />
+      <Label id="liveName" translation="[80,96]" width="366" height="24" color="0xFFFFFFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="19" />
+      </Label>
+      <Label id="liveProg" translation="[80,121]" width="366" height="16" color="0xB8C6ECFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="12" />
+      </Label>
+      <Poster id="liveBarBg" uri="pkg:/images/prog_bg.9.png" translation="[80,143]" width="366" height="4" visible="false" />
+      <Poster id="liveBar" uri="pkg:/images/prog_fg.png" translation="[80,143]" width="0" height="4" visible="false" />
+      <Poster id="liveRing" uri="pkg:/images/tile_ring.9.png" translation="[-16,-16]" width="494" height="196" visible="false" />
+    </Group>
+
+    <!-- continuar viendo (462x164) -->
+    <Group id="contTile" translation="[770,274]" scaleRotateCenter="[231,82]">
+      <Poster uri="pkg:/images/tile_glass.9.png" width="462" height="164" />
+      <MaskGroup maskUri="pkg:/images/cont_mask.png" maskSize="[187,164]">
+        <Rectangle width="187" height="164" color="0x10204FFF" />
+        <Poster id="contArt" width="187" height="164" loadDisplayMode="scaleToZoom" loadWidth="374" loadHeight="328" />
+        <Poster uri="pkg:/images/cont_fade.png" width="187" height="164" />
+      </MaskGroup>
+      <Poster id="contBorder" uri="pkg:/images/tile_border.9.png" width="462" height="164" />
+      <Label id="contKicker" translation="[206,40]" width="237" height="14" color="0x3FD0FFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Black.ttf" size="10" />
+      </Label>
+      <Label id="contTitle" translation="[206,58]" width="237" wrap="true" maxLines="2" lineSpacing="-4" color="0xFFFFFFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="19" />
+      </Label>
+      <Label id="contSub" translation="[206,100]" width="237" height="16" color="0xB8C6ECFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="12" />
+      </Label>
+      <Poster id="contBarBg" uri="pkg:/images/prog_bg.9.png" translation="[206,124]" width="237" height="4" visible="false" />
+      <Poster id="contBar" uri="pkg:/images/prog_fg.png" translation="[206,124]" width="0" height="4" visible="false" />
+      <Poster id="contRing" uri="pkg:/images/tile_ring.9.png" translation="[-16,-16]" width="494" height="196" visible="false" />
+    </Group>
+
+    <!-- filas de carteles: se ve una fila a la vez (la de arriba queda tapada al bajar) -->
+    <Group id="rowsClip" clippingRect="[0,446,1280,274]">
+      <Poster id="rowBar" uri="pkg:/images/bar_slant.png" translation="[48,459]" width="7" height="19" />
+      <Label id="rowTitle" translation="[62,453]" height="30" vertAlign="center" color="0xF2F6FFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="20" />
+      </Label>
+      <Label id="rowSub" translation="[200,453]" height="30" vertAlign="center" color="0x8FA3D6FF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-SemiBold.ttf" size="12" />
+      </Label>
+      <Label id="rowHint" translation="[732,453]" width="500" height="30" horizAlign="right" vertAlign="center" color="0x8FA3D6FF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="11" />
+      </Label>
+      <RowList id="rows" translation="[48,490]" itemComponentName="PosterCard" numRows="1"
+        itemSize="[1184,222]" itemSpacing="[0,60]" rowItemSize="[[128,222]]" rowItemSpacing="[[16,0]]"
+        rowHeights="[222]" showRowLabel="[false]" drawFocusFeedback="false"
+        rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" />
+    </Group>
+    <Label id="note" translation="[48,453]" width="1184" height="30" vertAlign="center" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="14" />
+    </Label>
+
+    <UltraTopBar id="topBar" active="home" />
+
+    <Timer id="infoTimer" duration="0.35" repeat="false" />
+    <Timer id="noteTimer" duration="5" repeat="false" />
   </children>
 </component>

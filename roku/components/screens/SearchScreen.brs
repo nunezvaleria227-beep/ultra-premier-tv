@@ -1,33 +1,54 @@
+' Buscar con el teclado en pantalla. Busca por nombre en canales, películas y series (sin acentos ni mayúsculas).
+' Zonas del foco: "tabs" (barra de arriba), "kb" (teclado), "btn" (botón Buscar), "filters" y "grid".
+
 sub init()
-    m.form = m.top.findNode("form")
+    m.kb = m.top.findNode("kb")
+    m.searchBtn = m.top.findNode("searchBtn")
+    m.filters = m.top.findNode("filters")
+    m.grid = m.top.findNode("grid")
     m.status = m.top.findNode("status")
-    m.resultsList = m.top.findNode("results")
+    m.topBar = m.top.findNode("topBar")
     m.query = ""
-    m.scopes = ["all", "live", "movie", "series"]
-    m.scopeLabels = ["Todo", "Canales", "Películas", "Series"]
-    m.scopeIndex = 0
     m.results = []
-    m.shownCount = 0
+    m.shown = []
+    m.filterKinds = ["all", "movie", "series", "live"]
+    m.filterIndex = 0
     m.task = invalid
     m.running = false
-    m.pane = "form"
+    m.pane = "kb"
 
-    root = CreateObject("roSGNode", "ContentNode")
-    root.CreateChild("ContentNode")
-    root.CreateChild("ContentNode")
-    root.CreateChild("ContentNode")
-    m.form.content = root
-    refreshForm()
-    m.form.observeField("itemSelected", "onFormSelected")
-    m.resultsList.observeField("itemSelected", "onResultSelected")
+    btn = CreateObject("roSGNode", "ContentNode")
+    b = btn.CreateChild("ContentNode")
+    b.title = "Buscar"
+    b.HDPosterUrl = "pkg:/images/ic_search.png"
+    m.searchBtn.content = btn
+    paintFilters()
+    m.status.text = "Escribe el nombre con el teclado y elige Buscar."
+
+    m.kb.observeField("text", "onText")
+    m.searchBtn.observeField("itemSelected", "startSearch")
+    m.filters.observeField("itemSelected", "onFilter")
+    m.grid.observeField("itemSelected", "onResultSelected")
+    m.topBar.observeField("selected", "onTopBar")
 end sub
 
 sub focusScreen()
-    if m.pane = "results" and m.shownCount > 0
-        m.resultsList.setFocus(true)
+    applyFocus()
+end sub
+
+sub applyFocus()
+    p = m.pane
+    if p = "grid" and m.shown.Count() > 0
+        m.grid.setFocus(true)
+    else if p = "filters"
+        m.filters.setFocus(true)
+    else if p = "btn"
+        m.searchBtn.setFocus(true)
+    else if p = "tabs"
+        m.topBar.setFocus(true)
     else
-        m.pane = "form"
-        m.form.setFocus(true)
+        m.pane = "kb"
+        m.kb.setFocus(true)
     end if
 end sub
 
@@ -36,62 +57,39 @@ sub onClose()
 end sub
 
 sub cancelSearch()
-    if m.task <> invalid
-        m.task.cancel = true
-    end if
+    if m.task <> invalid then m.task.cancel = true
     m.running = false
 end sub
 
-sub refreshForm()
-    c = m.form.content
-    c.getChild(0).title = "Texto:   " + m.query
-    c.getChild(1).title = "Buscar en:   " + m.scopeLabels[m.scopeIndex]
-    c.getChild(2).title = "Buscar"
+sub onText()
+    m.query = m.kb.text
 end sub
 
-sub onFormSelected(event as Object)
-    index = event.getData()
-    if index = 0
-        dlg = CreateObject("roSGNode", "StandardKeyboardDialog")
-        dlg.title = "¿Qué quieres buscar?"
-        dlg.text = m.query
-        dlg.buttons = ["Aceptar", "Cancelar"]
-        dlg.observeFieldScoped("buttonSelected", "onKeyboardDone")
-        m.dialog = dlg
-        m.top.getScene().dialog = dlg
-    else if index = 1
-        m.scopeIndex = (m.scopeIndex + 1) mod m.scopes.Count()
-        refreshForm()
-    else
-        startSearch()
+sub onTopBar()
+    target = m.topBar.selected
+    if target = "search"
+        m.pane = "kb"
+        applyFocus()
+        return
     end if
+    m.top.event = { type: "nav", target: target }
 end sub
 
-sub onKeyboardDone()
-    dlg = m.dialog
-    if dlg = invalid then return
-    choice = dlg.buttonSelected
-    if choice = 0 then m.query = dlg.text.Trim()
-    dlg.close = true
-    m.dialog = invalid
-    refreshForm()
-    m.form.setFocus(true)
-    if choice = 0 and Len(m.query) >= 2 then startSearch()
-end sub
+' ----------------------------------------------------------------- búsqueda
 
 sub startSearch()
-    if Len(m.query) < 2
+    q = m.query.Trim()
+    if Len(q) < 2
         m.status.text = "Escribe al menos 2 letras."
         return
     end if
     cancelSearch()
     m.results = []
-    m.shownCount = 0
-    m.resultsList.content = CreateObject("roSGNode", "ContentNode")
+    showResults()
     m.status.text = "Buscando…"
     t = CreateObject("roSGNode", "SearchTask")
-    t.query = m.query
-    t.scope = m.scopes[m.scopeIndex]
+    t.query = q
+    t.scope = "all"
     t.observeField("results", "onResults")
     t.observeField("progress", "onProgress")
     t.observeField("finished", "onFinished")
@@ -101,35 +99,79 @@ sub startSearch()
 end sub
 
 sub onProgress(event as Object)
-    if m.running then m.status.text = event.getData()
+    if m.running and m.shown.Count() = 0 then m.status.text = event.getData()
 end sub
 
 sub onFinished()
-    if m.task <> invalid then m.status.text = m.task.progress
     m.running = false
+    if m.shown.Count() = 0
+        if m.results.Count() = 0
+            m.status.text = "Sin resultados para «" + m.query.Trim() + "»."
+        else
+            m.status.text = "No hay resultados en este filtro."
+        end if
+    end if
 end sub
 
 sub onResults(event as Object)
     arr = event.getData()
     if arr = invalid then return
     m.results = arr
-    root = m.resultsList.content
-    n = arr.Count()
-    for i = m.shownCount to n - 1
-        e = arr[i]
-        kindLabel = "Serie"
-        if e.kind = "live" then kindLabel = "Canal"
-        if e.kind = "movie" then kindLabel = "Película"
-        node = root.CreateChild("ContentNode")
-        node.title = kindLabel + "  ·  " + e.name
+    showResults()
+end sub
+
+function countKind(kind as String) as Integer
+    n = 0
+    for each e in m.results
+        if e.kind = kind then n = n + 1
     end for
-    m.shownCount = n
+    return n
+end function
+
+sub paintFilters()
+    root = CreateObject("roSGNode", "ContentNode")
+    labels = ["Todo (" + m.results.Count().ToStr() + ")", "Películas (" + countKind("movie").ToStr() + ")", "Series (" + countKind("series").ToStr() + ")", "Canales (" + countKind("live").ToStr() + ")"]
+    for each l in labels
+        n = root.CreateChild("ContentNode")
+        n.title = l
+    end for
+    m.filters.content = root
+    m.filters.selectedIndex = m.filterIndex
+end sub
+
+sub onFilter(event as Object)
+    m.filterIndex = event.getData()
+    showResults()
+end sub
+
+sub showResults()
+    paintFilters()
+    kind = m.filterKinds[m.filterIndex]
+    m.shown = []
+    root = CreateObject("roSGNode", "ContentNode")
+    for each e in m.results
+        if kind = "all" or e.kind = kind
+            m.shown.Push(e)
+            node = root.CreateChild("ContentNode")
+            node.title = toS(e.name)
+            if e.kind <> "live" then node.Rating = ratingBadge(e.rating)
+            if e.kind = "live"
+                node.HDPosterUrl = toS(e.icon)
+                node.ShortDescriptionLine2 = "live"
+            else
+                node.HDPosterUrl = thumbUrl(toS(e.icon))
+            end if
+        end if
+    end for
+    m.grid.content = root
+    m.grid.visible = (m.shown.Count() > 0)
+    if m.shown.Count() > 0 then m.status.text = ""
 end sub
 
 sub onResultSelected(event as Object)
     index = event.getData()
-    if index < 0 or index >= m.results.Count() then return
-    e = m.results[index]
+    if index < 0 or index >= m.shown.Count() then return
+    e = m.shown[index]
     item = { id: e.id, name: e.name, icon: e.icon, ext: e.ext }
     if e.kind = "live"
         m.top.event = { type: "playLive", items: [item], index: 0 }
@@ -140,16 +182,44 @@ sub onResultSelected(event as Object)
     end if
 end sub
 
+' ----------------------------------------------------------------- control remoto
+
 function onKeyEvent(key as String, press as Boolean) as Boolean
     if not press then return false
-    if key = "right" and m.pane = "form" and m.shownCount > 0
-        m.pane = "results"
-        m.resultsList.setFocus(true)
+    p = m.pane
+    if key = "back"
+        if p <> "kb"
+            m.pane = "kb"
+            applyFocus()
+            return true
+        end if
+        return false
+    end if
+    if key = "play"
+        startSearch()
         return true
     end if
-    if (key = "left" or key = "back") and m.pane = "results"
-        m.pane = "form"
-        m.form.setFocus(true)
+    target = ""
+    if p = "tabs"
+        if key = "down" then target = "kb"
+    else if p = "kb"
+        if key = "right" then target = "filters"
+        if key = "down" then target = "btn"
+        if key = "up" then target = "tabs"
+    else if p = "btn"
+        if key = "up" then target = "kb"
+        if key = "right" then target = "filters"
+    else if p = "filters"
+        if key = "down" and m.shown.Count() > 0 then target = "grid"
+        if key = "left" then target = "kb"
+        if key = "up" then target = "tabs"
+    else if p = "grid"
+        if key = "up" then target = "filters"
+        if key = "left" then target = "kb"
+    end if
+    if target <> ""
+        m.pane = target
+        applyFocus()
         return true
     end if
     return false

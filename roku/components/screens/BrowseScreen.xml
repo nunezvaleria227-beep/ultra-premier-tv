@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<!-- Categorías a la izquierda; a la derecha canales (con guía) o carteles de películas / series. -->
+<!-- En vivo, Películas o Series (como en Fire TV): la barra de arriba, el nombre de la sección, las categorías
+     como pastillas inclinadas y abajo la cuadrícula de carteles (o la lista de canales con su guía). -->
 <component name="BrowseScreen" extends="Group">
   <interface>
     <field id="kind" type="string" onChange="onKind" />
@@ -9,22 +10,63 @@
   <script type="text/brightscript" uri="pkg:/components/screens/BrowseScreen.brs" />
   <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
-    <Rectangle id="shade" color="0x050824A0" width="1280" height="720" />
-    <Label id="title" translation="[40,28]" width="500" height="44" font="font:LargeBoldSystemFont" color="0xF2F5FFFF" />
-    <Label id="filterLabel" translation="[360,40]" width="880" height="30" horizAlign="right" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <LabelList id="cats" translation="[40,100]" itemSize="[300,44]" numRows="11" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <MarkupList id="chans" translation="[360,100]" itemComponentName="ChannelRow" itemSize="[470,58]" itemSpacing="[0,0]" numRows="9" visible="false" focusBitmapUri="pkg:/images/focus.9.png" />
-    <Group id="infoPanel" translation="[850,100]" visible="false">
-      <Rectangle width="390" height="330" color="0x0A0C22D0" />
-      <Poster id="chanLogo" translation="[18,18]" width="110" height="110" loadDisplayMode="scaleToFit" />
-      <Label id="chanName" translation="[142,18]" width="236" height="110" wrap="true" vertAlign="center" font="font:MediumBoldSystemFont" color="0xF2F5FFFF" />
-      <Label id="nowLabel" translation="[18,145]" width="354" height="100" wrap="true" font="font:SmallSystemFont" color="0xF2F5FFFF" />
-      <Label id="nextLabel" translation="[18,245]" width="354" height="75" wrap="true" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <Poster id="bg" uri="pkg:/images/bg_movies.jpg" width="1280" height="720" />
+    <Poster id="titleIcon" uri="pkg:/images/ic_movies.png" translation="[48,87]" width="24" height="24" blendColor="0xF2F6FFFF" />
+    <Label id="title" translation="[82,80]" width="500" height="38" vertAlign="center" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="27" />
+    </Label>
+    <Label id="filterLabel" translation="[600,80]" width="632" height="38" horizAlign="right" vertAlign="center" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="13" />
+    </Label>
+
+    <RowList id="cats" translation="[48,128]" itemComponentName="ChipItem" numRows="1" itemSize="[1184,32]"
+      rowItemSize="[[168,32]]" rowItemSpacing="[[7,0]]" rowHeights="[32]" showRowLabel="[false]"
+      drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" />
+
+    <MarkupGrid id="grid" translation="[58,182]" visible="false" itemComponentName="PosterCard" itemSize="[128,222]"
+      itemSpacing="[20,16]" numColumns="8" numRows="2" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
+
+    <Group id="infoPanel" translation="[48,182]" visible="false">
+      <Poster uri="pkg:/images/panel.9.png" width="600" height="436" />
+      <Poster id="liveBadgeBg" uri="pkg:/images/badge_red.9.png" translation="[24,24]" width="80" height="22" />
+      <Poster uri="pkg:/images/dot.png" translation="[33,32]" width="6" height="6" />
+      <Label id="liveBadgeText" translation="[45,24]" height="22" vertAlign="center" color="0xFFFFFFFF" text="EN VIVO">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="11" />
+      </Label>
+      <Poster uri="pkg:/images/logo_box.9.png" translation="[24,64]" width="150" height="150" />
+      <Poster id="chanLogo" translation="[34,74]" width="130" height="130" loadDisplayMode="scaleToFit" loadWidth="260" loadHeight="260" />
+      <Label id="chanName" translation="[196,64]" width="380" height="150" wrap="true" maxLines="3" lineSpacing="-4" vertAlign="center" color="0xFFFFFFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="26" />
+      </Label>
+      <Label id="nowKicker" translation="[24,240]" width="300" height="14" color="0x3FD0FFFF" text="AHORA">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Black.ttf" size="10" />
+      </Label>
+      <Label id="nowLabel" translation="[24,258]" width="552" wrap="true" maxLines="2" color="0xF2F6FFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Bold.ttf" size="17" />
+      </Label>
+      <Label id="nowTime" translation="[24,310]" width="552" height="18" color="0x8FA3D6FF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="13" />
+      </Label>
+      <Poster id="nowBarBg" uri="pkg:/images/prog_bg.9.png" translation="[24,334]" width="552" height="4" visible="false" />
+      <Poster id="nowBar" uri="pkg:/images/prog_fg.png" translation="[24,334]" width="0" height="4" visible="false" />
+      <Label id="nextKicker" translation="[24,356]" width="300" height="14" color="0x8FA3D6FF" text="DESPUÉS">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Black.ttf" size="10" />
+      </Label>
+      <Label id="nextLabel" translation="[24,374]" width="552" height="40" wrap="true" maxLines="2" color="0xB8C6ECFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="14" />
+      </Label>
     </Group>
-    <MarkupGrid id="grid" translation="[360,100]" visible="false" itemComponentName="PosterCard" itemSize="[150,256]" itemSpacing="[20,18]" numColumns="5" numRows="2" focusBitmapUri="pkg:/images/focus.9.png" />
-    <Label id="status" translation="[360,280]" width="880" height="120" horizAlign="center" wrap="true" font="font:MediumSystemFont" color="0xF2F5FFFF" />
-    <Label id="hint" translation="[40,672]" width="1200" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" />
+    <MarkupList id="chans" translation="[672,182]" visible="false" itemComponentName="ChannelRow" itemSize="[560,56]"
+      itemSpacing="[0,6]" numRows="7" focusBitmapUri="pkg:/images/list_focus.9.png" drawFocusFeedbackOnTop="false"
+      vertFocusAnimationStyle="floatingFocus" />
+
+    <Label id="status" translation="[140,330]" width="1000" height="120" horizAlign="center" wrap="true" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="17" />
+    </Label>
+    <Label id="hint" translation="[48,684]" width="1184" height="18" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="11" />
+    </Label>
+    <UltraTopBar id="topBar" />
     <Timer id="epgTimer" duration="0.5" repeat="false" />
   </children>
 </component>

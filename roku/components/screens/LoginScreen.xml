@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
+<!-- Entrar a Ultra Premier TV (como en Fire TV): a la izquierda el panel azul en diagonal con el logo
+     (va dibujado en login_bg.jpg) y a la derecha usuario, contraseña y el botón blanco ENTRAR. -->
 <component name="LoginScreen" extends="Group">
   <interface>
     <field id="event" type="assocarray" alwaysNotify="true" />
@@ -7,15 +9,48 @@
   <script type="text/brightscript" uri="pkg:/components/screens/LoginScreen.brs" />
   <script type="text/brightscript" uri="pkg:/components/common.brs" />
   <children>
-    <Poster id="bg" uri="pkg:/images/bg_home.jpg" width="1280" height="720" />
-    <Rectangle id="panel" color="0x070A24D8" translation="[390,90]" width="500" height="590" />
-    <Poster id="logo" uri="pkg:/images/logo.png" translation="[490,110]" width="300" height="170" />
-    <Label id="welcome" text="¡Bienvenido!" translation="[430,300]" width="420" height="40" font="font:MediumBoldSystemFont" color="0xF2F5FFFF" />
-    <Label id="hint" text="Entra con tu usuario y contraseña." translation="[430,342]" width="420" height="30" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <LabelList id="fields" translation="[430,385]" itemSize="[420,46]" numRows="3" focusBitmapUri="pkg:/images/focus.9.png" color="0xE0E6F5FF" focusedColor="0xFFFFFFFF" />
-    <Label id="error" translation="[430,540]" width="420" height="70" wrap="true" font="font:SmallSystemFont" color="0xFF6B6BFF" />
-    <Label id="status" translation="[430,540]" width="420" height="40" font="font:SmallSystemFont" color="0xA3AECCFF" />
-    <Label id="lastTry" translation="[430,606]" width="420" height="66" wrap="true" font="font:SmallestSystemFont" color="0x8E99BBFF" />
+    <Poster uri="pkg:/images/login_bg.jpg" width="1280" height="720" />
+
+    <Label text="ENTRAR" translation="[747,183]" width="427" height="44" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="36" />
+    </Label>
+    <Label text="Escribe el usuario y la contraseña de tu cuenta." translation="[747,229]" width="427" height="18" color="0xB8C6ECFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="13" />
+    </Label>
+
+    <Label text="USUARIO" translation="[747,268]" width="300" height="13" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Black.ttf" size="10" />
+    </Label>
+    <Poster id="userBox" uri="pkg:/images/field.9.png" translation="[731,272]" width="459" height="83" />
+    <Label id="userText" translation="[768,288]" width="385" height="51" vertAlign="center" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-SemiBold.ttf" size="17" />
+    </Label>
+
+    <Label text="CONTRASEÑA" translation="[747,360]" width="300" height="13" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Black.ttf" size="10" />
+    </Label>
+    <Poster id="passBox" uri="pkg:/images/field.9.png" translation="[731,364]" width="459" height="83" />
+    <Label id="passText" translation="[768,380]" width="385" height="51" vertAlign="center" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-SemiBold.ttf" size="17" />
+    </Label>
+
+    <Label id="error" translation="[747,444]" width="427" wrap="true" maxLines="3" color="0xFF6B6BFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-SemiBold.ttf" size="13" />
+    </Label>
+
+    <Group id="btn" translation="[747,458]" scaleRotateCenter="[213,26]">
+      <Poster id="btnBg" uri="pkg:/images/enter.9.png" translation="[-16,-16]" width="459" height="85" />
+      <Label id="btnText" width="427" height="53" horizAlign="center" vertAlign="center" color="0x1446D8FF" text="ENTRAR  ›">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="19" />
+      </Label>
+    </Group>
+    <Label id="footer" text="Si tienes problemas para entrar, contacta a tu proveedor." translation="[747,528]" width="427" height="16" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="11" />
+    </Label>
+
+    <Label id="lastTry" translation="[747,636]" width="480" height="60" wrap="true" maxLines="4" color="0x5F6F9AFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Regular.ttf" size="10" />
+    </Label>
     <Timer id="autoTimer" duration="0.1" repeat="false" />
   </children>
 </component>

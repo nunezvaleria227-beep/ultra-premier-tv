@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Episodio de una serie: imagen apaisada, "E1", "VIENDO", progreso y el nombre debajo. -->
+<component name="EpisodeCard" extends="Group">
+  <interface>
+    <field id="itemContent" type="node" onChange="onContent" />
+    <field id="focusPercent" type="float" onChange="paint" />
+    <field id="rowListHasFocus" type="boolean" onChange="paint" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/items/EpisodeCard.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Group id="card" scaleRotateCenter="[106,60]">
+      <Poster uri="pkg:/images/card_bg.9.png" width="212" height="119" />
+      <MaskGroup maskUri="pkg:/images/ep_mask.png" maskSize="[212,119]">
+        <Poster id="art" width="212" height="119" loadDisplayMode="scaleToZoom" loadWidth="424" loadHeight="238" />
+      </MaskGroup>
+      <Poster uri="pkg:/images/badge_dark.9.png" translation="[7,7]" width="36" height="20" />
+      <Label id="num" translation="[7,7]" width="36" height="20" horizAlign="center" vertAlign="center" color="0xFFFFFFFF">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="11" />
+      </Label>
+      <Poster id="watchBox" uri="pkg:/images/badge_blue.9.png" translation="[147,7]" width="58" height="20" visible="false" />
+      <Label id="watch" translation="[147,7]" width="58" height="20" horizAlign="center" vertAlign="center" color="0xFFFFFFFF" text="VIENDO" visible="false">
+        <Font role="font" uri="pkg:/fonts/InterDisplay-BlackItalic.ttf" size="10" />
+      </Label>
+      <Poster id="barBg" uri="pkg:/images/prog_bg.9.png" translation="[8,109]" width="196" height="4" visible="false" />
+      <Poster id="bar" uri="pkg:/images/prog_fg.png" translation="[8,109]" width="0" height="4" visible="false" />
+      <Poster id="ring" uri="pkg:/images/poster_ring.9.png" translation="[-14,-14]" width="240" height="147" visible="false" />
+    </Group>
+    <Label id="title" translation="[0,127]" width="212" height="20" color="0xF2F6FFFF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-ExtraBoldItalic.ttf" size="13" />
+    </Label>
+    <Label id="subLabel" translation="[0,148]" width="212" height="16" color="0x8FA3D6FF">
+      <Font role="font" uri="pkg:/fonts/InterDisplay-Medium.ttf" size="11" />
+    </Label>
+  </children>
+</component>

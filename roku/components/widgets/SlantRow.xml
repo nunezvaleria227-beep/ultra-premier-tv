@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- Fila de botones inclinados (Ver ahora, Más info, Mi lista…) o de pastillas inclinadas (temporadas, filtros).
+     "content" lleva un hijo por botón: title y, si quiere, HDPosterUrl con su ícono.
+     Botones: los primeros "primaryCount" son blancos; el enfocado crece y brilla.
+     Pastillas ("small"): la de "selectedIndex" va en azul y la enfocada en blanco. -->
+<component name="SlantRow" extends="Group">
+  <interface>
+    <field id="content" type="node" onChange="build" />
+    <field id="itemSelected" type="integer" alwaysNotify="true" />
+    <field id="itemFocused" type="integer" value="0" />
+    <field id="jumpToItem" type="integer" onChange="onJump" />
+    <field id="primaryCount" type="integer" value="1" />
+    <field id="selectedIndex" type="integer" value="-1" onChange="paint" />
+    <field id="small" type="boolean" value="false" />
+    <field id="maxWidth" type="integer" value="1180" />
+    <field id="rowWidth" type="integer" value="0" />
+  </interface>
+  <script type="text/brightscript" uri="pkg:/components/widgets/SlantRow.brs" />
+  <script type="text/brightscript" uri="pkg:/components/common.brs" />
+  <children>
+    <Group id="strip" />
+  </children>
+</component>

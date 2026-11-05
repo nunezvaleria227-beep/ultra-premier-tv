@@ -3,13 +3,43 @@ sub init()
     m.status = m.top.findNode("status")
     m.ids = []
     m.pinPurpose = ""
+    m.pane = "list"
+    m.topBar = m.top.findNode("topBar")
+    m.topBar.observeField("selected", "onTopBar")
     m.list.observeField("itemSelected", "onSelected")
     rebuild()
 end sub
 
 sub focusScreen()
-    m.list.setFocus(true)
+    if m.pane = "tabs" then m.topBar.setFocus(true) else m.list.setFocus(true)
 end sub
+
+sub onTopBar()
+    m.top.event = { type: "nav", target: m.topBar.selected }
+end sub
+
+' Arriba desde la primera fila sube a la barra; abajo (o Atrás) desde la barra vuelve a la lista.
+function tabsKey(key as String) as Boolean
+    if m.pane = "tabs"
+        if key = "down" or key = "back"
+            m.pane = "list"
+            focusScreen()
+            return true
+        end if
+        return false
+    end if
+    if key = "up"
+        m.pane = "tabs"
+        m.topBar.setFocus(true)
+        return true
+    end if
+    return false
+end function
+
+function onKeyEvent(key as String, press as Boolean) as Boolean
+    if not press then return false
+    return tabsKey(key)
+end function
 
 sub addRow(root as Object, id as String, title as String)
     node = root.CreateChild("ContentNode")
