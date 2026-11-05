@@ -406,18 +406,14 @@ class PlayerActivity : ComponentActivity() {
 
     /** Otras formas de pedir el video actual: primero otras identificaciones y, en vivo, el otro formato. */
     private fun buildFallbacks(item: PlayItem): List<Pair<String, String>> {
-        val agents = (listOf(Config.USER_AGENT) + Config.userAgentOptions()).distinct()
-        val sameServer = listOfNotNull(item.url, if (item.isLive) swapLiveFormat(item.url) else null)
-        // Después, el mismo video en el servidor de respaldo (o en el principal, si se entró por el de respaldo).
-        val otherServers = sameServer.flatMap { url -> otherServerUrls(url) }
+        // Pocos intentos y en orden de probabilidad: muchos intentos fallidos seguidos pueden hacer
+        // que el servidor bloquee la conexión por un rato.
+        val swapped = if (item.isLive) swapLiveFormat(item.url) else null
+        val urls = listOfNotNull(swapped) + otherServerUrls(item.url) + listOfNotNull(swapped?.let { otherServerUrls(it) }?.firstOrNull())
         val out = ArrayList<Pair<String, String>>()
-        for (url in sameServer + otherServers) {
-            for (agent in agents) {
-                if (agent == currentAgent && url == item.url) continue
-                out += agent to url
-            }
-        }
-        return out
+        urls.forEach { out += currentAgent to it }
+        Config.userAgentOptions().filter { it != currentAgent }.take(3).forEach { out += it to item.url }
+        return out.distinct().filter { !(it.first == currentAgent && it.second == item.url) }
     }
 
     private fun knownServers(): List<String> =

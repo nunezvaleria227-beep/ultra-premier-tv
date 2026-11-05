@@ -131,6 +131,14 @@ class Repository(
                 return info
             } catch (e: AccessDeniedException) {
                 denied = e
+                // Si el servidor sí acepta esta identificación (sin datos contesta 401 o 200), el 403 es por el
+                // usuario o la contraseña: no se insiste con otras identificaciones, porque muchos intentos
+                // fallidos seguidos pueden hacer que el servidor bloquee la conexión.
+                val probe = api.probe(c.server)
+                if (probe == 401 || probe == 200) {
+                    Config.userAgent = candidates.first()
+                    throw WrongCredentialsException()
+                }
             }
         }
         Config.userAgent = candidates.first()

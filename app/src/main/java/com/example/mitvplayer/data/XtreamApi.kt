@@ -26,6 +26,12 @@ open class AuthException(message: String) : IOException(message)
 /** El servidor respondió 401/403: rechazó la petición antes de revisar usuario y contraseña. */
 class AccessDeniedException(code: Int) : AuthException("Acceso denegado por el servidor ($code)")
 
+/** El servidor no aceptó el usuario o la contraseña (o la cuenta no está activa). */
+class WrongCredentialsException : AuthException(
+    "Usuario o contraseña incorrectos. Revisa mayúsculas y minúsculas; si están bien, " +
+        "pide a tu proveedor que revise tu cuenta (puede estar vencida o suspendida)."
+)
+
 /**
  * Cliente de la API estándar de Xtream Codes (player_api.php).
  *
@@ -316,6 +322,22 @@ class XtreamApi(private val client: OkHttpClient) {
         if (action != null) builder.addQueryParameter("action", action)
         extra.forEach { (key, value) -> builder.addQueryParameter(key, value) }
         return builder.build()
+    }
+
+    /**
+     * Pide player_api.php sin usuario ni contraseña y devuelve el código HTTP (null si no hubo respuesta).
+     * Estos servidores contestan 401 cuando aceptan la identificación (User-Agent) pero faltan los datos,
+     * y 403 cuando el usuario o la contraseña están mal: así se distingue una cosa de la otra.
+     */
+    fun probe(server: String): Int? = try {
+        val request = Request.Builder()
+            .url((server + "/player_api.php").toHttpUrl())
+            .header("User-Agent", Config.USER_AGENT)
+            .header("Accept", "application/json")
+            .build()
+        client.newCall(request).execute().use { it.code }
+    } catch (e: Exception) {
+        null
     }
 
     private fun get(url: HttpUrl): String {
