@@ -407,15 +407,28 @@ class PlayerActivity : ComponentActivity() {
     /** Otras formas de pedir el video actual: primero otras identificaciones y, en vivo, el otro formato. */
     private fun buildFallbacks(item: PlayItem): List<Pair<String, String>> {
         val agents = (listOf(Config.USER_AGENT) + Config.userAgentOptions()).distinct()
-        val urls = listOfNotNull(item.url, if (item.isLive) swapLiveFormat(item.url) else null)
+        val sameServer = listOfNotNull(item.url, if (item.isLive) swapLiveFormat(item.url) else null)
+        // Después, el mismo video en el servidor de respaldo (o en el principal, si se entró por el de respaldo).
+        val otherServers = sameServer.flatMap { url -> otherServerUrls(url) }
         val out = ArrayList<Pair<String, String>>()
-        for (url in urls) {
+        for (url in sameServer + otherServers) {
             for (agent in agents) {
                 if (agent == currentAgent && url == item.url) continue
                 out += agent to url
             }
         }
         return out
+    }
+
+    private fun knownServers(): List<String> =
+        (listOf(Config.PORTAL_URL) + Config.BACKUP_URLS).map { it.trim().trimEnd('/') }.filter { it.isNotEmpty() }.distinct()
+
+    /** La misma dirección del video, pero en los otros servidores (principal y de respaldo). */
+    private fun otherServerUrls(url: String): List<String> {
+        val servers = knownServers()
+        val base = servers.firstOrNull { url.startsWith("$it/") } ?: return emptyList()
+        val path = url.removePrefix(base)
+        return servers.filter { it != base }.map { it + path }
     }
 
     /** ".../123.m3u8" ↔ ".../123.ts" (null si la dirección no termina en ninguno de los dos). */
@@ -451,7 +464,16 @@ class PlayerActivity : ComponentActivity() {
             repo.rememberUserAgent(currentAgent)
         }
         val item = items[index]
-        if (item.isLive && currentUrl != item.url) {
+        // Si funcionó en otro servidor, los demás canales y episodios de la lista también se piden ahí.
+        val servers = knownServers()
+        val fromBase = servers.firstOrNull { item.url.startsWith("$it/") }
+        val toBase = servers.firstOrNull { currentUrl.startsWith("$it/") }
+        if (fromBase != null && toBase != null && fromBase != toBase) {
+            items = items.map { other ->
+                if (other.url.startsWith("$fromBase/")) other.copy(url = toBase + other.url.removePrefix(fromBase)) else other
+            }
+        }
+        if (item.isLive && swapLiveFormat(item.url)?.let { currentUrl.endsWith(it.substringAfterLast('.')) } == true) {
             val format = if (currentUrl.endsWith(".ts")) "ts" else "m3u8"
             repo.liveFormat = format
             items = items.map { other ->
