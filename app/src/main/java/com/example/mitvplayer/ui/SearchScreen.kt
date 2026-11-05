@@ -11,6 +11,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Icon
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,6 +89,7 @@ fun SearchScreen(vm: AppViewModel, initialScope: SearchScope) {
     var query by remember { mutableStateOf("") }
     var scope by remember { mutableStateOf(initialScope) }
     val field = remember { FocusRequester() }
+    val firstKey = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
         vm.live.ensureLoaded()
@@ -83,7 +97,7 @@ fun SearchScreen(vm: AppViewModel, initialScope: SearchScope) {
         vm.series.ensureLoaded()
         withFrameNanos { }
         withFrameNanos { }
-        field.tryRequestFocus()
+        firstKey.tryRequestFocus()
     }
 
     // Sin lo que esconde el control parental.
@@ -91,7 +105,7 @@ fun SearchScreen(vm: AppViewModel, initialScope: SearchScope) {
     val movieItems = vm.movies.visibleItems
     val seriesItems = vm.series.visibleItems
 
-    val results by produceState(SearchResults.EMPTY, query, scope, liveItems, movieItems, seriesItems) {
+    val results by produceState(SearchResults.EMPTY, query, liveItems, movieItems, seriesItems) {
         val words = searchKey(query).trim().split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty() || words.joinToString("").length < 2) {
             value = SearchResults.EMPTY
@@ -100,115 +114,217 @@ fun SearchScreen(vm: AppViewModel, initialScope: SearchScope) {
         delay(250)
         value = withContext(Dispatchers.Default) {
             SearchResults(
-                live = if (scope == SearchScope.ALL || scope == SearchScope.LIVE) findMatches(liveItems, words) else emptyList(),
-                movies = if (scope == SearchScope.ALL || scope == SearchScope.MOVIES) findMatches(movieItems, words) else emptyList(),
-                series = if (scope == SearchScope.ALL || scope == SearchScope.SERIES) findMatches(seriesItems, words) else emptyList()
+                live = findMatches(liveItems, words),
+                movies = findMatches(movieItems, words),
+                series = findMatches(seriesItems, words)
             )
         }
+    }
+    val total = results.live.size + results.movies.size + results.series.size
+    val shown: List<Any> = when (scope) {
+        SearchScope.ALL -> results.movies + results.series + results.live
+        SearchScope.MOVIES -> results.movies
+        SearchScope.SERIES -> results.series
+        SearchScope.LIVE -> results.live
     }
 
     val stillLoading = vm.live.loading || vm.movies.loading || vm.series.loading
 
-    AppBackground {
+    AppBackground(dim = 0.6f) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(title = "Búsqueda maestra", centerTitle = true, onBack = { vm.back() })
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                SearchField(
-                    value = query,
-                    onValueChange = { query = it },
-                    placeholder = "Escribe el nombre de un canal, película o serie",
-                    modifier = Modifier.fillMaxWidth(),
-                    requester = field
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SearchScope.values().forEach { option ->
-                        TvButton(
-                            text = option.label,
-                            onClick = { scope = option },
-                            selected = option == scope,
-                            compact = true
-                        )
-                    }
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Box(
+            UltraSectionHeader(
+                vm = vm,
+                active = UltraTab.SEARCH,
+                onActive = { firstKey.tryRequestFocus() },
+                title = "Buscar",
+                icon = { t -> Icon(Icons.Filled.Search, null, tint = t, modifier = Modifier.size(18.dp)) }
+            )
+            Row(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .padding(start = 36.dp, end = 36.dp, top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                val typed = searchKey(query).trim().length >= 2
-                when {
-                    !typed -> CenterMessage(
-                        if (stillLoading) "Cargando las listas…\nYa puedes escribir." else "Escribe al menos 2 letras."
+                // ------------------------------------ campo y teclado en pantalla
+                Column(Modifier.width(214.dp)) {
+                    SearchField(
+                        value = query,
+                        onValueChange = { query = it },
+                        placeholder = "Canal, película o serie",
+                        modifier = Modifier.fillMaxWidth(),
+                        requester = field
                     )
-                    results.isEmpty && stillLoading -> CenterLoading(text = "Buscando…")
-                    results.isEmpty -> CenterMessage("Sin resultados para \"${query.trim()}\"")
-                    else -> LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    Spacer(Modifier.height(8.dp))
+                    ScreenKeyboard(
+                        firstKey = firstKey,
+                        onKey = { query += it },
+                        onSpace = { if (query.isNotEmpty() && !query.endsWith(" ")) query += " " },
+                        onDelete = { query = query.dropLast(1) }
+                    )
+                }
+                // ------------------------------------ filtros y resultados
+                Column(Modifier.weight(1f)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(
+                            SearchScope.ALL to "Todo ($total)",
+                            SearchScope.MOVIES to "Películas (${results.movies.size})",
+                            SearchScope.SERIES to "Series (${results.series.size})",
+                            SearchScope.LIVE to "Canales (${results.live.size})"
+                        ).forEach { (option, label) ->
+                            SlantChip(text = label, selected = option == scope, onClick = { scope = option })
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
                     ) {
-                        if (results.live.isNotEmpty()) {
-                            item { SectionHeader("EN VIVO  (${results.live.size})") }
-                            itemsIndexed(results.live) { index, channel ->
-                                ResultRow(
-                                    onClick = { vm.playLive(context, results.live, index) },
-                                    leading = { ChannelLogo(icon = channel.icon, name = channel.name, size = 44.dp) },
-                                    title = channel.name,
-                                    subtitle = "Canal en vivo"
-                                )
-                            }
-                        }
-                        if (results.movies.isNotEmpty()) {
-                            item { SectionHeader("PELÍCULAS  (${results.movies.size})") }
-                            itemsIndexed(results.movies) { _, movie ->
-                                ResultRow(
-                                    onClick = { vm.openMovie(movie, restoreFocus = false) },
-                                    leading = {
-                                        PosterImage(
-                                            url = movie.poster,
-                                            title = movie.name,
-                                            modifier = Modifier
-                                                .width(36.dp)
-                                                .height(54.dp)
-                                                .clip(RoundedCornerShape(4.dp))
+                        val typed = searchKey(query).trim().length >= 2
+                        when {
+                            !typed -> CenterMessage(
+                                if (stillLoading) "Cargando las listas…\nYa puedes escribir." else "Escribe al menos 2 letras con el teclado."
+                            )
+                            results.isEmpty && stillLoading -> CenterLoading(text = "Buscando…")
+                            shown.isEmpty() -> CenterMessage("Sin resultados para \"${query.trim()}\"")
+                            else -> LazyVerticalGrid(
+                                columns = GridCells.Fixed(5),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(top = 4.dp, bottom = 10.dp, start = 4.dp, end = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(shown.size) { i ->
+                                    when (val hit = shown[i]) {
+                                        is Movie -> UltraPosterCard(
+                                            title = hit.name,
+                                            imageUrl = hit.poster,
+                                            rating10 = hit.rating10,
+                                            favorite = false,
+                                            onClick = { vm.openMovie(hit, restoreFocus = false) }
                                         )
-                                    },
-                                    title = movie.name,
-                                    subtitle = ratingText("Película", movie.rating10)
-                                )
-                            }
-                        }
-                        if (results.series.isNotEmpty()) {
-                            item { SectionHeader("SERIES  (${results.series.size})") }
-                            itemsIndexed(results.series) { _, show ->
-                                ResultRow(
-                                    onClick = { vm.openSeries(show, restoreFocus = false) },
-                                    leading = {
-                                        PosterImage(
-                                            url = show.cover,
-                                            title = show.name,
-                                            modifier = Modifier
-                                                .width(36.dp)
-                                                .height(54.dp)
-                                                .clip(RoundedCornerShape(4.dp))
+                                        is SeriesItem -> UltraPosterCard(
+                                            title = hit.name,
+                                            imageUrl = hit.cover,
+                                            rating10 = hit.rating10,
+                                            favorite = false,
+                                            onClick = { vm.openSeries(hit, restoreFocus = false) }
                                         )
-                                    },
-                                    title = show.name,
-                                    subtitle = ratingText("Serie", show.rating10)
-                                )
+                                        is LiveChannel -> ChannelTile(
+                                            channel = hit,
+                                            onClick = {
+                                                vm.playLive(context, results.live, results.live.indexOf(hit).coerceAtLeast(0))
+                                            }
+                                        )
+                                        else -> {}
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
+            Spacer(Modifier.height(12.dp))
         }
+    }
+}
+
+private const val KEYS = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ1234567890"
+
+/** Teclado en pantalla para escribir con las flechas del control (sin abrir el teclado del sistema). */
+@Composable
+private fun ScreenKeyboard(
+    firstKey: FocusRequester,
+    onKey: (String) -> Unit,
+    onSpace: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        KEYS.chunked(6).forEachIndexed { row, chars ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                chars.forEachIndexed { col, c ->
+                    KeyButton(
+                        label = c.toString(),
+                        modifier = Modifier
+                            .width(32.dp)
+                            .then(if (row == 0 && col == 0) Modifier.focusRequester(firstKey) else Modifier)
+                    ) { onKey(c.toString().lowercase()) }
+                }
+                if (row == KEYS.length / 6) {
+                    KeyButton("Espacio", Modifier.width(66.dp)) { onSpace() }
+                    KeyButton("Borrar", Modifier.width(66.dp)) { onDelete() }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun KeyButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(6.dp)
+    Box(
+        modifier = modifier
+            .height(23.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .clip(shape)
+            .background(if (focused) AccentBrush else androidx.compose.ui.graphics.SolidColor(Color(0x14FFFFFF)))
+            .border(if (focused) 1.5.dp else 0.5.dp, if (focused) Color.White else Color(0x1FFFFFFF), shape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            color = if (focused) Color.White else TextPrimary,
+            fontSize = if (label.length > 1) 8.sp else 9.5.sp,
+            fontWeight = if (focused) FontWeight.Bold else FontWeight.Medium
+        )
+    }
+}
+
+/** Canal en los resultados: su logo al centro de una tarjeta del mismo tamaño que los pósters. */
+@Composable
+private fun ChannelTile(channel: LiveChannel, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth()) {
+        FocusCard(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focused = it.isFocused },
+            shape = RoundedCornerShape(9.dp),
+            scaleOnFocus = 1.07f
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f / 3f),
+                contentAlignment = Alignment.Center
+            ) {
+                ChannelLogo(icon = channel.icon, name = channel.name, size = 56.dp)
+                Text(
+                    text = "EN VIVO",
+                    color = Color.White,
+                    fontSize = 6.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(5.dp)
+                        .background(AccentColor, RoundedCornerShape(3.dp))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+            }
+        }
+        Text(
+            text = channel.name,
+            color = if (focused) Color.White else TextSecondary,
+            fontSize = 8.sp,
+            fontWeight = if (focused) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 5.dp, start = 2.dp, end = 2.dp)
+        )
     }
 }
 

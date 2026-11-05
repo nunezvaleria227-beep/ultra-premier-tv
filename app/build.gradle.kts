@@ -17,6 +17,8 @@ android {
         val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionCode = runNumber
         versionName = "1.0.$runNumber"
+        // Versión de prueba (rama diseno-nuevo): otro paquete, así se instala junto a la app normal.
+        if (System.getenv("PREVIEW") == "1") applicationIdSuffix = ".prueba"
         // Solo español e inglés: quita los idiomas de las librerías que no se usan y la app pesa menos.
         resourceConfigurations += listOf("es", "en")
     }

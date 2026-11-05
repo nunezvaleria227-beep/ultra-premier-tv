@@ -38,6 +38,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -163,14 +165,31 @@ private fun emptyMessage(state: BrowseState<LiveChannel>, radio: Boolean): Strin
 fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String, radio: Boolean = false) {
     val context = LocalContext.current
     val preview = remember { LivePreview(context) }
-    val firstRow = remember { FocusRequester() }
+    val chipFR = remember { FocusRequester() }
+    val firstChannel = remember { FocusRequester() }
+    var chipsFocused by remember { mutableStateOf(false) }
+    var sortOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { state.ensureLoaded() }
     LaunchedEffect(state.catalog) {
         if (state.catalog != null) {
             withFrameNanos { }
             withFrameNanos { }
-            firstRow.tryRequestFocus()
+            // El foco va al primer canal; si la categoría está vacía, a las categorías.
+            try {
+                firstChannel.requestFocus()
+            } catch (e: Exception) {
+                chipFR.tryRequestFocus()
+            }
+        }
+    }
+
+    // "Atrás" desde los canales o la barra sube primero a las categorías; desde ahí vuelve al inicio.
+    androidx.activity.compose.BackHandler(enabled = !chipsFocused && state.catalog != null) {
+        try {
+            chipFR.requestFocus()
+        } catch (e: Exception) {
+            vm.back()
         }
     }
 
@@ -189,46 +208,78 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
 
     val channels = state.items
 
-    AppBackground(art = R.drawable.art_live, dim = 0.58f) {
+    AppBackground(art = R.drawable.art_live, dim = 0.6f) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(
-                title = "|  $title",
-                onBack = { vm.back() },
-                onSearch = { vm.open(Screen.Search(SearchScope.LIVE)) },
-                menu = sectionMenu(state, listOf(SortMode.DEFAULT, SortMode.AZ, SortMode.ZA)),
-                trailing = {
-                    ClockText()
-                    Spacer(Modifier.width(8.dp))
-                }
-            )
+            UltraSectionHeader(
+                vm = vm,
+                active = if (radio) UltraTab.MORE else UltraTab.LIVE,
+                onActive = { chipFR.tryRequestFocus() },
+                title = title,
+                icon = { t -> GlyphIcon(if (radio) Glyph.RADIO else Glyph.TV, Modifier.size(17.dp), t) }
+            ) {
+                SlantChip(
+                    text = "Buscar",
+                    selected = false,
+                    onClick = { vm.open(Screen.Search(if (radio) SearchScope.ALL else SearchScope.LIVE)) }
+                )
+                SlantChip(
+                    text = "Orden: ${state.sort.label}",
+                    selected = false,
+                    onClick = { sortOpen = true }
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            if (state.catalog != null) {
+                CategoryChips(
+                    rows = state.rows,
+                    selectedId = state.selectedId,
+                    onSelect = { state.select(it) },
+                    selectedRequester = chipFR,
+                    listState = state.categoryListState,
+                    modifier = Modifier.onFocusChanged { chipsFocused = it.hasFocus }
+                )
+            }
             Row(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .padding(start = 26.dp, end = 36.dp, top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                CategorySidebar(
-                    state = state,
+                PreviewPane(
+                    vm = vm,
+                    preview = preview,
                     modifier = Modifier
-                        .weight(0.30f)
+                        .weight(0.56f)
                         .fillMaxHeight(),
-                    firstRowRequester = firstRow
+                    onFullscreen = { channel ->
+                        preview.stop()
+                        val index = channels.indexOfFirst { it.id == channel.id }.coerceAtLeast(0)
+                        vm.playLive(context, channels, index)
+                    },
+                    // Ya no hay botón para empezar a grabar aquí; solo para detener una grabación en curso.
+                    onRecord = { _ -> RecordingManager.stop() }
                 )
                 Box(
                     Modifier
-                        .weight(0.36f)
+                        .weight(0.44f)
                         .fillMaxHeight()
                 ) {
                     SectionStatus(state, emptyMessage(state, radio)) {
                         LazyColumn(
                             state = state.itemsListState,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 6.dp)
                         ) {
                             itemsIndexed(channels) { index, channel ->
                                 ChannelRow(
                                     vm = vm,
                                     channel = channel,
+                                    number = index + 1,
                                     playing = preview.channel?.id == channel.id,
                                     favorite = vm.isFavorite(Kind.LIVE, channel.id),
+                                    modifier = if (index == 0) Modifier.focusRequester(firstChannel) else Modifier,
                                     onClick = {
                                         if (preview.channel?.id == channel.id && !preview.failed) {
                                             // Segundo OK sobre el mismo canal: pantalla completa.
@@ -245,22 +296,20 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
                         }
                     }
                 }
-                PreviewPane(
-                    vm = vm,
-                    preview = preview,
-                    modifier = Modifier
-                        .weight(0.34f)
-                        .fillMaxHeight(),
-                    onFullscreen = { channel ->
-                        preview.stop()
-                        val index = channels.indexOfFirst { it.id == channel.id }.coerceAtLeast(0)
-                        vm.playLive(context, channels, index)
-                    },
-                    // Ya no hay botón para empezar a grabar aquí; solo para detener una grabación en curso.
-                    onRecord = { _ -> RecordingManager.stop() }
-                )
             }
+            Spacer(Modifier.height(12.dp))
         }
+    }
+
+    if (sortOpen) {
+        val modes = listOf(SortMode.DEFAULT, SortMode.AZ, SortMode.ZA)
+        OptionsDialog(
+            title = "Ordenar",
+            options = modes.map { mode ->
+                Opt(if (state.sort == mode) "✓  ${mode.label}" else mode.label) { state.sort = mode }
+            } + Opt("Actualizar lista") { state.refresh() },
+            onDismiss = { sortOpen = false }
+        )
     }
 }
 
@@ -268,10 +317,12 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
 private fun ChannelRow(
     vm: AppViewModel,
     channel: LiveChannel,
+    number: Int,
     playing: Boolean,
     favorite: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val epg by produceState<List<EpgEntry>?>(null, channel.id) { value = vm.epgFor(channel.id) }
     val nowSec = System.currentTimeMillis() / 1000
@@ -286,17 +337,27 @@ private fun ChannelRow(
     FocusCard(
         onClick = onClick,
         onLongClick = onLongClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(0.dp),
-        scaleOnFocus = 1f,
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        scaleOnFocus = 1.02f,
         selected = playing,
-        background = Color.Transparent
+        background = Color(0x0FFFFFFF),
+        focusedBackground = AccentColor.copy(alpha = 0.22f)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ChannelLogo(icon = channel.icon, name = channel.name, size = 44.dp)
+            Text(
+                text = (if (channel.number > 0) channel.number else number).toString(),
+                color = TextTertiary,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.End,
+                modifier = Modifier.width(26.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            ChannelLogo(icon = channel.icon, name = channel.name, size = 38.dp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(

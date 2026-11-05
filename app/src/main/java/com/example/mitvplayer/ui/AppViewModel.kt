@@ -358,6 +358,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         stack = stack + Screen.SeriesDetails(item)
     }
 
+    /** Cambia de sección desde la barra de arriba: debajo solo queda el inicio (null = volver al inicio). */
+    fun switchTo(screen: Screen?) {
+        val root = stack.first()
+        stack = if (screen == null) listOf(root) else listOf(root, screen)
+    }
+
     fun back() {
         if (stack.size > 1) stack = stack.dropLast(1)
     }

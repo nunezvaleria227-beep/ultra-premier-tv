@@ -11,6 +11,8 @@ on:
   push:
     branches:
       - main
+      # Versión de prueba: se instala aparte ("Ultra Premier TV prueba") y no llega a los clientes.
+      - diseno-nuevo
     # Los cambios que solo tocan la app de Roku o la de Samsung no publican una versión nueva del APK.
     paths-ignore:
       - "roku/**"
@@ -89,9 +91,14 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Compilar APK release
+        env:
+          PREVIEW: ${{ github.ref != 'refs/heads/main' && '1' || '' }}
         run: |
           chmod +x gradlew
           set -o pipefail
+          if [ "$PREVIEW" = "1" ]; then
+            sed -i 's|<string name="app_name">Ultra Premier TV</string>|<string name="app_name">Ultra Premier TV prueba</string>|' app/src/main/res/values/strings.xml
+          fi
           ./gradlew assembleRelease --console=plain --stacktrace 2>&1 | tee build.log || {
             echo "---- ERRORES DE COMPILACION ----"
             # Se publican como anotaciones para poder leerlos sin descargar el log completo.
@@ -147,3 +154,19 @@ jobs:
           name: Ultra Premier TV 1.0.${{ github.run_number }}
           body_path: release-notes.md
           files: UltraPremierTV.apk
+
+      - name: Publicar versión de prueba
+        if: github.ref == 'refs/heads/diseno-nuevo'
+        run: cp UltraPremierTV.apk UltraPremierTV-prueba.apk
+
+      - name: Subir versión de prueba
+        if: github.ref == 'refs/heads/diseno-nuevo'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: prueba-diseno
+          name: Ultra Premier TV - versión de prueba (diseño nuevo)
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          body: "Versión de prueba del diseño nuevo. Se instala aparte como \"Ultra Premier TV prueba\"; no reemplaza a la app de los clientes."
+          files: UltraPremierTV-prueba.apk

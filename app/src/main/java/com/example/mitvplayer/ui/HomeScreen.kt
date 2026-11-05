@@ -3,51 +3,65 @@ package com.example.mitvplayer.ui
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import androidx.compose.foundation.Image
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.mitvplayer.R
-import kotlinx.coroutines.delay
+import coil.compose.AsyncImage
+import com.example.mitvplayer.data.Kind
+import com.example.mitvplayer.data.LiveChannel
+import com.example.mitvplayer.data.Movie
+import com.example.mitvplayer.data.MovieInfo
+import com.example.mitvplayer.data.SeriesItem
+import kotlinx.coroutines.launch
 
 tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -55,172 +69,169 @@ tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
-private const val FOCUS_COUNT = 17
+/** Lo que se muestra en grande: una película o una serie. */
+private class HeroItem(val movie: Movie? = null, val series: SeriesItem? = null) {
+    val key: String get() = movie?.let { "m" + it.id } ?: ("s" + (series?.id ?: ""))
+}
 
+private val TileShape = RoundedCornerShape(11.dp)
+
+/**
+ * Inicio de Ultra Premier TV ("Mosaico"): lo destacado en grande, al lado el canal en vivo y
+ * "Continuar viendo", y abajo filas de estrenos, series nuevas, mejor calificadas y Mi lista.
+ * Al recorrer las filas, lo destacado cambia a lo que se está viendo.
+ */
 @Composable
 fun HomeScreen(vm: AppViewModel) {
     val context = LocalContext.current
-    val requesters = remember { List(FOCUS_COUNT) { FocusRequester() } }
-    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    val scope = rememberCoroutineScope()
+    val scroll = rememberScrollState()
+    val playFR = remember { FocusRequester() }
+    var playFocused by remember { mutableStateOf(false) }
     var confirmExit by remember { mutableStateOf(false) }
 
-    // Al entrar (o al volver de otra pantalla) el foco regresa al último botón usado.
     LaunchedEffect(Unit) {
-        withFrameNanos { }
-        withFrameNanos { }
-        requesters[vm.homeFocus.coerceIn(0, FOCUS_COUNT - 1)].tryRequestFocus()
+        vm.live.ensureLoaded()
+        vm.movies.ensureLoaded()
+        vm.series.ensureLoaded()
     }
-    // Reloj y "hace X min" se actualizan solos.
-    LaunchedEffect(Unit) {
-        while (true) {
-            now = System.currentTimeMillis()
-            delay(15_000)
+
+    val movies = vm.movies.visibleItems
+    val seriesItems = vm.series.visibleItems
+    val resume = vm.resumeEntries
+    val favMovies = vm.movies.favoriteList
+    val favSeries = vm.series.favoriteList
+    val newMovies = remember(movies) { movies.sortedByDescending { it.added }.take(30) }
+    val topMovies = remember(movies) { movies.filter { it.rating10 >= 7f }.sortedByDescending { it.rating10 }.take(30) }
+    val newSeries = remember(seriesItems) { seriesItems.sortedByDescending { it.added }.take(30) }
+
+    val featured = remember(newMovies, newSeries) {
+        newMovies.firstOrNull()?.let { HeroItem(movie = it) } ?: newSeries.firstOrNull()?.let { HeroItem(series = it) }
+    }
+    var picked by remember { mutableStateOf<HeroItem?>(null) }
+    val hero = picked ?: featured
+
+    // Ficha de la película en grande (imagen de fondo, año, género, duración y sinopsis).
+    val infos = remember { mutableStateMapOf<String, MovieInfo?>() }
+    val heroMovie = hero?.movie
+    LaunchedEffect(heroMovie?.id) {
+        val movie = heroMovie ?: return@LaunchedEffect
+        if (infos.containsKey(movie.id)) return@LaunchedEffect
+        kotlinx.coroutines.delay(300)
+        infos[movie.id] = try {
+            vm.loadMovieInfo(movie)
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            null
+        }
+    }
+    val heroInfo = heroMovie?.let { infos[it.id] }
+
+    // Canal en vivo: el último que se vio o, si no hay, el primero de la lista.
+    val liveRecent = vm.live.recentList
+    val liveAll = vm.live.visibleItems
+    val liveList = if (liveRecent.isNotEmpty()) liveRecent else liveAll.take(300)
+    val liveChannel = liveList.firstOrNull()
+
+    // Al entrar, el foco va a "Ver ahora".
+    LaunchedEffect(featured != null) {
+        withFrameNanos { }
+        withFrameNanos { }
+        playFR.tryRequestFocus()
+    }
+
+    BackHandler {
+        if (playFocused) {
+            confirmExit = true
+        } else {
+            scope.launch { scroll.animateScrollTo(0) }
+            playFR.tryRequestFocus()
         }
     }
 
-    fun Modifier.slot(index: Int): Modifier =
-        this.focusRequester(requesters[index]).onFocusChanged { if (it.isFocused) vm.homeFocus = index }
-
-    val account = vm.account
-    val expiresAt = account?.expiresAt
-    val daysLeft = expiresAt?.let { (it * 1000 - now) / 86_400_000L }
-    val hasAlert = daysLeft != null && daysLeft <= 7
-
-    AppBackground {
-        Column(
-            modifier = Modifier
+    AppBackground(dim = 0.55f) {
+        Box(
+            Modifier
                 .fillMaxSize()
-                .padding(horizontal = 28.dp, vertical = 12.dp)
+                .background(Brush.radialGradient(listOf(BackgroundGlow.copy(alpha = 0.55f), Color.Transparent), radius = 1400f))
+        )
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scroll)
         ) {
-            // ------------------------------------------------ encabezado
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                AppLogo(Modifier.height(58.dp))
-                Spacer(Modifier.width(14.dp))
-                Column {
-                    Text(formatClock(now), color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text(formatDateLong(now), color = TextSecondary, fontSize = 12.sp)
-                }
-                Spacer(Modifier.weight(1f))
-                FocusCard(
-                    onClick = { vm.open(Screen.Search(SearchScope.ALL)) },
-                    modifier = Modifier.slot(9),
-                    shape = RoundedCornerShape(24.dp),
-                    scaleOnFocus = 1.04f
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Filled.Search, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(22.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Búsqueda maestra", color = TextPrimary, fontSize = 14.sp, maxLines = 1)
-                    }
-                }
-                Spacer(Modifier.weight(1f))
-                IconAction(onClick = { vm.open(Screen.Radio) }, modifier = Modifier.slot(10), size = 44.dp) {
-                    GlyphIcon(Glyph.RADIO, Modifier.size(28.dp))
-                }
-                IconAction(onClick = { vm.open(Screen.Notifications) }, modifier = Modifier.slot(11), size = 44.dp) {
-                    Icon(Icons.Filled.Notifications, contentDescription = "Avisos", tint = Color.White, modifier = Modifier.size(28.dp))
-                    if (hasAlert) {
-                        Box(
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(top = 8.dp, end = 8.dp)
-                                .size(9.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFF4D4D))
-                        )
-                    }
-                }
-                IconAction(onClick = { vm.open(Screen.Account) }, modifier = Modifier.slot(12), size = 44.dp) {
-                    Icon(Icons.Filled.Person, contentDescription = "Mi cuenta", tint = Color.White, modifier = Modifier.size(28.dp))
-                }
-                IconAction(onClick = { vm.open(Screen.Recordings) }, modifier = Modifier.slot(13), size = 44.dp) {
-                    GlyphIcon(Glyph.REC, Modifier.size(28.dp))
-                }
-                IconAction(onClick = { vm.open(Screen.Settings) }, modifier = Modifier.slot(14), size = 44.dp) {
-                    Icon(Icons.Filled.Settings, contentDescription = "Ajustes", tint = Color.White, modifier = Modifier.size(28.dp))
-                }
-                IconAction(onClick = { confirmExit = true }, modifier = Modifier.slot(15), size = 44.dp) {
-                    GlyphIcon(Glyph.POWER, Modifier.size(28.dp))
-                }
-            }
-
-            // ------------------------------------------------ tres mosaicos
+            Spacer(Modifier.height(TopBarHeight + 14.dp))
             Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp)
-            ) {
-                SectionTile(
-                    title = "TV EN DIRECTO",
-                    glyph = Glyph.TV,
-                    art = R.drawable.art_live,
-                    count = countText(vm.live, "canales"),
-                    status = statusText(vm.live, now),
-                    onOpen = { vm.open(Screen.Live) },
-                    onRefresh = { vm.live.refresh() },
-                    openModifier = Modifier.slot(0),
-                    refreshModifier = Modifier.slot(1),
-                    modifier = Modifier.weight(1f)
-                )
-                SectionTile(
-                    title = "CINE",
-                    glyph = Glyph.CLAPPER,
-                    art = R.drawable.art_movies,
-                    count = countText(vm.movies, "películas"),
-                    status = statusText(vm.movies, now),
-                    onOpen = { vm.open(Screen.Movies) },
-                    onRefresh = { vm.movies.refresh() },
-                    openModifier = Modifier.slot(2),
-                    refreshModifier = Modifier.slot(3),
-                    modifier = Modifier.weight(1f)
-                )
-                SectionTile(
-                    title = "SERIES",
-                    glyph = Glyph.SERIES,
-                    art = R.drawable.art_series,
-                    count = countText(vm.series, "series"),
-                    status = statusText(vm.series, now),
-                    onOpen = { vm.open(Screen.SeriesList) },
-                    onRefresh = { vm.series.refresh() },
-                    openModifier = Modifier.slot(4),
-                    refreshModifier = Modifier.slot(5),
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // ------------------------------------------------ barras de abajo
-            Row(
-                modifier = Modifier.fillMaxWidth(),
+                Modifier
+                    .padding(horizontal = 36.dp)
+                    .height(281.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                BottomBarButton("EPG", Glyph.EPG, { vm.open(Screen.Epg) }, Modifier.weight(1f).slot(6))
-                BottomBarButton("PANTALLA MÚLTIPLE", Glyph.GRID, { vm.open(Screen.Multi) }, Modifier.weight(1f).slot(7))
-                BottomBarButton("CATCH UP", Glyph.CHECK, { vm.open(Screen.CatchUp) }, Modifier.weight(1f).slot(8))
-                BottomBarButton(
-                    label = "CONTINUAR VIENDO",
-                    glyph = Glyph.CLAPPER,
-                    onClick = { vm.open(Screen.Continue) },
-                    modifier = Modifier.weight(1f).slot(16),
-                    badge = vm.resumeEntries.size
+                HeroTile(
+                    vm = vm,
+                    hero = hero,
+                    info = heroInfo,
+                    isNew = hero?.movie?.id != null && newMovies.firstOrNull()?.id == hero?.movie?.id,
+                    playFR = playFR,
+                    onPlayFocus = { playFocused = it },
+                    modifier = Modifier
+                        .weight(1.53f)
+                        .fillMaxHeight()
                 )
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    LiveTile(
+                        vm = vm,
+                        channel = liveChannel,
+                        loading = vm.live.loading,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                    ) {
+                        val index = liveList.indexOfFirst { it.id == liveChannel?.id }.coerceAtLeast(0)
+                        if (liveChannel != null) vm.playLive(context, liveList, index)
+                    }
+                    ContinueTile(
+                        vm = vm,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
+                        fallback = newSeries.firstOrNull()
+                    )
+                }
             }
 
-            Text(
-                text = (account?.username?.let { "Hola, $it  ·  " } ?: "") +
-                    (if (expiresAt != null) "EXPIRACIÓN: ${formatDateLong(expiresAt * 1000)}" else "SIN FECHA DE VENCIMIENTO"),
-                color = TextPrimary,
-                fontSize = 13.sp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
+            if (newMovies.isNotEmpty()) {
+                PosterRow("Estrenos", "lo más nuevo", newMovies.map { HeroItem(movie = it) }, vm) { picked = it }
+            }
+            if (newSeries.isNotEmpty()) {
+                PosterRow("Series nuevas", null, newSeries.map { HeroItem(series = it) }, vm) { picked = it }
+            }
+            if (topMovies.isNotEmpty()) {
+                PosterRow("Mejor calificadas", null, topMovies.map { HeroItem(movie = it) }, vm) { picked = it }
+            }
+            val mine = favMovies.map { HeroItem(movie = it) } + favSeries.map { HeroItem(series = it) }
+            if (mine.isNotEmpty()) {
+                PosterRow("Mi lista", null, mine, vm) { picked = it }
+            }
+            if (movies.isEmpty() && seriesItems.isEmpty()) {
+                Text(
+                    text = if (vm.movies.loading || vm.series.loading) "Cargando tu contenido…" else "Aún no hay películas ni series.",
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 36.dp, top = 20.dp)
+                )
+            }
+            Spacer(Modifier.height(30.dp))
         }
+        UltraTopBar(vm = vm, active = UltraTab.HOME, onActive = {
+            scope.launch { scroll.animateScrollTo(0) }
+            playFR.tryRequestFocus()
+        })
     }
 
     UpdateDialogs(vm)
@@ -229,164 +240,386 @@ fun HomeScreen(vm: AppViewModel) {
         OptionsDialog(
             title = "¿Qué quieres hacer?",
             options = listOf(
+                Opt("Seguir viendo") { },
                 Opt("Cerrar sesión") { vm.logout() },
-                Opt("Salir de la aplicación") { context.findActivity()?.finish() },
-                Opt("Cancelar") { }
+                Opt("Salir de la aplicación") { context.findActivity()?.finish() }
             ),
             onDismiss = { confirmExit = false }
         )
     }
 }
 
-private fun statusText(state: BrowseState<*>, now: Long): String = when {
-    state.loading && state.catalog == null -> "Preparando tu lista… (solo tarda la primera vez)"
-    state.loading -> "Actualizando…"
-    state.catalog == null && state.error != null -> "No se pudo cargar. Toca para reintentar."
-    state.catalog == null -> "Toca para abrir"
-    else -> "Última actualización: ${agoText(state.updatedAt, now)}"
-}
-
-private fun countText(state: BrowseState<*>, noun: String): String? {
-    if (state.catalog == null) return null
-    val total = state.visibleItems.size
-    return "%,d %s".format(total, noun)
-}
+// ------------------------------------------------------------------ lo destacado
 
 @Composable
-private fun SectionTile(
-    title: String,
-    glyph: Glyph,
-    art: Int,
-    count: String?,
-    status: String,
-    onOpen: () -> Unit,
-    onRefresh: () -> Unit,
-    openModifier: Modifier,
-    refreshModifier: Modifier,
-    modifier: Modifier = Modifier
+private fun HeroTile(
+    vm: AppViewModel,
+    hero: HeroItem?,
+    info: MovieInfo?,
+    isNew: Boolean,
+    playFR: FocusRequester,
+    onPlayFocus: (Boolean) -> Unit,
+    modifier: Modifier
 ) {
-    Column(
+    val context = LocalContext.current
+    var hasFocus by remember { mutableStateOf(false) }
+    Box(
         modifier = modifier
-            .fillMaxSize()
-            .clip(RoundedCornerShape(22.dp))
+            .onFocusChanged { hasFocus = it.hasFocus }
+            .shadow(if (hasFocus) 22.dp else 10.dp, TileShape, ambientColor = AccentColor, spotColor = AccentColor)
+            .clip(TileShape)
             .background(PanelColor)
+            .border(if (hasFocus) 2.dp else 0.5.dp, if (hasFocus) Color.White else GlassBorder, TileShape)
     ) {
-        FocusCard(
-            onClick = onOpen,
-            modifier = openModifier
-                .weight(1f)
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp),
-            scaleOnFocus = 1f,
-            background = Color.Transparent,
-            focusedBackground = Color.Transparent
-        ) { focused ->
-            Box(Modifier.fillMaxSize()) {
-                Image(
-                    bitmap = rememberArt(art),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                // Oscurece abajo para que el título se lea sobre cualquier imagen.
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    Color(0x22000000),
-                                    if (focused) Color(0x55000000) else Color(0x99000000)
-                                )
-                            )
-                        )
-                )
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    GlyphIcon(glyph, Modifier.size(64.dp))
-                    Spacer(Modifier.height(8.dp))
-                    Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    if (count != null) {
-                        Text(count, color = Color(0xFFD8E4FF), fontSize = 12.sp)
-                    }
-                }
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 14.dp, end = 10.dp, top = 4.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = status,
-                color = TextSecondary,
-                fontSize = 11.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+        val image = info?.backdrop?.takeIf { it.isNotBlank() }
+            ?: hero?.movie?.poster?.takeIf { it.isNotBlank() }
+            ?: hero?.series?.cover?.takeIf { it.isNotBlank() }
+        if (image != null) {
+            AsyncImage(
+                model = image,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
-            FocusCard(
-                onClick = onRefresh,
-                modifier = refreshModifier.size(36.dp),
-                shape = RoundedCornerShape(8.dp),
-                scaleOnFocus = 1.1f,
-                background = Color.White,
-                focusedBackground = Color(0xFFD7E3FF)
+        }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.horizontalGradient(0.3f to BackgroundColor.copy(alpha = 0.94f), 0.78f to BackgroundColor.copy(alpha = 0f)))
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(0.55f to BackgroundColor.copy(alpha = 0f), 1f to BackgroundColor.copy(alpha = 0.9f)))
+        )
+        if (hero == null) {
+            Text(
+                "Cargando lo nuevo…",
+                color = TextSecondary,
+                fontSize = 13.sp,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 24.dp)
+            )
+            // Aun sin contenido, el botón existe para que el foco tenga dónde estar.
+            SlantButton(
+                text = "Actualizar",
+                primary = true,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(24.dp)
+                    .focusRequester(playFR)
+                    .onFocusChanged { onPlayFocus(it.isFocused) }
             ) {
-                Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                    GlyphIcon(Glyph.SWAP, Modifier.size(22.dp), tint = Color(0xFF1B2050))
+                vm.movies.refresh()
+                vm.series.refresh()
+            }
+        } else Column(
+            Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 24.dp, end = 24.dp)
+                .width(330.dp)
+        ) {
+            val badge = when {
+                hero.series != null -> "Serie"
+                isNew -> "★ Estreno"
+                else -> "Película"
+            }
+            Box(
+                Modifier
+                    .clip(SlantShape(4.dp))
+                    .background(AccentBrush)
+                    .padding(horizontal = 10.dp, vertical = 3.dp)
+            ) {
+                Text(badge.uppercase(), style = sporty(9f), color = Color.White)
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = (hero.movie?.name ?: hero.series?.name ?: "").uppercase(),
+                style = sporty(32f),
+                color = Color.White,
+                lineHeight = 31.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            val meta = heroMeta(hero, info)
+            if (meta.isNotEmpty()) {
+                Text(
+                    meta,
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            val plot = info?.plot?.takeIf { it.isNotBlank() } ?: hero.series?.plot?.takeIf { it.isNotBlank() }
+            if (plot != null) {
+                Text(
+                    plot,
+                    color = Color(0xFFD5DEF7),
+                    fontSize = 10.5.sp,
+                    lineHeight = 15.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 7.dp)
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SlantButton(
+                    text = if (hero.series != null) "Ver serie" else "Ver ahora",
+                    primary = true,
+                    icon = Icons.Filled.PlayArrow,
+                    modifier = Modifier
+                        .focusRequester(playFR)
+                        .onFocusChanged { onPlayFocus(it.isFocused) }
+                ) {
+                    val movie = hero.movie
+                    val series = hero.series
+                    if (movie != null) vm.playMovie(context, movie, info = info) else if (series != null) vm.openSeries(series)
+                }
+                SlantButton(text = "Más info") {
+                    val movie = hero.movie
+                    val series = hero.series
+                    if (movie != null) vm.openMovie(movie) else if (series != null) vm.openSeries(series)
+                }
+                val favKind = if (hero.series != null) Kind.SERIES else Kind.MOVIES
+                val favId = hero.movie?.id ?: hero.series?.id
+                if (favId != null) {
+                    val fav = vm.isFavorite(favKind, favId)
+                    SlantButton(
+                        text = if (fav) "En mi lista" else "Mi lista",
+                        icon = if (fav) Icons.Filled.Check else Icons.Filled.Add
+                    ) { vm.toggleFavorite(favKind, favId) }
                 }
             }
         }
     }
 }
 
+private fun heroMeta(hero: HeroItem, info: MovieInfo?): String {
+    val parts = mutableListOf<String>()
+    val movie = hero.movie
+    if (movie != null) {
+        info?.releaseDate?.take(4)?.takeIf { it.length == 4 }?.let { parts += it }
+        info?.genre?.takeIf { it.isNotBlank() }?.let { g ->
+            parts += g.split(',', '/').map { it.trim() }.filter { it.isNotEmpty() }.take(2).joinToString(", ")
+        }
+        info?.duration?.takeIf { it.isNotBlank() }?.let { parts += it }
+        if (movie.rating10 >= 0.5f) parts += "★ " + String.format(java.util.Locale.US, "%.1f", movie.rating10)
+        parts += "HD"
+    } else {
+        val series = hero.series ?: return ""
+        parts += "Serie"
+        if (series.rating10 >= 0.5f) parts += "★ " + String.format(java.util.Locale.US, "%.1f", series.rating10)
+    }
+    return parts.joinToString("  ·  ")
+}
+
+// ------------------------------------------------------------------ canal en vivo
+
 @Composable
-private fun BottomBarButton(
-    label: String,
-    glyph: Glyph,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    badge: Int = 0
+private fun LiveTile(
+    vm: AppViewModel,
+    channel: LiveChannel?,
+    loading: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit
 ) {
+    val epg by produceState<List<com.example.mitvplayer.data.EpgEntry>?>(null, channel?.id) {
+        value = channel?.let {
+            try {
+                vm.epgFor(it.id)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                null
+            }
+        }
+    }
+    val nowSec = System.currentTimeMillis() / 1000
+    val current = epg?.firstOrNull { nowSec >= it.start && nowSec < it.end }
+    val progress = current?.let { ((nowSec - it.start).toFloat() / (it.end - it.start).coerceAtLeast(1)).coerceIn(0f, 1f) }
     FocusCard(
         onClick = onClick,
-        modifier = modifier.height(52.dp),
-        shape = RoundedCornerShape(6.dp),
+        modifier = modifier,
+        shape = TileShape,
         scaleOnFocus = 1.03f,
-        background = Color(0x33FFFFFF),
-        focusedBackground = PanelFocusedColor
+        background = Color.Transparent,
+        focusedBackground = Color.Transparent
     ) {
-        Row(
-            modifier = Modifier
+        Box(
+            Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp),
+                .background(Brush.linearGradient(listOf(Color(0xFF0B3A5C), Color(0xFF0B1640), BackgroundColor)))
+        )
+        if (channel != null && !channel.icon.isNullOrBlank()) {
+            AsyncImage(
+                model = channel.icon,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 18.dp)
+                    .size(110.dp)
+                    .graphicsLayer { alpha = 0.18f }
+            )
+        }
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(Brush.verticalGradient(0.3f to Color.Transparent, 1f to BackgroundColor.copy(alpha = 0.92f)))
+        )
+        LiveBadge(modifier = Modifier.padding(12.dp))
+        Row(
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            GlyphIcon(glyph, Modifier.size(28.dp))
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                if (channel != null) ChannelLogo(icon = channel.icon, name = channel.name, size = 34.dp)
+            }
             Spacer(Modifier.width(10.dp))
-            Text(
-                label,
-                color = TextPrimary,
-                fontSize = 12.sp,
-                lineHeight = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                modifier = Modifier.weight(1f)
-            )
-            if (badge > 0) {
-                Box(
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(AccentColor)
-                        .padding(horizontal = 7.dp, vertical = 2.dp)
-                ) {
-                    Text(badge.toString(), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = (channel?.name ?: if (loading) "Cargando canales…" else "TV en vivo").uppercase(),
+                    style = sporty(14f),
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = current?.title?.takeIf { it.isNotBlank() } ?: if (channel != null) "En vivo ahora" else "Elige un canal en En vivo",
+                    color = TextSecondary,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (progress != null) ProgressBar(progress, Modifier.fillMaxWidth().padding(top = 6.dp))
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ continuar viendo
+
+@Composable
+private fun ContinueTile(vm: AppViewModel, modifier: Modifier, fallback: SeriesItem?) {
+    val context = LocalContext.current
+    val entry = vm.resumeEntries.firstOrNull()
+    val image: String?
+    val kicker: String
+    val title: String
+    val subtitle: String
+    val fraction: Float?
+    val action: () -> Unit
+    when {
+        entry != null -> {
+            image = entry.image
+            kicker = "CONTINUAR VIENDO"
+            title = entry.title
+            subtitle = entry.subtitle?.takeIf { it.isNotBlank() } ?: ("Te quedaste en " + formatDuration(entry.positionMs / 1000))
+            fraction = if (entry.durationMs > 0) entry.fraction else null
+            action = { vm.playResume(context, entry) }
+        }
+        fallback != null -> {
+            image = fallback.cover
+            kicker = "SERIE NUEVA"
+            title = fallback.name
+            subtitle = "Temporadas y episodios"
+            fraction = null
+            action = { vm.openSeries(fallback) }
+        }
+        else -> {
+            image = null
+            kicker = "CONTINUAR VIENDO"
+            title = "Aquí aparece lo que dejes a medias"
+            subtitle = "Películas y episodios"
+            fraction = null
+            action = { vm.open(Screen.Continue) }
+        }
+    }
+    FocusCard(
+        onClick = action,
+        modifier = modifier,
+        shape = TileShape,
+        scaleOnFocus = 1.03f,
+        background = Color(0x14FFFFFF),
+        focusedBackground = Color(0x22FFFFFF)
+    ) {
+        Row(Modifier.fillMaxSize()) {
+            Box(
+                Modifier
+                    .width(140.dp)
+                    .fillMaxHeight()
+                    .background(PanelColor)
+            ) {
+                if (!image.isNullOrBlank()) {
+                    AsyncImage(model = image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 }
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Brush.horizontalGradient(0.55f to Color.Transparent, 1f to BackgroundColor.copy(alpha = 0.9f)))
+                )
+            }
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(kicker, color = AccentLight, fontSize = 7.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.5.sp)
+                Text(
+                    title.uppercase(),
+                    style = sporty(14f),
+                    color = Color.White,
+                    lineHeight = 15.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                Text(subtitle, color = TextSecondary, fontSize = 9.sp, fontWeight = FontWeight.Medium, maxLines = 1, modifier = Modifier.padding(top = 3.dp))
+                if (fraction != null) ProgressBar(fraction, Modifier.fillMaxWidth().padding(top = 8.dp))
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------ filas
+
+@Composable
+private fun PosterRow(title: String, subtitle: String?, list: List<HeroItem>, vm: AppViewModel, onFocus: (HeroItem) -> Unit) {
+    Column(Modifier.padding(top = 16.dp)) {
+        SectionTitle(title, subtitle, Modifier.padding(start = 36.dp, bottom = 8.dp))
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 36.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(list, key = { it.key }) { item ->
+                val movie = item.movie
+                val series = item.series
+                UltraPosterCard(
+                    title = movie?.name ?: series?.name ?: "",
+                    imageUrl = movie?.poster ?: series?.cover,
+                    rating10 = movie?.rating10 ?: series?.rating10 ?: 0f,
+                    favorite = false,
+                    width = 92.dp,
+                    onFocus = { onFocus(item) },
+                    onClick = {
+                        if (movie != null) vm.openMovie(movie) else if (series != null) vm.openSeries(series)
+                    }
+                )
             }
         }
     }

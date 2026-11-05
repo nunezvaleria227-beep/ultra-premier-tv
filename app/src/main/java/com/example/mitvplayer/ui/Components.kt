@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -93,12 +94,12 @@ fun FocusCard(
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) scaleOnFocus else 1f, label = "focusScale")
     val borderColor = when {
-        focused -> AccentColor
-        selected -> AccentColor.copy(alpha = 0.55f)
+        focused -> FocusRingColor
+        selected -> AccentColor.copy(alpha = 0.75f)
         else -> Color.Transparent
     }
     val borderWidth = when {
-        focused -> 3.dp
+        focused -> 2.5.dp
         selected -> 2.dp
         else -> 0.dp
     }
@@ -106,6 +107,8 @@ fun FocusCard(
         modifier = modifier
             .onFocusChanged { focused = it.isFocused }
             .scale(scale)
+            // brillo azul alrededor de lo que está enfocado
+            .shadow(if (focused) 16.dp else 0.dp, shape, ambientColor = AccentColor, spotColor = AccentLight)
             .clip(shape)
             .background(if (focused) focusedBackground else background, shape)
             .border(borderWidth, borderColor, shape)
