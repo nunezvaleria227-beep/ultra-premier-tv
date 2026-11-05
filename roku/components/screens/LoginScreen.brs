@@ -54,7 +54,7 @@ sub onAutoLogin()
             account = { exp: toI(a.exp), maxCon: toI(a.maxCon), activeCon: toI(a.activeCon), status: toS(a.status), user: toS(a.user) }
         end if
     end if
-    m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: account, liveExt: liveExt, manual: false, restored: true }
+    m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: account, liveExt: liveExt, base: regRead("base"), manual: false, restored: true }
 end sub
 
 sub onSelected(event as Object)
@@ -168,7 +168,7 @@ sub onLogin(event as Object)
     if resp.ok = true
         if regRead("lastTry") <> "" then regDelete("lastTry")
         m.lastTry.text = ""
-        m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: resp.account, liveExt: resp.liveExt, manual: manual, restored: false }
+        m.top.event = { type: "loggedIn", user: m.user, pass: m.pass, account: resp.account, liveExt: resp.liveExt, base: resp.base, manual: manual, restored: false }
     else
         setError(resp.error)
         ' No funcionó: no queda guardada una cuenta sin comprobar.

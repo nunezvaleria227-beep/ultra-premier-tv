@@ -179,6 +179,7 @@ sub onEvent(event as Object)
         regDelete("pass")
         regDelete("account")
         regDelete("liveExt")
+        regDelete("base")
         m.prefetchUser = ""
         cacheClear()
         m.global.session = { parental: true }
@@ -198,8 +199,11 @@ sub onLoggedIn(e as Object)
     regWrite("liveExt", toS(e.liveExt))
     if e.account <> invalid then regWrite("account", FormatJson(e.account))
     parental = (regRead("parental") <> "0")
+    b = toS(e.base)
+    if b = "" then b = portalBase()
+    regWrite("base", b)
     m.global.session = {
-        base: portalBase()
+        base: b
         user: toS(e.user)
         pass: toS(e.pass)
         liveExt: toS(e.liveExt)
@@ -250,6 +254,10 @@ sub onSessionChecked(event as Object)
             fresh[k] = s[k]
         end for
         fresh.liveExt = toS(resp.liveExt)
+        if toS(resp.base) <> ""
+            fresh.base = toS(resp.base)
+            regWrite("base", fresh.base)
+        end if
         fresh.account = resp.account
         m.global.session = fresh
     else if resp.authFailed = true
@@ -257,6 +265,7 @@ sub onSessionChecked(event as Object)
         regDelete("pass")
         regDelete("account")
         regDelete("liveExt")
+        regDelete("base")
         regWrite("lastTry", "Tu sesión ya no es válida. Escribe tu usuario y contraseña otra vez.")
         m.prefetchUser = ""
         cacheClear()

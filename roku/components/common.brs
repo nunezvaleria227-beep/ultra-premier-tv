@@ -4,6 +4,11 @@ function appVersion() as String
     return "1.0"
 end function
 
+' Servidores de respaldo: si el principal no contesta o no acepta la cuenta, se prueban en orden.
+function serverList() as Object
+    return [portalBase(), "http://gazyd.club:8880"]
+end function
+
 function portalBase() as String
     return "http://ultrapremiertv.vip"
 end function

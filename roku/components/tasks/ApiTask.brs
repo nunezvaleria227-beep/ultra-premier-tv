@@ -39,13 +39,43 @@ end function
 ' ----------------------------------------------------------------- inicio de sesión
 
 function doLogin(req as Object, res as Object) as Object
-    url = portalBase() + "/player_api.php?username=" + urlEscape(toS(req.user)) + "&password=" + urlEscape(toS(req.pass))
-    ' Para entrar se espera menos que en las demás consultas: si el servidor no contesta, la persona lo sabe pronto.
-    info = httpGetInfo(url, 12000)
-    if info.body = invalid
+    ' Se prueba el servidor principal y luego los de respaldo, con el mismo usuario y contraseña.
+    servers = serverList()
+    authRes = invalid
+    netRes = invalid
+    for each base in servers
+        r = loginAt(base, req, 12000)
+        if r.ok = true then return copyLogin(r, res)
+        if r.authFailed = true
+            if authRes = invalid then authRes = r
+        else if netRes = invalid
+            netRes = r
+        end if
+    end for
+    if authRes = invalid
+        ' Ningún servidor contestó: una última vez el principal, esperando más.
         Sleep(500)
-        info = httpGetInfo(url, 18000)
+        r = loginAt(servers[0], req, 18000)
+        if r.ok = true then return copyLogin(r, res)
+        if r.authFailed = true then authRes = r
     end if
+    pick = authRes
+    if pick = invalid then pick = netRes
+    return copyLogin(pick, res)
+end function
+
+function copyLogin(src as Object, res as Object) as Object
+    for each k in src
+        res[k] = src[k]
+    end for
+    return res
+end function
+
+function loginAt(base as String, req as Object, timeoutMs as Integer) as Object
+    res = { base: base }
+    url = base + "/player_api.php?username=" + urlEscape(toS(req.user)) + "&password=" + urlEscape(toS(req.pass))
+    ' Para entrar se espera menos que en las demás consultas: si el servidor no contesta, la persona lo sabe pronto.
+    info = httpGetInfo(url, timeoutMs)
     json = invalid
     if info.body <> invalid then json = ParseJson(info.body)
     if json = invalid
