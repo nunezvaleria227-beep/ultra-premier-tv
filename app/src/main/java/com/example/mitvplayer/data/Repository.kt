@@ -26,6 +26,11 @@ class Repository(
     private val cacheDir: File = File(appContext.cacheDir, "catalogs").also { it.mkdirs() }
     private val networkPrefs = appContext.getSharedPreferences(NETWORK_FILE, Context.MODE_PRIVATE)
 
+    init {
+        // La identificación (User-Agent) que el servidor aceptó la última vez se usa desde el arranque.
+        networkPrefs.getString(KEY_USER_AGENT, null)?.takeIf { it.isNotBlank() }?.let { Config.userAgent = it }
+    }
+
     var credentials: Credentials? = null
         private set
     var account: AccountInfo? = null
@@ -69,6 +74,36 @@ class Repository(
     // ------------------------------------------------------------------ sesión
 
     fun savedCredentials(): Credentials? = session.load()
+
+    /**
+     * Si el servidor rechaza la identificación actual con 401/403, prueba las otras de [Config.userAgentOptions]
+     * y se queda con la primera que funcione.
+     */
+    private fun <T> withAnyAgent(block: () -> T): T {
+        try {
+            return block()
+        } catch (first: AccessDeniedException) {
+            val original = Config.userAgent
+            for (agent in Config.userAgentOptions()) {
+                if (agent == original) continue
+                Config.userAgent = agent
+                try {
+                    val result = block()
+                    rememberUserAgent(agent)
+                    return result
+                } catch (e: AccessDeniedException) {
+                    // Esta tampoco: se prueba la siguiente.
+                }
+            }
+            Config.userAgent = original
+            throw first
+        }
+    }
+
+    /** Guarda la identificación (User-Agent) que el servidor aceptó para reproducir. */
+    fun rememberUserAgent(agent: String) {
+        networkPrefs.edit().putString(KEY_USER_AGENT, agent).apply()
+    }
 
     suspend fun login(input: Credentials, remember: Boolean): AccountInfo {
         val normalized = input.copy(server = api.normalizeServer(input.server))
@@ -164,7 +199,7 @@ class Repository(
         var categories: List<Category>? = if (!force && fresh) readCategories(categoriesFile) else null
         val categoriesFromDisk = categories != null
         if (categories == null) {
-            categories = api.categories(c, kind.categoriesAction)
+            categories = withAnyAgent { api.categories(c, kind.categoriesAction) }
             saveCategories(categoriesFile, categories)
         }
         val afterCategories = System.nanoTime()
@@ -180,7 +215,7 @@ class Repository(
         }
         if (items == null) {
             source = "red"
-            api.downloadList(c, kind.streamsAction, file)
+            withAnyAgent { api.downloadList(c, kind.streamsAction, file) }
             var parsed = parse(file, "")
             if (parsed.isEmpty() && categories.isNotEmpty()) {
                 // Hay servidores que no permiten pedir "todo"; se piden las categorías una por una.

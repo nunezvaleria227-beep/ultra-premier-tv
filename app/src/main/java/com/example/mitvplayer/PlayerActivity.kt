@@ -121,6 +121,18 @@ class PlayerActivity : ComponentActivity() {
     private var index = 0
     private var resumePositionMs = 0L
     private var retryCount = 0
+
+    /** Conexión HTTP del reproductor (se le puede cambiar la identificación sobre la marcha). */
+    private var httpFactory: DefaultHttpDataSource.Factory? = null
+
+    /**
+     * Si el servidor contesta 401/403 ("acceso denegado"), se prueban otras formas de pedir el mismo video:
+     * otra identificación (User-Agent) y, en vivo, el otro formato (m3u8 ↔ ts). Cada par es (identificación, dirección).
+     */
+    private val fallbacks = ArrayDeque<Pair<String, String>>()
+    private var fallbackStarted = false
+    private var currentAgent: String = Config.USER_AGENT
+    private var currentUrl: String = ""
     private var epgJob: Job? = null
     private var fetchingSubs = false
 
@@ -177,6 +189,7 @@ class PlayerActivity : ComponentActivity() {
                 Player.STATE_READY -> {
                     retryCount = 0
                     errorText.visibility = View.GONE
+                    if (fallbackStarted) rememberWorkingFallback()
                 }
                 Player.STATE_ENDED -> onEnded()
             }
@@ -240,6 +253,7 @@ class PlayerActivity : ComponentActivity() {
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(20_000)
+        httpFactory = dataSourceFactory
 
         val exo = ExoPlayer.Builder(this)
             .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(this, dataSourceFactory)))
@@ -301,6 +315,11 @@ class PlayerActivity : ComponentActivity() {
 
         handler.removeCallbacks(retryTask)
         retryCount = 0
+        fallbacks.clear()
+        fallbackStarted = false
+        currentAgent = Config.USER_AGENT
+        currentUrl = item.url
+        httpFactory?.setUserAgent(currentAgent)
         errorText.visibility = View.GONE
         playerView.useController = !item.isLive
         applySize(item)
@@ -353,6 +372,19 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun handleError(error: PlaybackException) {
+        val code = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+        if (code == 401 || code == 403) {
+            if (!fallbackStarted) {
+                fallbackStarted = true
+                fallbacks.clear()
+                fallbacks.addAll(buildFallbacks(items[index]))
+            }
+            val next = fallbacks.removeFirstOrNull()
+            if (next != null) {
+                tryFallback(next.first, next.second)
+                return
+            }
+        }
         if (retryCount < MAX_AUTO_RETRIES) {
             retryCount++
             errorText.text = "Reconectando… ($retryCount/$MAX_AUTO_RETRIES)"
@@ -370,6 +402,65 @@ class PlayerActivity : ComponentActivity() {
         errorText.text = "No se pudo reproducir este contenido ($detail).\n\n" +
             "Pulsa OK para reintentar o Atrás para salir."
         errorText.visibility = View.VISIBLE
+    }
+
+    /** Otras formas de pedir el video actual: primero otras identificaciones y, en vivo, el otro formato. */
+    private fun buildFallbacks(item: PlayItem): List<Pair<String, String>> {
+        val agents = (listOf(Config.USER_AGENT) + Config.userAgentOptions()).distinct()
+        val urls = listOfNotNull(item.url, if (item.isLive) swapLiveFormat(item.url) else null)
+        val out = ArrayList<Pair<String, String>>()
+        for (url in urls) {
+            for (agent in agents) {
+                if (agent == currentAgent && url == item.url) continue
+                out += agent to url
+            }
+        }
+        return out
+    }
+
+    /** ".../123.m3u8" ↔ ".../123.ts" (null si la dirección no termina en ninguno de los dos). */
+    private fun swapLiveFormat(url: String): String? = when {
+        url.endsWith(".m3u8") -> url.removeSuffix(".m3u8") + ".ts"
+        url.endsWith(".ts") -> url.removeSuffix(".ts") + ".m3u8"
+        else -> null
+    }
+
+    private fun tryFallback(agent: String, url: String) {
+        val exo = player ?: return
+        val item = items[index]
+        currentAgent = agent
+        currentUrl = url
+        httpFactory?.setUserAgent(agent)
+        handler.removeCallbacks(retryTask)
+        errorText.text = "Conectando de otra forma…"
+        errorText.visibility = View.VISIBLE
+        val position = if (item.isLive) 0L else exo.currentPosition.coerceAtLeast(0L)
+        val media = buildMediaItem(item.copy(url = url))
+        if (item.isLive || position <= 0L) exo.setMediaItem(media) else exo.setMediaItem(media, position)
+        exo.prepare()
+        exo.playWhenReady = true
+    }
+
+    /** La otra forma funcionó: se usa desde ahora en toda la app (y en los demás canales de la lista). */
+    private fun rememberWorkingFallback() {
+        fallbackStarted = false
+        fallbacks.clear()
+        val repo = (application as MiTvApp).repository
+        if (currentAgent != Config.USER_AGENT) {
+            Config.userAgent = currentAgent
+            repo.rememberUserAgent(currentAgent)
+        }
+        val item = items[index]
+        if (item.isLive && currentUrl != item.url) {
+            val format = if (currentUrl.endsWith(".ts")) "ts" else "m3u8"
+            repo.liveFormat = format
+            items = items.map { other ->
+                if (!other.isLive) other else {
+                    val swapped = swapLiveFormat(other.url)
+                    if (swapped != null && !other.url.endsWith(".$format")) other.copy(url = swapped) else other
+                }
+            }
+        }
     }
 
     private fun retryPlayback() {
