@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
-"""Arma el canal de Roku con la marca "Facst Play TV" a partir de la carpeta roku/.
+"""Arma canales de Roku con otra marca a partir de la carpeta roku/ (Ultra Premier TV NO se toca).
 
+Marcas: facst (Facst Play TV), lumina (Lumina TV), redmax (Red Max Plus).
 Copia roku/, cambia el nombre en el manifest y en los textos visibles, dibuja el
-logo / splash / íconos de Facst Play TV y deja un zip listo para instalar en un Roku
+logo / splash / íconos de la marca y deja un zip listo para instalar en un Roku
 en modo desarrollador (y de ahí sacar el .pkg con el Packager).
 
-Para usar el logo propio de la marca en vez del que dibuja este guion:
-    python3 tools/roku_facst.py --logo mi_logo.png --build 2
+    python3 tools/roku_marcas.py --marca todas --build 1
+    python3 tools/roku_marcas.py --marca lumina --logo mi_logo.png --build 2
+
+Con --logo se usa el logo propio de la marca (PNG con fondo transparente) en vez del que dibuja este guion.
 
 NO se cambian a propósito el nombre del registro ("UltraPremierTV") ni el User-Agent
 de las peticiones: son internos, la gente no los ve, y el servidor del proveedor ya
@@ -24,10 +27,22 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 FONTS = ROOT / "app/src/main/res/font"
-NAME = "Facst Play TV"
-BLUE_TOP, BLUE_BOTTOM = (47, 108, 240), (6, 34, 140)
-NAVY = (4, 12, 48)
-ACCENT = (0, 87, 253)
+BRANDS = {
+    "facst": dict(name="Facst Play TV", slug="FacstPlayTV", l1="FACST", l2="PLAY TV",
+                  top=(47, 108, 240), bottom=(6, 34, 140), dark=(4, 12, 48), accent=(0, 87, 253)),
+    "lumina": dict(name="Lumina TV", slug="LuminaTV", l1="LUMINA", l2="TV",
+                   top=(255, 60, 172), bottom=(91, 15, 122), dark=(31, 10, 36), accent=(196, 18, 111)),
+    "redmax": dict(name="Red Max Plus", slug="RedMaxPlus", l1="RED MAX", l2="PLUS",
+                   top=(46, 4, 6), bottom=(0, 0, 0), dark=(0, 0, 0), accent=(230, 8, 20)),
+}
+NAME = BLUE_TOP = BLUE_BOTTOM = NAVY = ACCENT = L1 = L2 = None
+
+
+def apply_brand(key):
+    global NAME, BLUE_TOP, BLUE_BOTTOM, NAVY, ACCENT, L1, L2
+    b = BRANDS[key]
+    NAME, L1, L2 = b["name"], b["l1"], b["l2"]
+    BLUE_TOP, BLUE_BOTTOM, NAVY, ACCENT = b["top"], b["bottom"], b["dark"], b["accent"]
 
 
 def font(name, size):
@@ -43,7 +58,7 @@ def shear(im, k):
 
 
 def make_logo(width=628):
-    """Logo transparente: FACST grande, y debajo PLAY TV en un bloque azul."""
+    """Logo transparente: palabra grande arriba y debajo la segunda palabra en un bloque de color."""
     S = 3  # se dibuja al triple y se reduce, para bordes suaves
     W, H = width * S, int(width * 0.568) * S
     im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -52,7 +67,7 @@ def make_logo(width=628):
     size1 = int(H * 0.50)
     while True:  # que el texto y su sombra quepan con margen
         f1 = font("inter_display_black_italic.otf", size1)
-        tw = d.textlength("FACST", font=f1)
+        tw = d.textlength(L1, font=f1)
         if tw <= W * 0.86:
             break
         size1 -= 4
@@ -60,18 +75,18 @@ def make_logo(width=628):
     y1 = int(H * 0.04)
     sh = int(H * 0.035)
     # sombra / contorno oscuro
-    d.text((x1 + sh, y1 + sh), "FACST", font=f1, fill=NAVY, stroke_width=int(H * 0.05), stroke_fill=NAVY)
-    d.text((x1, y1), "FACST", font=f1, fill=(255, 255, 255), stroke_width=int(H * 0.012), stroke_fill=NAVY)
+    d.text((x1 + sh, y1 + sh), L1, font=f1, fill=NAVY, stroke_width=int(H * 0.05), stroke_fill=NAVY)
+    d.text((x1, y1), L1, font=f1, fill=(255, 255, 255), stroke_width=int(H * 0.012), stroke_fill=NAVY)
     # bloque azul con PLAY TV
     f2 = font("inter_display_extra_bold_italic.otf", int(H * 0.23))
-    tw2 = d.textlength("PLAY TV", font=f2)
+    tw2 = d.textlength(L2, font=f2)
     bw, bh = int(tw2 + H * 0.20), int(H * 0.30)
     bx, by = int((W - bw) / 2), int(H * 0.60)
     skew = int(bh * 0.18)
     poly = [(bx + skew, by), (bx + bw + skew, by), (bx + bw, by + bh), (bx, by + bh)]
     d.polygon([(px + sh, py + sh) for px, py in poly], fill=NAVY)
     d.polygon(poly, fill=ACCENT, outline=NAVY)
-    d.text((bx + (bw + skew - tw2) / 2, by + bh * 0.08), "PLAY TV", font=f2, fill=(255, 255, 255))
+    d.text((bx + (bw + skew - tw2) / 2, by + bh * 0.08), L2, font=f2, fill=(255, 255, 255))
     # recorta lo vacío y reduce
     box = im.getbbox()
     im = im.crop(box)
@@ -130,10 +145,20 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--logo", help="PNG con el logo de la marca (fondo transparente)")
     ap.add_argument("--build", type=int, default=1, help="build_version del manifest")
-    ap.add_argument("--out", default=str(ROOT / "dist-facst"), help="carpeta de salida")
+    ap.add_argument("--marca", default="todas", choices=list(BRANDS) + ["todas"])
+    ap.add_argument("--out", default=str(ROOT / "dist-marcas"), help="carpeta de salida")
     a = ap.parse_args()
+    if a.marca == "todas":
+        if a.logo:
+            sys.exit("--logo se usa con una sola marca (--marca lumina, por ejemplo)")
+        for k in BRANDS:
+            build(k, a, Path(a.out) / k)
+    else:
+        build(a.marca, a, Path(a.out) / a.marca)
 
-    out = Path(a.out)
+
+def build(key, a, out):
+    apply_brand(key)
     stage = out / "stage"
     if out.exists():
         shutil.rmtree(out)
@@ -169,7 +194,7 @@ def main():
     make_card((246, 140), logo, None, 0.62).save(img / "icon_sd.png")
 
     # --- zip (solo lo que Roku necesita)
-    zpath = out / f"FacstPlayTV-Roku-build{a.build}.zip"
+    zpath = out / f"{BRANDS[key]['slug']}-Roku-build{a.build}.zip"
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         for part in ("manifest", "source", "components", "images"):
             base = stage / part
