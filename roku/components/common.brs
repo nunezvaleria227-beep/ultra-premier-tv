@@ -6,11 +6,11 @@ end function
 
 ' Servidores de respaldo: si el principal no contesta o no acepta la cuenta, se prueban en orden.
 function serverList() as Object
-    return [portalBase(), "http://gazyd.club:8880"]
+    return [portalBase(), "http://ultrapremiertv.vip", "http://gazyd.club:8880"]
 end function
 
 function portalBase() as String
-    return "http://ultrapremiertv.vip"
+    return "http://facstplaytv.vip"
 end function
 
 ' ----------------------------------------------------------------- texto y números
