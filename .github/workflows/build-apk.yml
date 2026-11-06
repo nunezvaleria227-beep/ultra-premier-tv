@@ -7,6 +7,11 @@ name: Build APK
 #    nueva se instala ENCIMA de la anterior sin desinstalar.
 #  - El enlace estable al último APK es:
 #    https://github.com/nunezvaleria227-beep/ultra-premier-tv/releases/latest/download/UltraPremierTV.apk
+#  - Este otro enlace también da SIEMPRE la versión oficial (lo usa un código de Downloader; no borrar
+#    la "release" prueba-diseno): en cada versión publicada se vuelve a subir ahí el mismo APK.
+#    https://github.com/nunezvaleria227-beep/ultra-premier-tv/releases/download/prueba-diseno/UltraPremierTV-prueba.apk
+#  - Las versiones de prueba (rama diseno-nuevo) van aparte, a:
+#    https://github.com/nunezvaleria227-beep/ultra-premier-tv/releases/download/version-prueba/UltraPremierTV-prueba.apk
 on:
   push:
     branches:
@@ -155,7 +160,21 @@ jobs:
           body_path: release-notes.md
           files: UltraPremierTV.apk
 
-      - name: Publicar versión de prueba
+      # El código de Downloader sacado con el enlace de la prueba instala la app OFICIAL:
+      # en cada versión publicada se sube ahí el mismo APK que reciben los clientes.
+      - name: Actualizar el enlace del código de Downloader (prueba-diseno)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp UltraPremierTV.apk UltraPremierTV-prueba.apk
+          gh release upload prueba-diseno UltraPremierTV-prueba.apk --clobber --repo "$GITHUB_REPOSITORY"
+          gh release edit prueba-diseno --repo "$GITHUB_REPOSITORY" --prerelease --latest=false \
+            --title "Ultra Premier TV (enlace del código de Downloader)" \
+            --notes "Aquí está siempre la versión OFICIAL de Ultra Premier TV (ahora la 1.0.${{ github.run_number }}), la misma que reciben los clientes. Este enlace lo usa un código de Downloader: no borrar." \
+            || echo "::warning::No se pudo cambiar el título de prueba-diseno (el APK sí se subió)"
+
+      - name: Preparar versión de prueba
         if: github.ref == 'refs/heads/diseno-nuevo'
         run: cp UltraPremierTV.apk UltraPremierTV-prueba.apk
 
@@ -163,10 +182,10 @@ jobs:
         if: github.ref == 'refs/heads/diseno-nuevo'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: prueba-diseno
-          name: Ultra Premier TV - versión de prueba (diseño nuevo)
+          tag_name: version-prueba
+          name: Ultra Premier TV - versión de prueba
           prerelease: true
           make_latest: false
           target_commitish: ${{ github.sha }}
-          body: "Versión de prueba del diseño nuevo. Se instala aparte como \"Ultra Premier TV prueba\"; no reemplaza a la app de los clientes."
+          body: "Versión de prueba. Se instala aparte como \"Ultra Premier TV prueba\"; no reemplaza a la app de los clientes."
           files: UltraPremierTV-prueba.apk
