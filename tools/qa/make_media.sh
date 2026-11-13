@@ -34,6 +34,6 @@ ffmpeg -y -loglevel error -f lavfi -i "smptehdbars=size=300x450" -frames:v 1 pos
 ffmpeg -y -loglevel error -f lavfi -i "mandelbrot=size=600x900" -frames:v 1 poster_m.jpg
 ffmpeg -y -loglevel error -f lavfi -i "testsrc2=size=2000x3000" -frames:v 1 -q:v 2 poster_l.jpg
 ffmpeg -y -loglevel error -f lavfi -i "mandelbrot=size=1280x720" -frames:v 1 backdrop.jpg
-ffmpeg -y -loglevel error -f lavfi -i "color=c=0x00000000:size=400x400,format=rgba,drawbox=x=60:y=60:w=280:h=280:color=0xE53935@1:t=fill" -frames:v 1 logo.png
-ffmpeg -y -loglevel error -f lavfi -i "color=c=0x00000000:size=800x300,format=rgba,drawbox=x=20:y=60:w=760:h=180:color=0x1E88E5@1:t=fill" -frames:v 1 logo_wide.png
+ffmpeg -y -loglevel error -f lavfi -i "testsrc=size=400x400" -frames:v 1 logo.png
+ffmpeg -y -loglevel error -f lavfi -i "smptebars=size=800x300" -frames:v 1 logo_wide.png
 ls -la

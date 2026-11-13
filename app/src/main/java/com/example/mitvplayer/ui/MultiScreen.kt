@@ -74,6 +74,7 @@ class MultiPlayerHost(private val context: Context) {
             .setConnectTimeoutMs(15_000)
             .setReadTimeoutMs(20_000)
         val exo = ExoPlayer.Builder(context)
+            .setLoadControl(com.example.mitvplayer.FastStart.loadControl())
             .setMediaSourceFactory(DefaultMediaSourceFactory(http))
             .build()
         // Con varias imágenes a la vez se limita la calidad para que el equipo aguante.
