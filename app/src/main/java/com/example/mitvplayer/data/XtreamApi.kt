@@ -107,7 +107,13 @@ class XtreamApi(private val client: OkHttpClient) {
      * Descarga una lista completa (canales, películas o series) directo a un archivo.
      * Con [extra] se pide solo una categoría. Al terminar reemplaza el archivo anterior.
      */
-    fun downloadList(c: Credentials, action: String, target: File, extra: Map<String, String> = emptyMap()) {
+    fun downloadList(
+        c: Credentials,
+        action: String,
+        target: File,
+        extra: Map<String, String> = emptyMap(),
+        onBytes: ((Long) -> Unit)? = null
+    ) {
         val request = Request.Builder()
             .url(apiUrl(c, action, extra))
             .header("User-Agent", Config.USER_AGENT)
@@ -123,7 +129,21 @@ class XtreamApi(private val client: OkHttpClient) {
             val body = response.body ?: throw IOException("Respuesta vacía del servidor")
             val temp = File(target.parentFile, target.name + ".tmp")
             body.byteStream().use { input ->
-                temp.outputStream().use { output -> input.copyTo(output, 64 * 1024) }
+                temp.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    var reported = 0L
+                    while (true) {
+                        val n = input.read(buffer)
+                        if (n < 0) break
+                        output.write(buffer, 0, n)
+                        total += n
+                        if (onBytes != null && total - reported >= 512 * 1024) {
+                            reported = total
+                            onBytes(total)
+                        }
+                    }
+                }
             }
             target.delete()
             if (!temp.renameTo(target)) {
@@ -134,51 +154,66 @@ class XtreamApi(private val client: OkHttpClient) {
     }
 
     fun parseLive(file: File, defaultCategory: String): List<LiveChannel> =
-        JsonStream.readArray(file, LIVE_KEYS) { m ->
-            val id = m["stream_id"] ?: return@readArray null
-            val archive = if (m["tv_archive"] == "1") {
-                (m["tv_archive_duration"]?.toIntOrNull() ?: 1).coerceAtLeast(1)
-            } else {
-                0
-            }
-            LiveChannel(
-                id = id,
-                name = m["name"] ?: "Canal $id",
-                icon = m["stream_icon"],
-                categoryId = m["category_id"] ?: defaultCategory,
-                number = m["num"]?.toIntOrNull() ?: 0,
-                archiveDays = archive,
-                added = m["added"]?.toLongOrNull() ?: 0L
-            )
-        }
+        file.inputStream().use { parseLive(it, defaultCategory) }
 
     fun parseMovies(file: File, defaultCategory: String): List<Movie> =
-        JsonStream.readArray(file, VOD_KEYS) { m ->
-            val id = m["stream_id"] ?: return@readArray null
-            Movie(
-                id = id,
-                name = m["name"] ?: "Película $id",
-                poster = m["stream_icon"],
-                categoryId = m["category_id"] ?: defaultCategory,
-                extension = m["container_extension"] ?: "mp4",
-                rating = m["rating"],
-                added = m["added"]?.toLongOrNull() ?: 0L
-            )
-        }
+        file.inputStream().use { parseMovies(it, defaultCategory) }
 
     fun parseSeries(file: File, defaultCategory: String): List<SeriesItem> =
-        JsonStream.readArray(file, SERIES_KEYS) { m ->
-            val id = m["series_id"] ?: return@readArray null
-            SeriesItem(
+        file.inputStream().use { parseSeries(it, defaultCategory) }
+
+    // Los textos que se repiten miles de veces (categoría, formato, calificación) se guardan una sola vez.
+
+    fun parseLive(input: java.io.InputStream, defaultCategory: String): List<LiveChannel> {
+        val pool = HashMap<String, String>()
+        return JsonStream.readArray(input, LIVE_KEYS) { v ->
+            val id = v[0] ?: return@readArray null
+            val archive = if (v[5] == "1" || v[5] == "true") (v[6]?.toIntOrNull() ?: 1).coerceAtLeast(1) else 0
+            LiveChannel(
                 id = id,
-                name = m["name"] ?: "Serie $id",
-                cover = m["cover"],
-                categoryId = m["category_id"] ?: defaultCategory,
-                plot = null,
-                rating = m["rating"],
-                added = m["last_modified"]?.toLongOrNull() ?: 0L
+                name = v[1] ?: "Canal $id",
+                icon = v[2],
+                categoryId = pool.getOrPut(v[3] ?: v[8] ?: defaultCategory) { v[3] ?: v[8] ?: defaultCategory },
+                number = v[4]?.toIntOrNull() ?: 0,
+                archiveDays = archive,
+                added = v[7]?.toLongOrNull() ?: 0L
             )
         }
+    }
+
+    fun parseMovies(input: java.io.InputStream, defaultCategory: String): List<Movie> {
+        val pool = HashMap<String, String>()
+        return JsonStream.readArray(input, VOD_KEYS) { v ->
+            val id = v[0] ?: return@readArray null
+            val category = v[3] ?: v[7] ?: defaultCategory
+            Movie(
+                id = id,
+                name = v[1] ?: "Película $id",
+                poster = v[2],
+                categoryId = pool.getOrPut(category) { category },
+                extension = (v[4] ?: "mp4").let { ext -> pool.getOrPut(ext) { ext } },
+                rating = v[5]?.let { r -> pool.getOrPut(r) { r } },
+                added = v[6]?.toLongOrNull() ?: 0L
+            )
+        }
+    }
+
+    fun parseSeries(input: java.io.InputStream, defaultCategory: String): List<SeriesItem> {
+        val pool = HashMap<String, String>()
+        return JsonStream.readArray(input, SERIES_KEYS) { v ->
+            val id = v[0] ?: return@readArray null
+            val category = v[3] ?: v[6] ?: defaultCategory
+            SeriesItem(
+                id = id,
+                name = v[1] ?: "Serie $id",
+                cover = v[2],
+                categoryId = pool.getOrPut(category) { category },
+                plot = null,
+                rating = v[4]?.let { r -> pool.getOrPut(r) { r } },
+                added = v[5]?.toLongOrNull() ?: 0L
+            )
+        }
+    }
 
     // ------------------------------------------------------- guía y Catch up
 
@@ -426,9 +461,9 @@ class XtreamApi(private val client: OkHttpClient) {
     }
 }
 
-private val LIVE_KEYS = setOf("stream_id", "name", "stream_icon", "category_id", "num", "tv_archive", "tv_archive_duration", "added")
-private val VOD_KEYS = setOf("stream_id", "name", "stream_icon", "category_id", "container_extension", "rating", "added")
-private val SERIES_KEYS = setOf("series_id", "name", "cover", "category_id", "rating", "last_modified")
+private val LIVE_KEYS = arrayOf("stream_id", "name", "stream_icon", "category_id", "num", "tv_archive", "tv_archive_duration", "added", "category_ids")
+private val VOD_KEYS = arrayOf("stream_id", "name", "stream_icon", "category_id", "container_extension", "rating", "added", "category_ids")
+private val SERIES_KEYS = arrayOf("series_id", "name", "cover", "category_id", "rating", "last_modified", "category_ids")
 
 
 /** Mensaje entendible para mostrar al usuario. */

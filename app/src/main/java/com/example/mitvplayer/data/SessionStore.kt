@@ -12,7 +12,8 @@ import androidx.security.crypto.MasterKey
  */
 class SessionStore(private val context: Context) {
 
-    private val secure: SharedPreferences? = createSecurePrefs()
+    // Abrir el almacén cifrado tarda (Keystore): se hace la primera vez que se usa, nunca al crear la app.
+    private val secure: SharedPreferences? by lazy { createSecurePrefs() }
     private val settings: SharedPreferences =
         context.getSharedPreferences(SETTINGS_FILE, Context.MODE_PRIVATE)
 
@@ -21,6 +22,13 @@ class SessionStore(private val context: Context) {
         set(value) {
             settings.edit().putString(KEY_LIVE_FORMAT, value).apply()
         }
+
+    /**
+     * Pista rápida (sin abrir el almacén cifrado) de si hay una sesión guardada:
+     * true / false, o null si todavía no se sabe (versiones anteriores de la app no la guardaban).
+     */
+    val hasSavedHint: Boolean?
+        get() = if (settings.contains(KEY_HAS_SESSION)) settings.getBoolean(KEY_HAS_SESSION, false) else null
 
     fun load(): Credentials? {
         val prefs = secure ?: return null
@@ -37,10 +45,12 @@ class SessionStore(private val context: Context) {
             ?.putString(KEY_USER, credentials.username)
             ?.putString(KEY_PASS, credentials.password)
             ?.apply()
+        settings.edit().putBoolean(KEY_HAS_SESSION, secure != null).apply()
     }
 
     fun clear() {
         secure?.edit()?.clear()?.apply()
+        settings.edit().putBoolean(KEY_HAS_SESSION, false).apply()
     }
 
     private fun createSecurePrefs(): SharedPreferences? {
@@ -71,5 +81,6 @@ class SessionStore(private val context: Context) {
         const val KEY_USER = "username"
         const val KEY_PASS = "password"
         const val KEY_LIVE_FORMAT = "live_format"
+        const val KEY_HAS_SESSION = "has_session"
     }
 }

@@ -1,0 +1,120 @@
+name: Prueba QA
+
+# Compila la app igual que la que se publica (release con R8), pero apuntando a un servidor de mentira con un
+# catálogo enorme, la abre en un Android virtual y mide qué tan rápido cambia de sección, si se traba o se cierra.
+# Deja capturas e informe como artefacto "qa-resultados". No publica nada.
+on:
+  workflow_dispatch:
+    inputs:
+      size:
+        description: "Tamaño del catálogo de prueba: small, big o huge"
+        required: false
+        default: "huge"
+  push:
+    branches:
+      - pulido
+    paths-ignore:
+      - "docs/**"
+      - "roku/**"
+      - "**.md"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Activar KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Video e imágenes de prueba
+        run: |
+          sudo apt-get update -y >/dev/null
+          sudo apt-get install -y ffmpeg >/dev/null
+          bash tools/qa/make_media.sh "$RUNNER_TEMP/media"
+
+      - name: Apuntar la app al servidor de prueba
+        run: |
+          CFG=$(python3 -c "import json;print(json.load(open('tools/qa/app.json'))['config_kt'])")
+          sed -i -E 's#PORTAL_URL: String = "[^"]*"#PORTAL_URL: String = "http://10.0.2.2:8880"#' "$CFG"
+          sed -i -E 's#BACKUP_URLS: List<String> = listOf\([^)]*\)#BACKUP_URLS: List<String> = emptyList()#' "$CFG"
+          sed -i -E 's#const val QA_BUILD: Boolean = false#const val QA_BUILD: Boolean = true#' "$CFG"
+          grep -n "PORTAL_URL\|BACKUP_URLS\|QA_BUILD" "$CFG"
+          # Nombres legibles en las mediciones (sin cambiar cómo se optimiza el código).
+          echo "-dontobfuscate" >> app/proguard-rules.pro
+
+      - name: Compilar (release, como la de los clientes)
+        env:
+          GITHUB_RUN_NUMBER: "9999"
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          ./gradlew assembleRelease --console=plain 2>&1 | tee build.log || {
+            grep -E "^e: |error: |What went wrong" -A2 build.log | grep -v '^--$' | head -60 | while IFS= read -r line; do echo "::error::${line}"; done
+            exit 1
+          }
+          ls -la app/build/outputs/apk/release/
+
+      - name: Servidor de prueba
+        run: |
+          nohup python3 tools/qa/mock_xtream.py --media "$RUNNER_TEMP/media" --size "${{ inputs.size || 'huge' }}" --rate 6000000 > mock.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -s "http://127.0.0.1:8880/player_api.php?username=demo&password=demo" | grep -q auth && break
+            sleep 1
+          done
+          cat mock.log
+
+      - name: Android virtual y prueba
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          profile: pixel_c
+          ram-size: 4096M
+          cores: 4
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: |
+            adb install -r -g app/build/outputs/apk/release/app-release.apk
+            python3 tools/qa/qa.py qa-out
+
+      - name: Resumen
+        if: always()
+        run: |
+          mkdir -p qa-out
+          cp mock.log qa-out/servidor.txt || true
+          curl -s http://127.0.0.1:8880/__log > qa-out/servidor-peticiones.txt || true
+          for f in qa-out/*.png; do
+            [ -f "$f" ] || continue
+            ffmpeg -loglevel error -y -i "$f" -vf scale=1280:-1 -q:v 3 "${f%.png}.jpg" && rm "$f"
+          done
+          cat qa-out/report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Guardar resultados en la rama qa-resultados
+        if: always()
+        run: |
+          cd qa-out
+          git init -q
+          git checkout -q -b qa-resultados
+          git add -A
+          git -c user.name=qa -c user.email=qa@example.com commit -q -m "Resultados de la prueba QA ${{ github.run_number }} (${{ github.sha }})"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:qa-resultados

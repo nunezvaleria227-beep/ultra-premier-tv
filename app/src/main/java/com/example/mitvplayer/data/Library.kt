@@ -18,7 +18,18 @@ class IdList(
     var ids: List<String> by mutableStateOf(readStored())
         private set
 
-    fun has(id: String): Boolean = ids.contains(id)
+    // Copia como conjunto para responder "¿es favorito?" al instante (se pregunta por cada póster en pantalla).
+    private var lookupFor: List<String>? = null
+    private var lookup: Set<String> = emptySet()
+
+    fun has(id: String): Boolean {
+        val current = ids
+        if (lookupFor !== current) {
+            lookup = current.toHashSet()
+            lookupFor = current
+        }
+        return id in lookup
+    }
 
     /** Agrega si no estaba; quita si ya estaba. */
     fun toggle(id: String) {

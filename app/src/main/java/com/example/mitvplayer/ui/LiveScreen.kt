@@ -174,6 +174,7 @@ fun LiveScreen(vm: AppViewModel, state: BrowseState<LiveChannel>, title: String,
     LaunchedEffect(state.catalog) {
         if (state.catalog != null) {
             withFrameNanos { }
+            com.example.mitvplayer.QaProbe.ready(title, "${state.items.size} canales, ${state.rows.size} filas")
             withFrameNanos { }
             // El foco va al primer canal; si la categoría está vacía, a las categorías.
             try {

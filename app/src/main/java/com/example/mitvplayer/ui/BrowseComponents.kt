@@ -137,7 +137,7 @@ fun <T : Item> SectionStatus(
     when {
         state.catalog == null && error != null -> ErrorWithRetry(message = error, onRetry = { state.retry() })
         state.catalog == null -> CenterLoading(
-            text = "Cargando la lista completa…\nLa primera vez puede tardar un poco."
+            text = state.progress ?: "Cargando la lista completa…\nLa primera vez puede tardar un poco."
         )
         state.items.isEmpty() -> CenterMessage(emptyText)
         else -> content()

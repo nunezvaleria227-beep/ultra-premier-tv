@@ -30,6 +30,38 @@ fun searchKey(text: String): String {
     return out.toString().lowercase()
 }
 
+/**
+ * Calificación de 0 a 10 a partir del texto del servidor ("7.5", "7,5", "8", "N/A", vacío...).
+ * Se hace a mano: el toFloatOrNull() de Kotlin usa una expresión regular enorme y, llamado miles de veces
+ * (al ordenar por calificación), dejaba la pantalla congelada varios segundos.
+ */
+fun parseRating(text: String?): Float {
+    if (text.isNullOrEmpty()) return 0f
+    var whole = 0f
+    var frac = 0f
+    var scale = 0.1f
+    var seenDigit = false
+    var afterPoint = false
+    for (ch in text) {
+        when {
+            ch in '0'..'9' -> {
+                seenDigit = true
+                if (afterPoint) {
+                    frac += (ch - '0') * scale
+                    scale /= 10f
+                } else {
+                    whole = whole * 10f + (ch - '0')
+                }
+            }
+            (ch == '.' || ch == ',') && !afterPoint -> afterPoint = true
+            ch == ' ' && !seenDigit -> Unit
+            else -> break
+        }
+    }
+    if (!seenDigit) return 0f
+    return (whole + frac).coerceIn(0f, 10f)
+}
+
 /** Las tres secciones que se descargan completas del servidor. */
 enum class Kind(val streamsAction: String, val categoriesAction: String, val cacheName: String) {
     LIVE("get_live_streams", "get_live_categories", "live"),
@@ -89,7 +121,10 @@ data class LiveChannel(
     override val added: Long = 0L
 ) : Item {
     override val rating10: Float get() = 0f
-    override val key: String = searchKey(name)
+    // Se calcula la primera vez que se busca u ordena (no al cargar la lista: así abre más rápido).
+    private var keyCache: String? = null
+    override val key: String
+        get() = keyCache ?: searchKey(name).also { keyCache = it }
 }
 
 data class Movie(
@@ -101,9 +136,11 @@ data class Movie(
     val rating: String?,
     override val added: Long = 0L
 ) : Item {
-    override val rating10: Float
-        get() = rating?.toFloatOrNull()?.coerceIn(0f, 10f) ?: 0f
-    override val key: String = searchKey(name)
+    override val rating10: Float = parseRating(rating)
+    // Se calcula la primera vez que se busca u ordena (no al cargar la lista: así abre más rápido).
+    private var keyCache: String? = null
+    override val key: String
+        get() = keyCache ?: searchKey(name).also { keyCache = it }
 }
 
 data class MovieInfo(
@@ -132,9 +169,11 @@ data class SeriesItem(
     val rating: String?,
     override val added: Long = 0L
 ) : Item {
-    override val rating10: Float
-        get() = rating?.toFloatOrNull()?.coerceIn(0f, 10f) ?: 0f
-    override val key: String = searchKey(name)
+    override val rating10: Float = parseRating(rating)
+    // Se calcula la primera vez que se busca u ordena (no al cargar la lista: así abre más rápido).
+    private var keyCache: String? = null
+    override val key: String
+        get() = keyCache ?: searchKey(name).also { keyCache = it }
 }
 
 data class Episode(
@@ -178,10 +217,88 @@ data class EpgEntry(
 /** Una sección completa ya descargada: categorías y todos sus elementos. */
 class Catalog<T : Item>(
     val categories: List<Category>,
-    val items: List<T>,
+    raw: List<T>,
     /** Milisegundos desde epoch en que se descargó del servidor. */
     val updatedAt: Long
 ) {
-    val byId: Map<String, T> by lazy { items.associateBy { it.id } }
-    val counts: Map<String, Int> by lazy { items.groupingBy { it.categoryId }.eachCount() }
+    /** Todo, sin repetidos (si un elemento viene en dos categorías, aquí aparece una sola vez). */
+    val items: List<T>
+
+    val byId: Map<String, T>
+
+    /** Lo de cada categoría, ya separado (sin repetidos dentro de la misma categoría). */
+    val byCategory: Map<String, List<T>>
+
+    val counts: Map<String, Int>
+
+    /** Categorías para adultos (XXX, +18…), las que esconde el control parental. */
+    val adultCategoryIds: Set<String>
+
+    /** [items] sin lo de las categorías para adultos. */
+    val itemsWithoutAdult: List<T>
+
+    /** Lo más nuevo primero (para "Recién añadido" y el inicio). */
+    val newest: List<T>
+
+    /** Lo mejor calificado primero. */
+    val topRated: List<T>
+
+    init {
+        // Todo esto se calcula una sola vez, al cargar la lista y fuera de la pantalla:
+        // así cambiar de categoría o de sección es instantáneo aunque haya cientos de miles de elementos.
+        val ids = HashMap<String, T>(raw.size * 4 / 3 + 16)
+        val unique = ArrayList<T>(raw.size)
+        val groups = HashMap<String, ArrayList<T>>()
+        var repeatedIn: HashMap<String, MutableSet<String>>? = null
+        for (item in raw) {
+            val previous = ids.putIfAbsent(item.id, item)
+            if (previous == null) {
+                unique.add(item)
+                groups.getOrPut(item.categoryId) { ArrayList() }.add(item)
+            } else if (previous.categoryId != item.categoryId) {
+                val map = repeatedIn ?: HashMap<String, MutableSet<String>>().also { repeatedIn = it }
+                val seen = map.getOrPut(item.id) { HashSet<String>(4).apply { add(previous.categoryId) } }
+                if (seen.add(item.categoryId)) groups.getOrPut(item.categoryId) { ArrayList() }.add(item)
+            }
+        }
+        items = unique
+        byId = ids
+        byCategory = groups
+        counts = HashMap<String, Int>(groups.size * 2).apply { groups.forEach { (k, v) -> put(k, v.size) } }
+        adultCategoryIds = categories.filter { isAdultCategoryName(it.name) }.mapTo(HashSet()) { it.id }
+        itemsWithoutAdult = if (adultCategoryIds.isEmpty()) unique else unique.filter { it.categoryId !in adultCategoryIds }
+        newest = topBy(unique, TOP_LIMIT) { it.added.toDouble() }.ifEmpty { unique.asReversed().take(TOP_LIMIT) }
+        topRated = topBy(unique, TOP_LIMIT) { it.rating10.toDouble() }
+    }
+
+    private companion object {
+        const val TOP_LIMIT = 400
+
+        /** Los [limit] con el valor más alto (sin ordenar toda la lista); solo los que tienen valor mayor a 0. */
+        fun <T> topBy(items: List<T>, limit: Int, value: (T) -> Double): List<T> {
+            val heap = java.util.PriorityQueue<Pair<Double, Int>>(limit + 1, compareBy({ it.first }, { -it.second }))
+            for (i in items.indices) {
+                val v = value(items[i])
+                if (v <= 0.0) continue
+                if (heap.size < limit) {
+                    heap.add(v to i)
+                } else if (v > heap.peek()!!.first) {
+                    heap.poll()
+                    heap.add(v to i)
+                }
+            }
+            val out = ArrayList<Pair<Double, Int>>(heap)
+            out.sortWith(compareBy<Pair<Double, Int>>({ -it.first }, { it.second }))
+            return out.map { items[it.second] }
+        }
+    }
 }
+
+private val ADULT_NAME = Regex(
+    "(\\bxxx\\b|\\badult(?!\\s*swim)\\w*|\\bporn\\w*|\\berotic\\w*|\\bhentai\\b|\\bplayboy\\b|" +
+        "\\bsexo\\b|\\bsexy\\b|\\bsex\\b|\\bxvideos\\b|\\bonlyfans\\b|\\bpara mayores\\b|\\bmayores de 18\\b|" +
+        "(^|\\s|\\[|\\()\\+\\s?18|(^|[^0-9])18\\s?\\+)"
+)
+
+/** Nombre de categoría de contenido para adultos (sin acentos ni mayúsculas, como en la búsqueda). */
+fun isAdultCategoryName(name: String): Boolean = ADULT_NAME.containsMatchIn(searchKey(name))

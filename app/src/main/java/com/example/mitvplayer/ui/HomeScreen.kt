@@ -101,9 +101,10 @@ fun HomeScreen(vm: AppViewModel) {
     val resume = vm.resumeEntries
     val favMovies = vm.movies.favoriteList
     val favSeries = vm.series.favoriteList
-    val newMovies = remember(movies) { movies.sortedByDescending { it.added }.take(30) }
-    val topMovies = remember(movies) { movies.filter { it.rating10 >= 7f }.sortedByDescending { it.rating10 }.take(30) }
-    val newSeries = remember(seriesItems) { seriesItems.sortedByDescending { it.added }.take(30) }
+    // Ya vienen calculadas al cargar cada lista (sin ordenar decenas de miles de títulos en pantalla).
+    val newMovies = vm.movies.newestVisible
+    val topMovies = vm.movies.topRatedVisible
+    val newSeries = vm.series.newestVisible
 
     val featured = remember(newMovies, newSeries) {
         newMovies.firstOrNull()?.let { HeroItem(movie = it) } ?: newSeries.firstOrNull()?.let { HeroItem(series = it) }
@@ -606,7 +607,7 @@ private fun PosterRow(title: String, subtitle: String?, list: List<HeroItem>, vm
             contentPadding = PaddingValues(horizontal = 36.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(list, key = { it.key }) { item ->
+            items(list.distinctBy { it.key }, key = { it.key }) { item ->
                 val movie = item.movie
                 val series = item.series
                 UltraPosterCard(

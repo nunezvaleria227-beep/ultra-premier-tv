@@ -1,6 +1,9 @@
 package com.example.mitvplayer
 
 object Config {
+    /** Compilación para la prueba automática en el emulador (la de los clientes siempre es false). */
+    const val QA_BUILD: Boolean = false
+
     /**
      * URL del portal (ej. "http://mi-servidor.com:8080").
      *

@@ -46,7 +46,9 @@ import com.example.mitvplayer.data.yearOf
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class SearchScope(val label: String) {
     ALL("Todo"),
@@ -54,6 +56,9 @@ enum class SearchScope(val label: String) {
     MOVIES("Películas"),
     SERIES("Series")
 }
+
+/** Nombre corto de la pantalla (para las mediciones de la prueba). */
+fun Screen.qaName(): String = this::class.java.name.substringAfterLast('.').substringAfterLast('$')
 
 sealed interface Screen {
     data object Login : Screen
@@ -119,6 +124,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Busca una versión nueva. [manual] = true muestra mensajes aunque no haya nada nuevo. */
     fun checkForUpdate(manual: Boolean = false) {
+        if (Config.QA_BUILD) return
         if (update is UpdateState.Downloading) return
         val app = getApplication<Application>()
         viewModelScope.launch {
@@ -193,39 +199,39 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val live = BrowseState<LiveChannel>(
         kind = Kind.LIVE,
         scope = viewModelScope,
-        fetch = { force -> repo.liveCatalog(force) },
+        fetch = { force, progress -> repo.liveCatalog(force, progress) },
         favorites = { repo.library?.favLive },
         recents = { repo.library?.recentLive },
-        blocked = { parental.blocks(it.name) }
+        hideAdult = { parental.locked }
     )
 
     /** La radio son las categorías de En vivo cuyo nombre dice "radio". */
     val radio = BrowseState<LiveChannel>(
         kind = Kind.LIVE,
         scope = viewModelScope,
-        fetch = { _ -> repo.liveCatalog(false) },
+        fetch = { _, progress -> repo.liveCatalog(false, progress) },
         favorites = { repo.library?.favLive },
         recents = { repo.library?.recentLive },
         categoryFilter = { it.name.contains("radio", ignoreCase = true) },
-        blocked = { parental.blocks(it.name) }
+        hideAdult = { parental.locked }
     )
 
     val movies = BrowseState<Movie>(
         kind = Kind.MOVIES,
         scope = viewModelScope,
-        fetch = { force -> repo.movieCatalog(force) },
+        fetch = { force, progress -> repo.movieCatalog(force, progress) },
         favorites = { repo.library?.favMovies },
         recents = { repo.library?.recentMovies },
-        blocked = { parental.blocks(it.name) }
+        hideAdult = { parental.locked }
     )
 
     val series = BrowseState<SeriesItem>(
         kind = Kind.SERIES,
         scope = viewModelScope,
-        fetch = { force -> repo.seriesCatalog(force) },
+        fetch = { force, progress -> repo.seriesCatalog(force, progress) },
         favorites = { repo.library?.favSeries },
         recents = { repo.library?.recentSeries },
-        blocked = { parental.blocks(it.name) }
+        hideAdult = { parental.locked }
     )
 
     // ----------------------------------------------------------- pantalla múltiple
@@ -237,15 +243,30 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var multiActive by mutableStateOf(0)
 
     init {
-        val stored = repo.savedCredentials()
-        if (stored != null) {
-            // Si la app trae el servidor fijo, se usa ese aunque la sesión guardada tenga otro:
-            // así, cuando el proveedor cambia de dominio, nadie tiene que cerrar sesión.
-            val saved = if (Config.PORTAL_URL.isNotBlank()) stored.copy(server = Config.PORTAL_URL) else stored
-            server = saved.server
-            username = saved.username
-            password = saved.password
-            viewModelScope.launch { doLogin(saved, remember = true) }
+        // La sesión guardada se lee fuera de la pantalla (abrir el almacén cifrado tarda en algunos equipos).
+        // Mientras tanto, si se sabe que hay sesión, ya se muestra "Entrando…".
+        if (repo.hasSavedSessionHint() != false) {
+            loginState = LoginUiState(loading = true)
+            viewModelScope.launch {
+                val stored = withContext(Dispatchers.IO) {
+                    try {
+                        repo.savedCredentials()
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                if (stored == null) {
+                    loginState = LoginUiState()
+                    return@launch
+                }
+                // Si la app trae el servidor fijo, se usa ese aunque la sesión guardada tenga otro:
+                // así, cuando el proveedor cambia de dominio, nadie tiene que cerrar sesión.
+                val saved = if (Config.PORTAL_URL.isNotBlank()) stored.copy(server = Config.PORTAL_URL) else stored
+                server = saved.server
+                username = saved.username
+                password = saved.password
+                doLogin(saved, remember = true)
+            }
         }
     }
 
@@ -343,18 +364,21 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // --------------------------------------------------------------- navegación
 
     fun open(screen: Screen) {
+        com.example.mitvplayer.QaProbe.opened(screen.qaName())
         stack = stack + screen
     }
 
     fun openMovie(movie: Movie, restoreFocus: Boolean = true) {
         movies.restoring = restoreFocus
         repo.library?.recentMovies?.touch(movie.id)
+        com.example.mitvplayer.QaProbe.opened("MovieDetails")
         stack = stack + Screen.MovieDetails(movie)
     }
 
     fun openSeries(item: SeriesItem, restoreFocus: Boolean = true) {
         series.restoring = restoreFocus
         repo.library?.recentSeries?.touch(item.id)
+        com.example.mitvplayer.QaProbe.opened("SeriesDetails")
         stack = stack + Screen.SeriesDetails(item)
     }
 
@@ -364,8 +388,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         stack = if (screen == null) listOf(root) else listOf(root, screen)
     }
 
+    /** Prueba automática: vuelve al inicio y abre la pantalla pedida (solo si ya hay sesión). */
+    fun qaOpen(screen: Screen) {
+        if (stack.firstOrNull() != Screen.Home) return
+        stack = listOf(Screen.Home)
+        open(screen)
+    }
+
     fun back() {
-        if (stack.size > 1) stack = stack.dropLast(1)
+        if (stack.size > 1) {
+            com.example.mitvplayer.QaProbe.opened(stack[stack.size - 2].qaName())
+            stack = stack.dropLast(1)
+        }
     }
 
     // ------------------------------------------------------------------ ajustes

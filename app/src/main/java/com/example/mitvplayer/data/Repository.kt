@@ -4,7 +4,9 @@ import android.content.Context
 import com.example.mitvplayer.Config
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -74,6 +76,9 @@ class Repository(
     // ------------------------------------------------------------------ sesión
 
     fun savedCredentials(): Credentials? = session.load()
+
+    /** Si hay una sesión guardada, sin abrir el almacén cifrado (null = no se sabe todavía). */
+    fun hasSavedSessionHint(): Boolean? = session.hasSavedHint
 
     /**
      * Si el servidor rechaza la identificación actual con 401/403, prueba las otras de [Config.userAgentOptions]
@@ -170,73 +175,127 @@ class Repository(
 
     // ------------------------------------------------------------ listas completas
 
-    suspend fun liveCatalog(force: Boolean = false): Catalog<LiveChannel> {
-        if (!force) liveMemory?.let { return it }
-        return loadCatalog(Kind.LIVE, force) { file, category -> api.parseLive(file, category) }
-            .also {
+    /** Un solo cargador por sección: si dos pantallas piden la misma lista a la vez, se descarga una vez. */
+    private val loadLocks = Kind.values().associateWith { Mutex() }
+
+    suspend fun liveCatalog(force: Boolean = false, onProgress: (String) -> Unit = {}): Catalog<LiveChannel> =
+        loadLocks.getValue(Kind.LIVE).withLock {
+            if (!force) liveMemory?.let { return@withLock it }
+            loadCatalog(
+                Kind.LIVE, force, { file, category -> api.parseLive(file, category) },
+                CatalogStore::readLive, CatalogStore::writeLive, onProgress
+            ).also {
                 liveMemory = it
                 siblingIndex = null
+                buildSiblingIndex(it)
             }
-    }
+        }
 
-    suspend fun movieCatalog(force: Boolean = false): Catalog<Movie> {
-        if (!force) moviesMemory?.let { return it }
-        return loadCatalog(Kind.MOVIES, force) { file, category -> api.parseMovies(file, category) }
-            .also { moviesMemory = it }
-    }
+    suspend fun movieCatalog(force: Boolean = false, onProgress: (String) -> Unit = {}): Catalog<Movie> =
+        loadLocks.getValue(Kind.MOVIES).withLock {
+            if (!force) moviesMemory?.let { return@withLock it }
+            loadCatalog(
+                Kind.MOVIES, force, { file, category -> api.parseMovies(file, category) },
+                CatalogStore::readMovies, CatalogStore::writeMovies, onProgress
+            ).also { moviesMemory = it }
+        }
 
-    suspend fun seriesCatalog(force: Boolean = false): Catalog<SeriesItem> {
-        if (!force) seriesMemory?.let { return it }
-        return loadCatalog(Kind.SERIES, force) { file, category -> api.parseSeries(file, category) }
-            .also { seriesMemory = it }
-    }
+    suspend fun seriesCatalog(force: Boolean = false, onProgress: (String) -> Unit = {}): Catalog<SeriesItem> =
+        loadLocks.getValue(Kind.SERIES).withLock {
+            if (!force) seriesMemory?.let { return@withLock it }
+            loadCatalog(
+                Kind.SERIES, force, { file, category -> api.parseSeries(file, category) },
+                CatalogStore::readSeries, CatalogStore::writeSeries, onProgress
+            ).also { seriesMemory = it }
+        }
 
+    /**
+     * Si ya hay una copia guardada en el equipo se abre de inmediato (aunque sea de ayer: la pantalla avisa y se
+     * actualiza sola en segundo plano). Si no, se descarga del servidor, se lee y se guarda la copia compacta.
+     */
     private suspend fun <T : Item> loadCatalog(
         kind: Kind,
         force: Boolean,
-        parse: (File, String) -> List<T>
+        parse: (File, String) -> List<T>,
+        readStored: (File) -> List<T>?,
+        writeStored: (File, List<T>) -> Unit,
+        onProgress: (String) -> Unit
     ): Catalog<T> = withContext(Dispatchers.IO) {
         val c = creds()
         val key = cacheKey(c)
-        val file = File(cacheDir, "${kind.cacheName}_$key.json")
+        val stored = File(cacheDir, "${kind.cacheName}_$key.bin")
+        val oldJson = File(cacheDir, "${kind.cacheName}_$key.json")
         val categoriesFile = File(cacheDir, "${kind.cacheName}_categories_$key.json")
         val started = System.nanoTime()
 
-        val fresh = file.exists() && System.currentTimeMillis() - file.lastModified() < CACHE_MAX_AGE_MS
-        // Con la lista guardada al día también se usan las categorías guardadas: se abre sin esperar a la red.
-        var categories: List<Category>? = if (!force && fresh) readCategories(categoriesFile) else null
-        val categoriesFromDisk = categories != null
-        if (categories == null) {
-            categories = withAnyAgent { api.categories(c, kind.categoriesAction) }
-            saveCategories(categoriesFile, categories)
+        if (!force) {
+            val categories = readCategories(categoriesFile)
+            if (categories != null) {
+                var source = "copia guardada"
+                var items = readStored(stored)
+                if (items == null && oldJson.exists()) {
+                    // Lista que guardó la versión anterior de la app: se convierte una sola vez.
+                    source = "lista de la versión anterior"
+                    items = try {
+                        parse(oldJson, "").takeIf { it.isNotEmpty() }
+                    } catch (e: Exception) {
+                        null
+                    }
+                    if (items != null) {
+                        writeStored(stored, items)
+                        stored.setLastModified(oldJson.lastModified())
+                    }
+                    oldJson.delete()
+                }
+                val found: List<T>? = items
+                if (!found.isNullOrEmpty()) {
+                    val catalog = Catalog(categories, found, stored.lastModified())
+                    val count = found.size
+                    PerfLog.log { "lista ${kind.cacheName}: $count elementos de la $source en ${PerfLog.ms(started)} ms" }
+                    return@withContext catalog
+                }
+            }
         }
-        val afterCategories = System.nanoTime()
 
-        var items: List<T>? = null
-        var source = "caché"
-        if (!force && fresh) {
-            items = try {
-                parse(file, "").takeIf { it.isNotEmpty() }
-            } catch (e: Exception) {
-                null
+        onProgress("Conectando con el servidor…")
+        val categories = withAnyAgent { api.categories(c, kind.categoriesAction) }
+        saveCategories(categoriesFile, categories)
+        val afterCategories = System.nanoTime()
+        val download = File(cacheDir, "${kind.cacheName}_$key.download")
+        try {
+            withAnyAgent {
+                api.downloadList(c, kind.streamsAction, download) { bytes ->
+                    onProgress("Descargando… ${"%.1f".format(bytes / 1_048_576.0)} MB")
+                }
             }
-        }
-        if (items == null) {
-            source = "red"
-            withAnyAgent { api.downloadList(c, kind.streamsAction, file) }
-            var parsed = parse(file, "")
-            if (parsed.isEmpty() && categories.isNotEmpty()) {
-                // Hay servidores que no permiten pedir "todo"; se piden las categorías una por una.
-                parsed = loadPerCategory(c, kind, categories, parse)
-                file.setLastModified(System.currentTimeMillis())
+            val afterDownload = System.nanoTime()
+            onProgress("Preparando la lista…")
+            val all = parse(download, "")
+            // Hay servidores que no permiten pedir "todo"; entonces se piden las categorías una por una.
+            val items = if (all.isEmpty() && categories.isNotEmpty()) loadPerCategory(c, kind, categories, parse, onProgress) else all
+            if (items.isNotEmpty()) writeStored(stored, items)
+            val catalog = Catalog(categories, items, System.currentTimeMillis())
+            PerfLog.log {
+                "lista ${kind.cacheName}: categorías ${(afterCategories - started) / 1_000_000} ms, " +
+                    "descarga ${(afterDownload - afterCategories) / 1_000_000} ms (${download.length() / 1024} KB), " +
+                    "lectura e índices ${PerfLog.ms(afterDownload)} ms, ${items.size} elementos"
             }
-            items = parsed
+            removeOldCopies(kind, key)
+            catalog
+        } finally {
+            download.delete()
         }
-        PerfLog.log {
-            "lista ${kind.cacheName}: categorías ${(afterCategories - started) / 1_000_000} ms (${if (categoriesFromDisk) "disco" else "red"}), " +
-                "elementos ${PerfLog.ms(afterCategories)} ms ($source), ${items.size} elementos"
+    }
+
+    /** Borra listas guardadas de otros servidores o cuentas, y las de versiones anteriores de la app. */
+    private fun removeOldCopies(kind: Kind, key: String) {
+        val prefix = "${kind.cacheName}_"
+        cacheDir.listFiles()?.forEach { file ->
+            val name = file.name
+            if (!name.startsWith(prefix) || name.startsWith("${prefix}categories_")) return@forEach
+            if (name.contains(key) && name.endsWith(".bin")) return@forEach
+            file.delete()
         }
-        Catalog(categories, items, file.lastModified())
     }
 
     private fun readCategories(file: File): List<Category>? =
@@ -272,13 +331,15 @@ class Repository(
         c: Credentials,
         kind: Kind,
         categories: List<Category>,
-        parse: (File, String) -> List<T>
+        parse: (File, String) -> List<T>,
+        onProgress: (String) -> Unit
     ): List<T> {
         val out = ArrayList<T>()
         val temp = File(cacheDir, "temp_${kind.cacheName}.json")
-        for (category in categories) {
+        categories.forEachIndexed { index, category ->
+            onProgress("Descargando categorías… ${index + 1} de ${categories.size}")
             try {
-                api.downloadList(c, kind.streamsAction, temp, mapOf("category_id" to category.id))
+                withAnyAgent { api.downloadList(c, kind.streamsAction, temp, mapOf("category_id" to category.id)) }
                 out.addAll(parse(temp, category.id))
             } catch (e: IOException) {
                 // Si una categoría falla se sigue con la siguiente.
@@ -315,15 +376,39 @@ class Repository(
     /** Otras versiones del mismo canal (mismo nombre sin HD/FHD/4K…), las que ya se sabe que tienen guía primero. */
     private fun siblingIds(streamId: String): List<String> {
         val live = liveMemory ?: return emptyList()
-        val index = siblingIndex ?: live.items.groupBy({ epgBaseKey(it.name) }, { it.id })
-            .filterKeys { it != null }
-            .mapKeys { it.key!! }
-            .also { siblingIndex = it }
+        val index = siblingIndex
+        if (index == null) {
+            // Agrupar miles de canales por nombre tarda: se hace aparte, sin trabar la pantalla.
+            buildSiblingIndex(live)
+            return emptyList()
+        }
         val key = live.byId[streamId]?.let { epgBaseKey(it.name) } ?: return emptyList()
         val others = index[key].orEmpty().filter { it != streamId }
         if (others.isEmpty()) return others
         val known = synchronized(epgCache) { others.filter { epgCache[it]?.second?.isNotEmpty() == true } }
         return (known + others.filter { it !in known }).take(MAX_SIBLINGS)
+    }
+
+    @Volatile
+    private var siblingIndexBuilding = false
+
+    private fun buildSiblingIndex(live: Catalog<LiveChannel>) {
+        synchronized(this) {
+            if (siblingIndexBuilding) return
+            siblingIndexBuilding = true
+        }
+        Thread({
+            try {
+                val built = live.items.groupBy({ epgBaseKey(it.name) }, { it.id })
+                    .filterKeys { it != null }
+                    .mapKeys { it.key!! }
+                if (liveMemory === live) siblingIndex = built
+            } catch (e: Throwable) {
+                // Sin índice: simplemente no se presta la guía entre canales hermanos.
+            } finally {
+                siblingIndexBuilding = false
+            }
+        }, "epg-hermanos").apply { priority = Thread.MIN_PRIORITY }.start()
     }
 
     /** "Ahora y después" de UN canal (sin prestar de otros), con caché. Los vacíos se recuerdan más tiempo. */
@@ -439,7 +524,7 @@ class Repository(
 
     fun episodeUrlById(id: String, extension: String): String = api.episodeUrl(creds(), id, extension)
 
-    private companion object {
+    companion object {
         const val LIBRARY_FILE = "library"
         const val NETWORK_FILE = "network"
         const val KEY_USER_AGENT = "user_agent"

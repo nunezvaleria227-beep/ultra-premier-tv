@@ -97,13 +97,6 @@ class ParentalControl(context: Context) {
         private const val MAX_FAILURES = 5
         private const val LOCK_MS = 60_000L
 
-        private val ADULT = Regex(
-            "(\\bxxx\\b|\\badult(?!\\s*swim)\\w*|\\bporn\\w*|\\berotic\\w*|\\bhentai\\b|\\bplayboy\\b|" +
-                "\\bsexo\\b|\\bsexy\\b|\\bsex\\b|\\bxvideos\\b|\\bonlyfans\\b|\\bpara mayores\\b|\\bmayores de 18\\b|" +
-                "(^|\\s|\\[|\\()\\+\\s?18|(^|[^0-9])18\\s?\\+)"
-        )
-
-        /** Nombre de categoría de contenido para adultos (sin acentos ni mayúsculas, como en la búsqueda). */
-        fun isAdultName(name: String): Boolean = ADULT.containsMatchIn(searchKey(name))
+        fun isAdultName(name: String): Boolean = isAdultCategoryName(name)
     }
 }

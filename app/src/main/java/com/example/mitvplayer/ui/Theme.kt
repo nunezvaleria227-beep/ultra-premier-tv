@@ -114,7 +114,21 @@ fun MiTvTheme(content: @Composable () -> Unit) {
     )
 }
 
-private val artCache = HashMap<Int, ImageBitmap>()
+private val artCache = java.util.concurrent.ConcurrentHashMap<Int, ImageBitmap>()
+
+/**
+ * Deja listos los fondos y logos al abrir la app, en segundo plano: así la primera vez que se entra a
+ * cada sección no hay que esperar a que se lean las imágenes.
+ */
+fun preloadArt(resources: android.content.res.Resources, ids: List<Int>) {
+    for (id in ids) {
+        try {
+            if (!artCache.containsKey(id)) artCache.putIfAbsent(id, ImageBitmap.imageResource(resources, id))
+        } catch (e: Throwable) {
+            // Si una no se puede leer, se intentará cuando se use.
+        }
+    }
+}
 
 /** Imagen de res/drawable decodificada una sola vez (las pantallas cambian seguido y así no se vuelve a leer). */
 @Composable

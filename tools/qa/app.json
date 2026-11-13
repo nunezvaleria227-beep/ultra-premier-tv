@@ -1,0 +1,41 @@
+{
+  "name": "Ultra Premier TV",
+  "pkg": "com.ultrapremier.tv",
+  "activity": "com.example.mitvplayer.MainActivity",
+  "config_kt": "app/src/main/java/com/example/mitvplayer/Config.kt",
+  "home_markers": [
+    "Ver ahora",
+    "Inicio"
+  ],
+  "labels": {
+    "live": [
+      "En vivo"
+    ],
+    "movies": [
+      "Películas"
+    ],
+    "series": [
+      "Series"
+    ],
+    "search": [
+      "Buscar"
+    ],
+    "settings": [
+      "Ajustes"
+    ]
+  },
+  "screens": {
+    "live": "Live",
+    "movies": "Movies",
+    "series": "SeriesList",
+    "settings": "Settings"
+  },
+  "play_labels": [
+    "Reproducir",
+    "Continuar"
+  ],
+  "login_button": [
+    "Entrar"
+  ],
+  "max_nav_ms": 1200
+}

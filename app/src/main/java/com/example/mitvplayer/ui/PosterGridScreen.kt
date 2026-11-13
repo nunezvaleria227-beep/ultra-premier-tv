@@ -74,6 +74,10 @@ fun <T : Item> PosterGridScreen(
         }
     }
     LaunchedEffect(state.catalog) {
+        if (state.catalog != null) {
+            withFrameNanos { }
+            com.example.mitvplayer.QaProbe.ready(noun, "${state.items.size} elementos, ${state.rows.size} filas")
+        }
         if (state.catalog != null && !state.restoring) {
             withFrameNanos { }
             withFrameNanos { }
