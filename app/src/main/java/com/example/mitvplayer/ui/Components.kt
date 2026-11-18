@@ -316,6 +316,7 @@ fun SearchField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(if (requester != null) Modifier.focusRequester(requester) else Modifier)
+                    .remoteTextInput(value, onValueChange, placeholder)
                     .onFocusChanged { focused = it.isFocused }
             )
         }

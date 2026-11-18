@@ -811,7 +811,9 @@ class PlayerActivity : ComponentActivity() {
         return super.dispatchTouchEvent(ev)
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+    override fun dispatchKeyEvent(original: KeyEvent): Boolean {
+        // Controles universales, de la tele, teclados y mandos: se usan como el control del Fire TV.
+        val event = RemoteKeys.translate(original)
         if (debuggable && event.action == KeyEvent.ACTION_DOWN) {
             android.util.Log.d(
                 "UPTV",
@@ -871,7 +873,7 @@ class PlayerActivity : ComponentActivity() {
                         if (firstPress) zap(-1)
                         return true
                     }
-                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_INFO -> {
+                    KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_INFO -> {
                         if (sizeMarked && optionsBar.visibility == View.VISIBLE && key != KeyEvent.KEYCODE_INFO) {
                             if (firstPress) {
                                 markSize(false)

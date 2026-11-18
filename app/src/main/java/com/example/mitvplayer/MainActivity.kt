@@ -42,6 +42,16 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: AppViewModel by viewModels()
 
+    // Controles universales, de la tele, teclados y mandos: sus teclas se cambian por las del control del Fire TV.
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean =
+        super.dispatchKeyEvent(RemoteKeys.translate(event))
+
+    // Mandos que mandan la cruceta como palanca: se convierte en flechas.
+    override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean {
+        if (RemoteKeys.hatToKeys(event) { dispatchKeyEvent(it) }) return true
+        return super.dispatchGenericMotionEvent(event)
+    }
+
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         if (Config.QA_BUILD) qaOpen(intent)
@@ -61,6 +71,7 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     AppRoot(viewModel)
+                    com.example.mitvplayer.ui.TvKeyboardHost()
                     LastCrashNotice()
                 }
             }

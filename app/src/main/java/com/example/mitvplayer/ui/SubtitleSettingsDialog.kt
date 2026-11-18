@@ -78,7 +78,7 @@ fun SubtitleAccountDialog(onDismiss: () -> Unit) {
                 singleLine = true,
                 colors = colors,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().remoteTextInput(apiKey, { apiKey = it }, "Clave (API key)")
             )
             OutlinedTextField(
                 value = username,
@@ -86,7 +86,7 @@ fun SubtitleAccountDialog(onDismiss: () -> Unit) {
                 label = { Text("Usuario (opcional)") },
                 singleLine = true,
                 colors = colors,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().remoteTextInput(username, { username = it }, "Usuario (opcional)")
             )
             OutlinedTextField(
                 value = password,
@@ -96,7 +96,7 @@ fun SubtitleAccountDialog(onDismiss: () -> Unit) {
                 colors = colors,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().remoteTextInput(password, { password = it }, "Contraseña", secret = true)
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

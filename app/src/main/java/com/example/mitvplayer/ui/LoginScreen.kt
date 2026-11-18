@@ -197,6 +197,7 @@ private fun SlantField(
         keyboardActions = KeyboardActions(onNext = { onAction() }, onDone = { onAction() }),
         modifier = Modifier
             .fillMaxWidth()
+            .remoteTextInput(value, onValueChange, label, secret = keyboardType == KeyboardType.Password)
             .onFocusChanged { focused = it.isFocused },
         decorationBox = { inner ->
             Row(
