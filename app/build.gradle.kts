@@ -24,10 +24,6 @@ android {
         if (System.getenv("PREVIEW") == "1") applicationIdSuffix = ".prueba"
         // Solo español e inglés: quita los idiomas de las librerías que no se usan y la app pesa menos.
         resourceConfigurations += listOf("es", "en")
-        // Los Fire TV son ARM: solo se incluyen esas versiones del decodificador de audio (la app pesa menos).
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
-        }
     }
 
     sourceSets {
@@ -139,7 +135,8 @@ dependencies {
     implementation("androidx.media3:media3-muxer:1.4.1")
 }
 
-// Saca libffmpegJNI.so (ARM) del paquete del decodificador antes de compilar.
+// Saca libffmpegJNI.so del paquete del decodificador antes de compilar. Solo ARM (los Fire TV son ARM):
+// en otros aparatos la app funciona igual, con los decodificadores de audio del aparato.
 val extractFfmpegJni by tasks.registering(Sync::class) {
     from(provider { ffmpegNative.map { zipTree(it) } }) {
         include("jni/armeabi-v7a/*.so", "jni/arm64-v8a/*.so")

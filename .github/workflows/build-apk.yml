@@ -137,6 +137,33 @@ jobs:
           echo "::notice::$(grep -m1 'Verified using v2' sign.log)"
           echo "::notice::depurable=no"
 
+      # Sonido en todos los canales: el APK debe llevar el decodificador de audio FFmpeg completo
+      # (si faltara, los canales con audio MP2/DTS volverían a quedarse mudos).
+      - name: Verificar el sonido (decodificador de audio FFmpeg)
+        run: |
+          APK=UltraPremierTV.apk
+          ok=1
+          unzip -l "$APK" > apk-files.txt
+          for abi in armeabi-v7a arm64-v8a; do
+            if grep -q "lib/$abi/libffmpegJNI.so" apk-files.txt; then
+              unzip -p "$APK" "lib/$abi/libffmpegJNI.so" > ffmpeg.so
+              if grep -aqF "Java_androidx_media3_decoder_ffmpeg_FfmpegAudioDecoder_ffmpegDecode" ffmpeg.so; then
+                echo "::notice::Sonido: FFmpeg $abi incluido ($(stat -c %s ffmpeg.so) bytes)"
+              else
+                echo "::error::lib/$abi/libffmpegJNI.so no es el decodificador esperado"; ok=0
+              fi
+            else
+              echo "::error::Falta lib/$abi/libffmpegJNI.so (decodificador de audio)"; ok=0
+            fi
+          done
+          unzip -p "$APK" 'classes*.dex' > all.dex
+          for s in 'Landroidx/media3/decoder/ffmpeg/FfmpegAudioDecoder;' 'Landroidx/media3/decoder/ffmpeg/FfmpegLibrary;' \
+                   'Landroidx/media3/decoder/SimpleDecoderOutputBuffer;' growOutputBuffer ffmpegDecode ffmpegHasDecoder; do
+            grep -aqF "$s" all.dex || { echo "::error::Falta '$s' en el código del APK (R8 lo quitó o lo renombró)"; ok=0; }
+          done
+          [ "$ok" = 1 ] && echo "::notice::Sonido: decodificador de audio completo en el APK"
+          [ "$ok" = 1 ]
+
       - name: Notas de la versión
         run: |
           {
