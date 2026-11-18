@@ -255,7 +255,7 @@ class PlayerActivity : ComponentActivity() {
             .setReadTimeoutMs(20_000)
         httpFactory = dataSourceFactory
 
-        val exo = ExoPlayer.Builder(this)
+        val exo = ExoPlayer.Builder(this, AudioSupport.renderersFactory(this))
             .setLoadControl(com.example.mitvplayer.FastStart.loadControl())
             .setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(this, dataSourceFactory)))
             .build()
@@ -325,6 +325,10 @@ class PlayerActivity : ComponentActivity() {
         playerView.useController = !item.isLive
         applySize(item)
         applyTextPreference(item)
+        // Cada canal o video empieza con su audio principal (lo elegido en otro no aplica aquí).
+        exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+            .clearOverridesOfType(C.TRACK_TYPE_AUDIO)
+            .build()
 
         var start = startPositionMs
         val tag = item.resume
@@ -373,6 +377,12 @@ class PlayerActivity : ComponentActivity() {
     }
 
     private fun handleError(error: PlaybackException) {
+        // El decodificador de audio del aparato no pudo con este canal: se vuelve a abrir leyendo el audio con FFmpeg.
+        if (AudioSupport.switchToSoftware(error)) {
+            handler.removeCallbacks(retryTask)
+            handler.postDelayed(retryTask, 300L)
+            return
+        }
         val code = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
         if (code == 401 || code == 403) {
             if (!fallbackStarted) {
@@ -564,21 +574,88 @@ class PlayerActivity : ComponentActivity() {
 
     private fun showOptionsMenu() {
         val item = items.getOrNull(index) ?: return
-        if (item.isLive) {
+        val withAudio = audioChoices().size > 1
+        if (item.isLive && !withAudio) {
             showSizeDialog()
             return
         }
+        val labels = ArrayList<String>()
+        val actions = ArrayList<() -> Unit>()
+        if (!item.isLive) {
+            labels += "Subtítulos"
+            actions += { showSubtitleDialog() }
+        }
+        if (withAudio) {
+            labels += "Audio (idioma)"
+            actions += { showAudioDialog() }
+        }
+        labels += "Tamaño de la imagen"
+        actions += { showSizeDialog() }
         AlertDialog.Builder(this)
             .setTitle("Opciones")
-            .setItems(arrayOf("Subtítulos", "Tamaño de la imagen")) { _, which ->
-                if (which == 0) showSubtitleDialog() else showSizeDialog()
-            }
+            .setItems(labels.toTypedArray()) { _, which -> actions[which]() }
             .setOnDismissListener { playerView.requestFocus() }
             .show()
     }
 
     private fun optionsFocused(): Boolean =
         ::btnSize.isInitialized && (btnSize.hasFocus() || btnSubtitles.hasFocus())
+
+    // ------------------------------------------------------------------ audio
+
+    private data class AudioChoice(
+        val group: Tracks.Group,
+        val trackIndex: Int,
+        val label: String,
+        val selected: Boolean
+    )
+
+    /** Los audios del canal o video (por ejemplo, español e inglés). */
+    private fun audioChoices(): List<AudioChoice> {
+        val exo = player ?: return emptyList()
+        val out = ArrayList<AudioChoice>()
+        for (group in exo.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_AUDIO) continue
+            for (i in 0 until group.length) {
+                if (!group.isTrackSupported(i)) continue
+                val format = group.getTrackFormat(i)
+                val name = format.label?.takeIf { it.isNotBlank() }
+                    ?: normalizedLang(format.language)?.let { languageDisplay(it) }
+                    ?: "Audio ${out.size + 1}"
+                val channels = when (format.channelCount) {
+                    1 -> " (mono)"
+                    2 -> " (estéreo)"
+                    6 -> " (5.1)"
+                    8 -> " (7.1)"
+                    else -> ""
+                }
+                out += AudioChoice(group, i, name + channels, group.isTrackSelected(i))
+            }
+        }
+        // Si dos audios se llaman igual, se numeran para distinguirlos.
+        return out.mapIndexed { n, choice ->
+            if (out.count { it.label == choice.label } > 1) choice.copy(label = "${choice.label} · ${n + 1}") else choice
+        }
+    }
+
+    /** Elegir otro audio (botón ≡ del control): sirve si un canal trae varios y el que sonaba no es el bueno. */
+    private fun showAudioDialog() {
+        val exo = player ?: return
+        val choices = audioChoices()
+        if (choices.size < 2) return
+        AlertDialog.Builder(this)
+            .setTitle("Audio")
+            .setSingleChoiceItems(choices.map { it.label }.toTypedArray(), choices.indexOfFirst { it.selected }) { dialog, which ->
+                dialog.dismiss()
+                val choice = choices[which]
+                exo.trackSelectionParameters = exo.trackSelectionParameters.buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
+                    .setOverrideForType(TrackSelectionOverride(choice.group.mediaTrackGroup, choice.trackIndex))
+                    .build()
+            }
+            .setOnDismissListener { playerView.requestFocus() }
+            .show()
+    }
 
     // ------------------------------------------------------------- subtítulos
 
@@ -827,7 +904,7 @@ class PlayerActivity : ComponentActivity() {
                 key == KeyEvent.KEYCODE_ENTER ||
                 key == KeyEvent.KEYCODE_NUMPAD_ENTER
 
-            // Teclas de opciones: Menú (≡) abre Subtítulos / Tamaño; la tecla CC abre los subtítulos.
+            // Teclas de opciones: Menú (≡) abre Subtítulos / Audio / Tamaño; la tecla CC abre los subtítulos.
             if (key == KeyEvent.KEYCODE_MENU) {
                 if (event.repeatCount == 0) showOptionsMenu()
                 return true

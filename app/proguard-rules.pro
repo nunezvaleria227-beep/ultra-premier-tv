@@ -9,3 +9,10 @@
 # Errores con número de línea legible.
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# Decodificador de audio FFmpeg: la parte nativa (libffmpegJNI.so) busca estas clases y métodos por su nombre.
+-keep class androidx.media3.decoder.ffmpeg.** { *; }
+-keep class androidx.media3.decoder.SimpleDecoderOutputBuffer { *; }
+-keepclasseswithmembernames class * {
+    native <methods>;
+}

@@ -4,6 +4,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Librerías nativas del decodificador de audio FFmpeg (se sacan de su paquete al compilar; ver "ffmpegNative" abajo).
+val ffmpegJniDir: File = layout.buildDirectory.dir("ffmpeg-aar/jni").get().asFile
+
 android {
     namespace = "com.example.mitvplayer"
     compileSdk = 35
@@ -21,6 +24,16 @@ android {
         if (System.getenv("PREVIEW") == "1") applicationIdSuffix = ".prueba"
         // Solo español e inglés: quita los idiomas de las librerías que no se usan y la app pesa menos.
         resourceConfigurations += listOf("es", "en")
+        // Los Fire TV son ARM: solo se incluyen esas versiones del decodificador de audio (la app pesa menos).
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
+    }
+
+    sourceSets {
+        getByName("main") {
+            jniLibs.srcDir(ffmpegJniDir)
+        }
     }
 
     packaging {
@@ -83,6 +96,14 @@ android {
     }
 }
 
+// Decodificador de audio FFmpeg (el que usa Jellyfin en su app para Fire TV). De ese paquete solo se toman las
+// librerías nativas (libffmpegJNI.so); el código Java que las usa es el de Media3 1.4.1, que va en
+// app/src/main/java/androidx/media3/decoder/ffmpeg (es idéntico en 1.4.1 y 1.5.0, así no se mezclan versiones).
+val ffmpegNative: Configuration by configurations.creating {
+    isTransitive = false
+    isCanBeConsumed = false
+}
+
 dependencies {
     // Compose
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
@@ -106,6 +127,9 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
+    implementation("androidx.media3:media3-decoder:1.4.1")
+    // Sonido en todos los canales (MP2, AC3, E-AC3, DTS…): ver AudioSupport.kt
+    ffmpegNative("org.jellyfin.media3:media3-ffmpeg-decoder:1.5.0+1@aar")
 
     // Instala el perfil de arranque (baseline-prof.txt) para que la app abra más rápido
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
@@ -113,4 +137,19 @@ dependencies {
     // Convertir grabaciones (.ts) a MP4
     implementation("androidx.media3:media3-transformer:1.4.1")
     implementation("androidx.media3:media3-muxer:1.4.1")
+}
+
+// Saca libffmpegJNI.so (ARM) del paquete del decodificador antes de compilar.
+val extractFfmpegJni by tasks.registering(Sync::class) {
+    from(provider { ffmpegNative.map { zipTree(it) } }) {
+        include("jni/armeabi-v7a/*.so", "jni/arm64-v8a/*.so")
+    }
+    into(ffmpegJniDir.parentFile)
+}
+tasks.named("preBuild") {
+    dependsOn(extractFfmpegJni)
+}
+// La tarea que junta las librerías nativas las lee: se declara que va después (Gradle 8 lo exige).
+tasks.matching { it.name.endsWith("JniLibFolders") }.configureEach {
+    dependsOn(extractFfmpegJni)
 }
