@@ -615,8 +615,10 @@ def demo_expiry():
     # 4) Se vence mientras ve un canal: no se queda reintentando y lleva a escribir el usuario nuevo.
     if not open_section("live"):
         return
-    keys(DOWN, wait=0.6)
-    keys(OK, wait=8)
+    keys(RIGHT, wait=0.5)  # de las categorías a los canales
+    keys(DOWN, wait=0.4)
+    keys(OK, wait=7)  # vista previa
+    keys(OK, wait=8)  # pantalla completa
     if "PlayerActivity" not in top_activity():
         log("FALLO", "Vencida viendo: no abrió el canal: " + top_activity()[-70:])
         return
