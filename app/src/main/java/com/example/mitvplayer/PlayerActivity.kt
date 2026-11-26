@@ -122,6 +122,12 @@ class PlayerActivity : ComponentActivity() {
     private var resumePositionMs = 0L
     private var retryCount = 0
 
+    /** Ya se revisó si la cuenta sigue sirviendo (se revisa una sola vez por reproducción). */
+    private var accountChecked = false
+
+    /** La cuenta se venció mientras se veía: OK o Atrás regresan a la entrada. */
+    private var accountEnded = false
+
     /** Conexión HTTP del reproductor (se le puede cambiar la identificación sobre la marcha). */
     private var httpFactory: DefaultHttpDataSource.Factory? = null
 
@@ -384,6 +390,23 @@ class PlayerActivity : ComponentActivity() {
             return
         }
         val code = (error.cause as? HttpDataSource.InvalidResponseCodeException)?.responseCode
+        // El servidor rechazó el video (4xx): puede ser que se acabó la demostración o la suscripción. Se revisa la
+        // cuenta una vez; si es eso, no se prueban otras formas ni se reintenta (cada intento fallido cuenta, y con
+        // muchos el servidor bloquea el internet del cliente) y se lleva al cliente a escribir su usuario nuevo.
+        if (code != null && code in 400..499 && !accountChecked) {
+            accountChecked = true
+            errorText.text = "Revisando tu cuenta…"
+            errorText.visibility = View.VISIBLE
+            val repo = (application as MiTvApp).repository
+            Thread({
+                val rejected = repo.checkAccount()
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    if (rejected != null) showAccountEnded(rejected.message ?: "Tu cuenta ya no está activa.") else handleError(error)
+                }
+            }, "revisar-cuenta").start()
+            return
+        }
         if (code == 401 || code == 403) {
             if (!fallbackStarted) {
                 fallbackStarted = true
@@ -490,6 +513,16 @@ class PlayerActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    /** Se acabó la cuenta (demostración o suscripción): se para todo y se avisa; OK o Atrás regresan a la entrada. */
+    private fun showAccountEnded(message: String) {
+        accountEnded = true
+        handler.removeCallbacks(retryTask)
+        player?.stop()
+        com.example.mitvplayer.data.AccountWatch.endedMessage = message
+        errorText.text = "$message\n\nPulsa OK o Atrás para escribir el usuario nuevo."
+        errorText.visibility = View.VISIBLE
     }
 
     private fun retryPlayback() {
@@ -903,6 +936,11 @@ class PlayerActivity : ComponentActivity() {
             val isOk = key == KeyEvent.KEYCODE_DPAD_CENTER ||
                 key == KeyEvent.KEYCODE_ENTER ||
                 key == KeyEvent.KEYCODE_NUMPAD_ENTER
+            // La cuenta se acabó: OK o Atrás regresan a la pantalla de entrada (ahí ya espera el usuario nuevo).
+            if (accountEnded) {
+                if ((isOk || key == KeyEvent.KEYCODE_BACK) && event.repeatCount == 0) finish()
+                return true
+            }
 
             // Teclas de opciones: Menú (≡) abre Subtítulos / Audio / Tamaño; la tecla CC abre los subtítulos.
             if (key == KeyEvent.KEYCODE_MENU) {

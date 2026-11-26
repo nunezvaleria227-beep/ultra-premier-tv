@@ -1,6 +1,7 @@
 package com.example.mitvplayer.ui
 
 import com.example.mitvplayer.data.AccessDeniedException
+import com.example.mitvplayer.data.AccountRejectedException
 import com.example.mitvplayer.data.AuthException
 import android.app.Application
 import android.Manifest
@@ -47,6 +48,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -188,6 +190,31 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     var loginState by mutableStateOf(LoginUiState())
         private set
 
+    /**
+     * Usuario y contraseña los puso la app (de la sesión guardada), no el cliente. Al empezar a escribir en uno
+     * de esos campos se vacía primero: así el usuario nuevo no se pega al viejo ("demo123cliente5").
+     */
+    var credentialsPrefilled by mutableStateOf(false)
+        private set
+
+    /** La entrada en curso (se puede cancelar desde la pantalla). */
+    private var loginJob: Job? = null
+
+    /** El cliente empieza a escribir en Usuario o en Contraseña. */
+    fun startEditingCredentials(usernameField: Boolean) {
+        if (!credentialsPrefilled) return
+        if (usernameField) username = ""
+        password = ""
+        credentialsPrefilled = false
+    }
+
+    /** "Cancelar" mientras dice "Entrando…": se deja escribir de inmediato. */
+    fun cancelLogin() {
+        loginJob?.cancel()
+        loginJob = null
+        loginState = LoginUiState()
+    }
+
     var liveFormat by mutableStateOf("m3u8")
         private set
 
@@ -247,7 +274,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // Mientras tanto, si se sabe que hay sesión, ya se muestra "Entrando…".
         if (repo.hasSavedSessionHint() != false) {
             loginState = LoginUiState(loading = true)
-            viewModelScope.launch {
+            loginJob = viewModelScope.launch {
                 val stored = withContext(Dispatchers.IO) {
                     try {
                         repo.savedCredentials()
@@ -265,7 +292,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 server = saved.server
                 username = saved.username
                 password = saved.password
-                doLogin(saved, remember = true)
+                credentialsPrefilled = true
+                doLogin(saved, remember = true, automatic = true)
             }
         }
     }
@@ -283,11 +311,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             loginState = LoginUiState(error = "Escribe tu usuario y contraseña")
             return
         }
-        val credentials = Credentials(serverValue.trim(), username.trim(), password)
-        viewModelScope.launch { doLogin(credentials, rememberMe) }
+        val credentials = Credentials(serverValue.trim(), username.trim(), password.trim())
+        loginJob?.cancel()
+        loginJob = viewModelScope.launch { doLogin(credentials, rememberMe) }
     }
 
-    private suspend fun doLogin(credentials: Credentials, remember: Boolean) {
+    private suspend fun doLogin(credentials: Credentials, remember: Boolean, automatic: Boolean = false) {
         loginState = LoginUiState(loading = true)
         // Primero el servidor principal; si no responde o rechaza la conexión, se prueban los de
         // respaldo (Config.BACKUP_URLS) con el mismo usuario y contraseña.
@@ -300,6 +329,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         for (serverUrl in servers) {
             try {
                 repo.login(credentials.copy(server = serverUrl), remember)
+                credentialsPrefilled = false
                 resetBrowsing()
                 liveFormat = repo.liveFormat
                 loginState = LoginUiState()
@@ -310,13 +340,47 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 return
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: AccountRejectedException) {
+                // El servidor contestó y la cuenta no sirve (vencida, desactivada o datos incorrectos). Probar los
+                // de respaldo solo sumaría intentos fallidos, y con muchos el servidor bloquea el internet del cliente.
+                errors += e
+                break
             } catch (e: Exception) {
                 errors += e
             }
         }
-        // Si algún servidor contestó "usuario o contraseña incorrectos", ese es el mensaje más útil.
-        val shown = errors.firstOrNull { it is AuthException && it !is AccessDeniedException } ?: errors.firstOrNull()
-        loginState = LoginUiState(error = shown?.userMessage() ?: "No se pudo entrar")
+        val rejected = errors.firstOrNull { it is AccountRejectedException } as AccountRejectedException?
+        if (rejected != null) {
+            // La cuenta guardada ya no sirve (por ejemplo, se acabó la demostración): se olvida para que la app no la
+            // vuelva a probar cada vez que se abre, y los campos quedan vacíos para escribir la nueva.
+            repo.forgetSavedSessionIf(credentials)
+            if (automatic || credentialsPrefilled) {
+                username = ""
+                password = ""
+                credentialsPrefilled = false
+            }
+        }
+        // Lo que dijo el servidor sobre la cuenta es lo más útil; si no contestó, el primer error.
+        val shown = rejected ?: errors.firstOrNull { it is AuthException && it !is AccessDeniedException } ?: errors.firstOrNull()
+        val message = shown?.userMessage() ?: "No se pudo entrar"
+        loginState = LoginUiState(error = message)
+    }
+
+    /**
+     * La cuenta dejó de servir mientras se usaba la app (el reproductor lo detectó): se cierra la sesión y la
+     * pantalla de entrada queda lista para escribir el usuario nuevo, con el aviso de qué pasó.
+     */
+    fun endSession(message: String) {
+        val rejected = repo.credentials
+        lockParental()
+        repo.logout()
+        if (rejected != null) repo.forgetSavedSessionIf(rejected)
+        resetBrowsing()
+        username = ""
+        password = ""
+        credentialsPrefilled = false
+        loginState = LoginUiState(error = message)
+        stack = listOf(Screen.Login)
     }
 
     /** Lee las tres listas en segundo plano, a la vez, para que ya estén al abrir cada sección. */

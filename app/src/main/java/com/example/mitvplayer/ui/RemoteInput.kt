@@ -23,6 +23,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -63,17 +65,26 @@ fun Modifier.remoteTextInput(
     value: String,
     onValueChange: (String) -> Unit,
     title: String,
-    secret: Boolean = false
+    secret: Boolean = false,
+    /** El texto lo puso la app (no el cliente): al empezar a escribir se vacía primero, no se escribe encima. */
+    clearFirst: Boolean = false,
+    onClearFirst: () -> Unit = {}
 ): Modifier = composed {
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val currentValue by rememberUpdatedState(value)
     val currentOnChange by rememberUpdatedState(onValueChange)
+    val currentClearFirst by rememberUpdatedState(clearFirst)
+    val currentOnClearFirst by rememberUpdatedState(onClearFirst)
     var askedSystemKeyboardAt by remember { mutableStateOf(0L) }
     var askedWithValue by remember { mutableStateOf("") }
 
     fun openKeyboard() {
+        val cleared = currentClearFirst
+        if (cleared) currentOnClearFirst()
+        val startValue = if (cleared) "" else currentValue
         val config = context.resources.configuration
         val hardKeyboard = config.keyboard == Configuration.KEYBOARD_QWERTY &&
             config.hardKeyboardHidden == Configuration.HARDKEYBOARDHIDDEN_NO
@@ -83,11 +94,19 @@ fun Modifier.remoteTextInput(
         val systemFailed = askedSystemKeyboardAt != 0L && now - askedSystemKeyboardAt < 6_000 && currentValue == askedWithValue
         if (hardKeyboard || systemFailed) {
             askedSystemKeyboardAt = 0L
-            TvKeyboard.open(title, currentValue, secret) { currentOnChange(it) }
+            TvKeyboard.open(title, startValue, secret) { currentOnChange(it) }
         } else {
             askedSystemKeyboardAt = now
-            askedWithValue = currentValue
-            keyboard?.show()
+            askedWithValue = startValue
+            if (cleared) {
+                // Primero se ve el campo vacío y luego sale el teclado (si no, el teclado agarra el texto viejo).
+                scope.launch {
+                    withFrameNanos { }
+                    keyboard?.show()
+                }
+            } else {
+                keyboard?.show()
+            }
         }
     }
 
@@ -95,6 +114,13 @@ fun Modifier.remoteTextInput(
         // Lo que manda el teclado en pantalla se deja tal cual.
         if (event.nativeKeyEvent.flags and KeyEvent.FLAG_SOFT_KEYBOARD != 0) return@onPreviewKeyEvent false
         if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        // Controles con letras (o teclados): escribir directo sobre un texto que puso la app lo reemplaza.
+        val native = event.nativeKeyEvent
+        if (currentClearFirst && native.isPrintingKey && native.unicodeChar >= 32) {
+            currentOnClearFirst()
+            currentOnChange(native.unicodeChar.toChar().toString())
+            return@onPreviewKeyEvent true
+        }
         when (event.key) {
             Key.DirectionUp -> focusManager.moveFocus(FocusDirection.Up)
             Key.DirectionDown -> focusManager.moveFocus(FocusDirection.Down)

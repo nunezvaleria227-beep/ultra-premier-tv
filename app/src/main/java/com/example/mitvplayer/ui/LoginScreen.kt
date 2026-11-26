@@ -126,7 +126,9 @@ fun LoginScreen(vm: AppViewModel) {
                 placeholder = "Escribe tu usuario",
                 keyboardType = KeyboardType.Text,
                 imeAction = ImeAction.Next,
-                onAction = { focusManager.moveFocus(FocusDirection.Down) }
+                onAction = { focusManager.moveFocus(FocusDirection.Down) },
+                clearFirst = vm.credentialsPrefilled,
+                onClearFirst = { vm.startEditingCredentials(usernameField = true) }
             )
             SlantField(
                 label = "CONTRASEÑA",
@@ -138,7 +140,9 @@ fun LoginScreen(vm: AppViewModel) {
                 onAction = {
                     focusManager.clearFocus()
                     vm.submitLogin()
-                }
+                },
+                clearFirst = vm.credentialsPrefilled,
+                onClearFirst = { vm.startEditingCredentials(usernameField = false) }
             )
             val error = state.error
             if (error != null) {
@@ -156,6 +160,15 @@ fun LoginScreen(vm: AppViewModel) {
                 enabled = !state.loading,
                 onClick = { vm.submitLogin() }
             )
+            if (state.loading) {
+                // Si tarda, el cliente no se queda atorado: puede cancelar y escribir otro usuario.
+                Spacer(Modifier.height(10.dp))
+                EnterButton(
+                    text = "CANCELAR",
+                    enabled = true,
+                    onClick = { vm.cancelLogin() }
+                )
+            }
             Text(
                 "Si tienes problemas para entrar, contacta a tu proveedor.",
                 color = TextTertiary,
@@ -175,7 +188,9 @@ private fun SlantField(
     placeholder: String,
     keyboardType: KeyboardType,
     imeAction: ImeAction,
-    onAction: () -> Unit
+    onAction: () -> Unit,
+    clearFirst: Boolean = false,
+    onClearFirst: () -> Unit = {}
 ) {
     var focused by remember { mutableStateOf(false) }
     val shape = SlantShape(8.dp)
@@ -197,7 +212,10 @@ private fun SlantField(
         keyboardActions = KeyboardActions(onNext = { onAction() }, onDone = { onAction() }),
         modifier = Modifier
             .fillMaxWidth()
-            .remoteTextInput(value, onValueChange, label, secret = keyboardType == KeyboardType.Password)
+            .remoteTextInput(
+                value, onValueChange, label, secret = keyboardType == KeyboardType.Password,
+                clearFirst = clearFirst, onClearFirst = onClearFirst
+            )
             .onFocusChanged { focused = it.isFocused },
         decorationBox = { inner ->
             Row(

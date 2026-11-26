@@ -32,24 +32,49 @@ class SessionStore(private val context: Context) {
 
     fun load(): Credentials? {
         val prefs = secure ?: return null
-        val server = prefs.getString(KEY_SERVER, null)
-        val user = prefs.getString(KEY_USER, null)
-        val pass = prefs.getString(KEY_PASS, null)
-        if (server.isNullOrBlank() || user.isNullOrBlank() || pass == null) return null
-        return Credentials(server, user, pass)
+        return try {
+            val server = prefs.getString(KEY_SERVER, null)
+            val user = prefs.getString(KEY_USER, null)
+            val pass = prefs.getString(KEY_PASS, null)
+            if (server.isNullOrBlank() || user.isNullOrBlank() || pass == null) null else Credentials(server, user, pass)
+        } catch (e: Exception) {
+            // Lo guardado ya no se puede leer (pasa en algunos equipos): se olvida, en vez de fallar cada vez.
+            forgetSecureFile()
+            null
+        }
     }
 
+    /** Recordar la sesión nunca impide entrar: si el almacén cifrado falla, solo no se recuerda. */
     fun save(credentials: Credentials) {
-        secure?.edit()
-            ?.putString(KEY_SERVER, credentials.server)
-            ?.putString(KEY_USER, credentials.username)
-            ?.putString(KEY_PASS, credentials.password)
-            ?.apply()
-        settings.edit().putBoolean(KEY_HAS_SESSION, secure != null).apply()
+        val saved = try {
+            secure?.edit()
+                ?.putString(KEY_SERVER, credentials.server)
+                ?.putString(KEY_USER, credentials.username)
+                ?.putString(KEY_PASS, credentials.password)
+                ?.apply()
+            secure != null
+        } catch (e: Exception) {
+            forgetSecureFile()
+            false
+        }
+        settings.edit().putBoolean(KEY_HAS_SESSION, saved).apply()
     }
 
     fun clear() {
-        secure?.edit()?.clear()?.apply()
+        try {
+            secure?.edit()?.clear()?.apply()
+        } catch (e: Exception) {
+            forgetSecureFile()
+        }
+        settings.edit().putBoolean(KEY_HAS_SESSION, false).apply()
+    }
+
+    private fun forgetSecureFile() {
+        try {
+            context.deleteSharedPreferences(SECURE_FILE)
+        } catch (e: Exception) {
+            // Nada más que hacer.
+        }
         settings.edit().putBoolean(KEY_HAS_SESSION, false).apply()
     }
 

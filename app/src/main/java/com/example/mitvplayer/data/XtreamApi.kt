@@ -19,17 +19,36 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.SSLException
 
 open class AuthException(message: String) : IOException(message)
 
 /** El servidor respondió 401/403: rechazó la petición antes de revisar usuario y contraseña. */
-class AccessDeniedException(code: Int) : AuthException("Acceso denegado por el servidor ($code)")
+class AccessDeniedException(val code: Int) : AuthException(
+    "El servidor no está dejando entrar desde esta conexión (código $code).\nEspera unos minutos e inténtalo otra vez."
+)
 
-/** El servidor no aceptó el usuario o la contraseña (o la cuenta no está activa). */
-class WrongCredentialsException : AuthException(
-    "Usuario o contraseña incorrectos. Revisa mayúsculas y minúsculas; si están bien, " +
-        "pide a tu proveedor que revise tu cuenta (puede estar vencida o suspendida)."
+/**
+ * El servidor sí contestó y la cuenta no sirve: datos incorrectos, vencida (demostración o suscripción) o
+ * desactivada. Reintentar (o probar los servidores de respaldo) no cambia nada; solo suma intentos fallidos,
+ * y muchos intentos fallidos hacen que el servidor bloquee por un rato el internet del cliente.
+ */
+class AccountRejectedException(val reason: Reason, message: String) : AuthException(message) {
+    /** REJECTED: el servidor no aceptó el usuario sin decir por qué (403): datos mal o cuenta vencida. */
+    enum class Reason { WRONG_CREDENTIALS, EXPIRED, DISABLED, REJECTED }
+}
+
+/** El servidor contestó 403 al usuario (no a la app): datos mal o demostración/suscripción vencida. */
+fun accountRejectedByServer() = AccountRejectedException(
+    AccountRejectedException.Reason.REJECTED,
+    "El servidor no aceptó este usuario.\nSi era una demostración, ya terminó: escribe el usuario y la contraseña nuevos " +
+        "que te enviaron (mayúsculas y minúsculas cuentan)."
+)
+
+private fun wrongCredentials() = AccountRejectedException(
+    AccountRejectedException.Reason.WRONG_CREDENTIALS,
+    "Usuario o contraseña incorrectos.\nEscríbelos igual que como te los enviaron (mayúsculas y minúsculas cuentan)."
 )
 
 /**
@@ -67,15 +86,22 @@ class XtreamApi(private val client: OkHttpClient) {
     // ------------------------------------------------------------------- login
 
     fun login(c: Credentials): AccountInfo {
-        val root = parseObject(get(apiUrl(c, null)))
-        val user = root.optJSONObject("user_info")
-            ?: throw AuthException("Usuario o contraseña incorrectos")
-        if (user.optInt("auth", 0) != 1) {
-            throw AuthException("Usuario o contraseña incorrectos")
-        }
+        // Tiempos cortos: si el servidor no contesta, se avisa pronto en vez de dejar "Entrando…" un minuto.
+        val root = parseObject(get(apiUrl(c, null), quick = true))
+        val user = root.optJSONObject("user_info") ?: throw wrongCredentials()
+        if (user.optInt("auth", 0) != 1) throw wrongCredentials()
         val status = user.str("status") ?: "Active"
+        if (status.equals("Expired", ignoreCase = true)) {
+            throw AccountRejectedException(
+                AccountRejectedException.Reason.EXPIRED,
+                "Tu demostración o tu suscripción ya terminó.\nEscribe el usuario y la contraseña nuevos que te enviaron."
+            )
+        }
         if (!status.equals("Active", ignoreCase = true)) {
-            throw AuthException("La cuenta no está activa (estado: $status)")
+            throw AccountRejectedException(
+                AccountRejectedException.Reason.DISABLED,
+                "Esta cuenta está desactivada (estado: $status).\nComunícate con quien te la vendió."
+            )
         }
         val formats = user.optJSONArray("allowed_output_formats")?.let { array ->
             (0 until array.length()).map { array.optString(it) }
@@ -361,8 +387,8 @@ class XtreamApi(private val client: OkHttpClient) {
 
     /**
      * Pide player_api.php sin usuario ni contraseña y devuelve el código HTTP (null si no hubo respuesta).
-     * Estos servidores contestan 401 cuando aceptan la identificación (User-Agent) pero faltan los datos,
-     * y 403 cuando el usuario o la contraseña están mal: así se distingue una cosa de la otra.
+     * Este servidor contesta 401 cuando acepta la app (la identificación) pero faltan los datos, y 403 cuando el
+     * usuario no sirve: así se distingue "la cuenta no sirve" de "el servidor no deja pasar a la app".
      */
     fun probe(server: String): Int? = try {
         val request = Request.Builder()
@@ -370,18 +396,27 @@ class XtreamApi(private val client: OkHttpClient) {
             .header("User-Agent", Config.USER_AGENT)
             .header("Accept", "application/json")
             .build()
-        client.newCall(request).execute().use { it.code }
+        quickClient.newCall(request).execute().use { it.code }
     } catch (e: Exception) {
         null
     }
 
-    private fun get(url: HttpUrl): String {
+    /** Para entrar: se rinde pronto si el servidor no contesta. */
+    private val quickClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(12, TimeUnit.SECONDS)
+            .callTimeout(20, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private fun get(url: HttpUrl, quick: Boolean = false): String {
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", Config.USER_AGENT)
             .header("Accept", "application/json")
             .build()
-        client.newCall(request).execute().use { response ->
+        (if (quick) quickClient else client).newCall(request).execute().use { response ->
             if (response.code == 401 || response.code == 403) {
                 throw AccessDeniedException(response.code)
             }
@@ -469,8 +504,9 @@ private val SERIES_KEYS = arrayOf("series_id", "name", "cover", "category_id", "
 /** Mensaje entendible para mostrar al usuario. */
 fun Throwable.userMessage(): String = when (this) {
     is AuthException -> message ?: "Error de autenticación"
-    is UnknownHostException -> "No se encontró el servidor. Revisa la URL y tu conexión a internet."
-    is SocketTimeoutException -> "El servidor tardó demasiado en responder."
+    is UnknownHostException -> "No se encontró el servidor.\nRevisa tu conexión a internet e inténtalo otra vez."
+    is SocketTimeoutException, is java.io.InterruptedIOException -> "El servidor tardó demasiado en responder.\nRevisa tu internet e inténtalo otra vez."
+    is java.net.ConnectException -> "No se pudo conectar con el servidor.\nRevisa tu internet e inténtalo otra vez."
     is SSLException -> "Error de conexión segura con el servidor."
     is IllegalArgumentException -> message ?: "Dirección no válida"
     else -> message ?: "Ocurrió un error inesperado"
